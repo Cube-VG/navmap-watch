@@ -10,7 +10,8 @@ import Toybox.WatchUi;
 // on Connect IQ phone messages, which Garmin Connect for Android stopped delivering (bug CIQQA-4631).
 const NAV_URL = "http://127.0.0.1:18165/nav";
 
-// Asks NavBridge for the current turn every 2 s while navigating, every 5 s otherwise.
+// Asks NavBridge for the current turn every 2 s while navigating, every second in the last 500 m before a
+// turn, every 5 s otherwise.
 class NavLink {
     var fails as Number = 0;   // requests in a row that got no answer
 
@@ -62,10 +63,13 @@ class NavLink {
                 System.println("nav answer");
             }
             fails = 0;
+            _m.lagMs = (System.getTimer() - _sentAt) / 2;
             if (_m.onPhoneMessage(data)) {
                 _m.alertUser();
             }
-            _nextAt = System.getTimer() + (_m.navActive ? 2000 : 5000);
+            // Counted from the request, less a little, so the 1 s timer that sends it doesn't skip a beat.
+            var near = _m.liveMeters >= 0 && _m.liveMeters <= 500;
+            _nextAt = _sentAt + (_m.navActive ? (near ? 1000 : 2000) : 5000) - 300;
         } else {
             fails++;
             if (fails <= 3) {

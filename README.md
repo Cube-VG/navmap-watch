@@ -6,14 +6,14 @@ A real Google map on the Garmin Forerunner 165 that follows your GPS and stays o
 
 ## What the watch app does
 One thing: while Google Maps navigates on your phone, NavMap shows it on the watch, and when the navigation ends, NavMap closes.
-- Light, high-contrast Google map (readable in sunlight) centred on your position, sliding as you move, with the next turn (Google's own arrow), the distance, the street, the ETA and the route line. It zooms out automatically with speed
+- Light, high-contrast Google map (readable in sunlight) centred on your position, sliding as you move, with the next turn (Google's own arrow), the distance, the street, the ETA and the route line (Google blue with a darker edge). Between the phone's answers the watch counts the distance down from its own GPS speed, so it keeps up on a fast bike. It zooms out automatically with speed
 - Finds your position with every satellite system the watch has (GPS, GLONASS, Galileo and BeiDou on the FR165), not only GPS, Connect IQ's default: Garmin says that's faster. It needs open sky, so indoors it can wait for GPS for good
 - Buzzes and lights the screen at each new turn and 400, 150 and 50 m before it, and keeps the screen lit for the last 120 m before a turn (at most 40 s, because the screen's burn-in protection allows no more). When the screen dims it shows only the next turn and the distance, with under 4% of the pixels lit
 - Says "Arrived" or "Navigation ended" and closes 5 s later
 - Only Back does something (it asks before exiting). Taps, swipes and the other buttons do nothing, so nothing pops up over the map
 - Maps come in three greys at 2 bits per pixel, 40-45% fewer Bluetooth bytes than v0.5's 15 colours (see "Bluetooth bytes" below)
 - Runs as a plain watch app (no activity session), so nothing is recorded
-- Gets the turns by asking NavBridge every 2 s (every 5 s when not navigating) at `http://127.0.0.1:18165/nav`. Garmin Connect makes that request on the phone, the same way it fetches the map pictures, so the turns don't depend on Connect IQ phone messages: Garmin Connect for Android accepts the watch's messages but no longer delivers them to phone apps (Garmin bug [CIQQA-4631](https://forums.garmin.com/developer/connect-iq/i/bug-reports/gcm-5-27-3-android-accepts-communications-transmit-messages-from-watch-app-but-never-delivers-them-to-the-companion-app)). Garmin Connect allows plain HTTP only to 127.0.0.1, and NavBridge answers only requests that carry the key both apps are built with
+- Gets the turns by asking NavBridge every 2 s, every second in the last 500 m before a turn (every 5 s when not navigating), at `http://127.0.0.1:18165/nav`. Garmin Connect makes that request on the phone, the same way it fetches the map pictures, so the turns don't depend on Connect IQ phone messages: Garmin Connect for Android accepts the watch's messages but no longer delivers them to phone apps (Garmin bug [CIQQA-4631](https://forums.garmin.com/developer/connect-iq/i/bug-reports/gcm-5-27-3-android-accepts-communications-transmit-messages-from-watch-app-but-never-delivers-them-to-the-companion-app)). Garmin Connect allows plain HTTP only to 127.0.0.1, and NavBridge answers only requests that carry the key both apps are built with
 
 ## What the phone app (NavBridge) does
 - Reads Google Maps' turn-by-turn notification. No Google Maps changes, no root

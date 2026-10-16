@@ -16,6 +16,11 @@ class NavModel {
     var navActive as Boolean = false;
     var distText as String = "";
     var distMeters as Number = -1;
+    // The same distance counted down with the watch's own GPS between NavBridge's answers, which come
+    // every 1-2 s and take a moment over Bluetooth: at 40 km/h that is 20-30 m.
+    var liveMeters as Number = -1;
+    var liveText as String = "";
+    var lagMs as Number = 0;                   // half the round trip of the answer being read
     var instr as String = "";
     var eta as String = "";
     var arrowRects as Array<Number>? = null;   // [x, y, w, h, ...] at 1.5x, built once per arrow
@@ -34,6 +39,11 @@ class NavModel {
     private var _holdStarted as Boolean = false;   // for the current turn
     private var _holdUntil as Number = 0;
     private var _litAt as Number = 0;
+    private var _fired as Number = 0;              // bits of ALERT_METERS already buzzed for this turn
+    private var _odo as Float = 0.0;               // metres travelled, from GPS speed
+    private var _odoAt as Number = 0;              // System.getTimer() of the fix that last added to _odo
+    private var _baseOdo as Float = 0.0;           // _odo when Google's distance last changed
+    private const MAX_COUNTDOWN = 150;             // never more than this below Google's own figure
     private var _lowQuality as Number = -2;
     private const ROUTE_STEP = 600;               // route characters decoded per step
     private var _pBytes as Array<Number>? = null; // route text being decoded, and where decodeStep() is
@@ -81,6 +91,12 @@ class NavModel {
         if (info.speed != null) {
             speed = info.speed as Float;
         }
+        // Standing still, GPS speed jitters around a few tenths of a m/s: that isn't distance travelled.
+        var now = System.getTimer();
+        if (_odoAt != 0 && now - _odoAt < 5000 && speed > 1.0) {
+            _odo += speed * (now - _odoAt) / 1000.0;
+        }
+        _odoAt = now;
         // Heading is direction of travel when moving; freeze it when slow so the arrow doesn't spin.
         if (info.heading != null && speed > 1.0) {
             heading = info.heading as Float;
@@ -132,24 +148,28 @@ class NavModel {
     private function onNav(dm as Number?, newHash as Number, rv as Number?, d as String, e as String,
             newInstr as String, data as Dictionary) as Boolean {
         var alert = false;
+        var newMeters = dm != null ? dm : -1;
         if (!navActive || !newInstr.equals(instr) || newHash != arrowHash) {
             alert = true;
             _holdStarted = false;   // a new turn gets its own lit time
+            _fired = 0;
+            liveMeters = -1;        // so the alert distances already passed don't buzz again
+            distMeters = -2;        // and the countdown restarts below
         }
-        var newMeters = dm != null ? dm : -1;
-        if (distMeters > 0 && newMeters >= 0) {
-            for (var i = 0; i < ALERT_METERS.size(); i++) {
-                var m = ALERT_METERS[i];
-                if (distMeters > m && newMeters <= m) {
-                    alert = true;
-                }
-            }
+        // Count down from Google's figure only when it changes: it repeats the same one for a while.
+        // It was already lagMs old on arrival.
+        if (newMeters != distMeters) {
+            _baseOdo = odoNow() - speed * lagMs / 1000.0;
         }
+        lagMs = 0;
         navActive = true;
         endAt = null;
         instr = newInstr;
         distText = d;
         distMeters = newMeters;
+        if (updateLive()) {
+            alert = true;
+        }
         eta = e;
         // No arrow means keep the current one; "" or [] clears it.
         var a = data["A"] as Object?;
@@ -169,6 +189,68 @@ class NavModel {
             routeVersion = rv;
         }
         return alert;
+    }
+
+    private function odoNow() as Float {
+        var ms = System.getTimer() - _odoAt;
+        return _odo + (hasFix && speed > 1.0 && ms < 2000 ? speed * ms / 1000.0 : 0.0);
+    }
+
+    // Called every second and with each answer: works out liveMeters and liveText. Returns true when an
+    // alert distance (400 / 150 / 50 m) was just crossed.
+    function updateLive() as Boolean {
+        var old = liveMeters;
+        if (distMeters < 0) {
+            liveMeters = -1;
+            liveText = distText;
+            return false;
+        }
+        var gone = (odoNow() - _baseOdo).toNumber();
+        gone = gone < 0 ? 0 : (gone > MAX_COUNTDOWN ? MAX_COUNTDOWN : gone);
+        var live = distMeters > gone ? distMeters - gone : 0;
+        liveMeters = live;
+        liveText = liveDistText(live);
+        var alert = false;
+        for (var i = 0; i < ALERT_METERS.size(); i++) {
+            var bit = 1 << i;
+            if ((_fired & bit) == 0 && live <= ALERT_METERS[i]) {
+                _fired |= bit;
+                if (old >= 0) {     // a turn that starts inside a distance doesn't buzz for it
+                    alert = true;
+                }
+            }
+        }
+        return alert;
+    }
+
+    // Google's text with the counted-down number: "350 m" becomes "320 m". Only whole numbers of metres,
+    // yards or feet are rewritten; "1.2 km" and "0.3 mi" stay as Google wrote them.
+    private function liveDistText(live as Number) as String {
+        if (live == distMeters || distMeters <= 0) {
+            return distText;
+        }
+        var chars = distText.toCharArray();
+        var n = 0;
+        var k = 0;
+        var ch = 0;
+        while (k < chars.size()) {
+            ch = chars[k].toNumber();
+            if (ch < 48 || ch > 57) {   // 0-9
+                break;
+            }
+            n = n * 10 + ch - 48;
+            k++;
+        }
+        if (k == 0 || (k < chars.size() && (ch == 46 || ch == 44))) {   // "1.2 km", "1,000 ft"
+            return distText;
+        }
+        var ratio = n.toFloat() / distMeters;   // 1 for metres, 1.09 yards, 3.28 feet, 0.001 km
+        if (ratio < 0.5) {
+            return distText;
+        }
+        var step = ratio > 2 ? 50 : 10;
+        var v = ((live * ratio / step) + 0.5).toNumber() * step;
+        return v.toString() + distText.substring(k, distText.length());
     }
 
     // "a|b|c": the first n fields and the rest (which may itself hold '|').
@@ -314,7 +396,7 @@ class NavModel {
 
     // Called every second: close to a turn, keeps the screen lit so the map is there when you look.
     function keepAwake() as Void {
-        if (!navActive || distMeters < 0 || distMeters > HOLD_METERS) {
+        if (!navActive || liveMeters < 0 || liveMeters > HOLD_METERS) {
             return;
         }
         var now = System.getTimer();

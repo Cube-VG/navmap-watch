@@ -31,6 +31,8 @@ const MAP_GROUND = 0xf7f7f5;
 const SCREEN = 390;
 const HALF = 195;
 const ROUTE_BLUE = 0x1a73e8;   // Google Maps route blue, strong on a light map
+const ROUTE_EDGE = 0x0b4fb3;   // its darker edge, which keeps the line clear of the dark roads
+const RUN_START = -99999;      // marks the start of a run of points in drawRoute
 const REQUEST_TIMEOUT_MS = 30000;
 
 // One map download. Each request gets its own callback object, so a reply that arrives after it
@@ -106,6 +108,9 @@ class MapView extends WatchUi.View {
         }
         app.tickPhone();
         app.link.tick();
+        if (_m.updateLive()) {
+            _m.alertUser();
+        }
         _m.keepAwake();
         _m.decodeStep();
         maybeFetch();
@@ -353,6 +358,8 @@ class MapView extends WatchUi.View {
         }
     }
 
+    // Google-style line: a darker blue edge under the blue, smoothed, with round bends. The screen points are
+    // worked out once and drawn twice.
     private function drawRoute(dc as Graphics.Dc, lat as Double, lon as Double, z as Number) as Void {
         var r = _m.route;
         if (r == null || r.size() < 4) {
@@ -363,24 +370,67 @@ class MapView extends WatchUi.View {
         var ky = (kx / Math.cos(lat * Math.PI / 180.0d)).toFloat();
         var lat5 = Math.round(lat * 100000.0d).toNumber();
         var lon5 = Math.round(lon * 100000.0d).toNumber();
-        dc.setColor(ROUTE_BLUE, Graphics.COLOR_TRANSPARENT);
-        dc.setPenWidth(8);
+        // Segments near the screen (cheap cull), as runs of points: a run ends where the line leaves it.
+        var pts = [] as Array<Number>;
         var px = 0;
         var py = 0;
         var prevOn = false;
         for (var i = 0; i + 1 < r.size(); i += 2) {
             var x = HALF + ((r[i + 1] - lon5) * kx).toNumber();
             var y = HALF - ((r[i] - lat5) * ky).toNumber();
-            // Only draw segments near the screen (cheap cull).
             var on = x > -400 && x < 790 && y > -400 && y < 790;
             if (i > 0 && (on || prevOn)) {
-                dc.drawLine(px, py, x, y);
+                if (!prevOn) {
+                    pts.add(RUN_START);
+                    pts.add(px);
+                    pts.add(py);
+                }
+                pts.add(x);
+                pts.add(y);
             }
             px = x;
             py = y;
             prevOn = on;
         }
+        if (pts.size() == 0) {
+            return;
+        }
+        if (dc has :setAntiAlias) {
+            dc.setAntiAlias(true);
+        }
+        strokeRoute(dc, pts, ROUTE_EDGE, 12);
+        strokeRoute(dc, pts, ROUTE_BLUE, 8);
         dc.setPenWidth(1);
+        if (dc has :setAntiAlias) {
+            dc.setAntiAlias(false);
+        }
+    }
+
+    private function strokeRoute(dc as Graphics.Dc, pts as Array<Number>, color as Number, w as Number) as Void {
+        dc.setColor(color, Graphics.COLOR_TRANSPARENT);
+        dc.setPenWidth(w);
+        var rad = w / 2;
+        var px = 0;
+        var py = 0;
+        var i = 0;
+        while (i + 1 < pts.size()) {
+            var start = pts[i] == RUN_START;
+            if (start) {
+                i++;
+            }
+            var x = pts[i];
+            var y = pts[i + 1];
+            if (!start) {
+                dc.drawLine(px, py, x, y);
+            }
+            // Fills the notch a wide line leaves at each bend.
+            if (x > -rad && x < SCREEN + rad && y > -rad && y < SCREEN + rad) {
+                dc.fillCircle(x, y, rad);
+            }
+            px = x;
+            py = y;
+            i += 2;
+        }
     }
 
     // Direction-of-travel chevron at the centre of the screen (map is north-up).
@@ -418,7 +468,7 @@ class MapView extends WatchUi.View {
 
     // "350 m": the number in the big digits font (which has no letters), the unit after it in a text font.
     private function drawDistance(dc as Graphics.Dc, x as Number, y as Number, justify as Number) as Void {
-        var text = _m.distText;
+        var text = _m.liveText;
         if (text.length() == 0) {
             return;
         }
