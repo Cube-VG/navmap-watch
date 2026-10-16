@@ -4,7 +4,7 @@ NavMap has two parts: the **NavMap watch app** on the Forerunner 165 and the **N
 
 ## 1. Install the watch app
 1. Plug the watch into the computer. On a Mac, open it with [OpenMTP](https://openmtp.ganeshrvel.com/).
-2. Copy `NavMap-fr165.prg` (or `NavMap-fr165m.prg` for the Music model) into **GARMIN → Apps**.
+2. Copy `NavMap-FR165-v<version>.prg` (or `NavMap-FR165-Music-v<version>.prg` for the Music model) into **GARMIN → Apps**. NavBridge needs watch version 0.2 or later.
 3. Unplug the watch. NavMap appears in the activity list (press Start on the watch face).
 
 ## 2. Install NavBridge
