@@ -270,6 +270,7 @@ class MapView extends WatchUi.View {
         _inFlight = false;
         _fetches++;
         var secs = (System.getTimer() - _reqStart) / 1000.0;
+        System.println("map " + code + " z" + req.zoom + " " + secs.format("%.1f") + "s");
         if (code == 200 && data != null) {
             _fetchSecs = _fetchSecs * 0.5 + secs * 0.5;
             try {

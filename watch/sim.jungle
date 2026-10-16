@@ -1,0 +1,4 @@
+# Simulator build: no phone link, because the Connect IQ simulator crashes when an app talks to
+# the phone through it. Map and GPS only. Build it with tools/build-watch.sh fr165 --sim.
+project.manifest = manifest.xml
+base.excludeAnnotations = phoneLink

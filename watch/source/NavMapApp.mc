@@ -20,7 +20,9 @@ class NavMapApp extends Application.AppBase {
 
     function onStart(state as Dictionary?) as Void {
         Position.enableLocationEvents(Position.LOCATION_CONTINUOUS, method(:onPosition));
-        Communications.registerForPhoneAppMessages(method(:onPhone));
+        if (hasPhoneLink()) {
+            Communications.registerForPhoneAppMessages(method(:onPhone));
+        }
     }
 
     function onStop(state as Dictionary?) as Void {
@@ -33,6 +35,18 @@ class NavMapApp extends Application.AppBase {
     function getInitialView() as [WatchUi.Views] or [WatchUi.Views, WatchUi.InputDelegates] {
         var v = new MapView(model);
         return [v, new MapDelegate(v)];
+    }
+
+    // The Connect IQ simulator crashes when an app talks to the phone through it, so the simulator
+    // build (tools/build-watch.sh fr165 --sim, watch/sim.jungle) leaves the phone out: map and GPS only.
+    (:phoneLink)
+    function hasPhoneLink() as Boolean {
+        return true;
+    }
+
+    (:noPhoneLink)
+    function hasPhoneLink() as Boolean {
+        return false;
     }
 
     function onPosition(info as Position.Info) as Void {
@@ -56,7 +70,7 @@ class NavMapApp extends Application.AppBase {
 
     // Called every second. Says hello until NavBridge answers ("idle", or the current route and turn).
     function tickPhone() as Void {
-        if (model.phoneAnswered || !System.getDeviceSettings().phoneConnected) {
+        if (!hasPhoneLink() || model.phoneAnswered || !System.getDeviceSettings().phoneConnected) {
             return;
         }
         var now = System.getTimer();
@@ -66,6 +80,7 @@ class NavMapApp extends Application.AppBase {
         _helloAt = now;
         _hellos++;
         model.hellos = _hellos;
+        System.println("hello " + _hellos);
         send(withPosition({"t" => "hello", "v" => 2}));
     }
 

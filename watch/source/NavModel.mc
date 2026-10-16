@@ -29,6 +29,7 @@ class NavModel {
     var hellos as Number = 0;
 
     private const ALERT_METERS = [400, 150, 50];
+    private var _lowQuality as Number = -2;   // last GPS quality logged as too low, so the log isn't flooded
 
     function initialize() {
         var info = Position.getInfo();
@@ -46,11 +47,22 @@ class NavModel {
         var pos = info.position;
         var acc = info.accuracy;
         if (pos == null || acc == null || acc < Position.QUALITY_POOR) {
+            var q = -1;
+            if (acc != null) {
+                q = acc as Number;
+            }
+            if (q != _lowQuality) {
+                _lowQuality = q;
+                System.println("gps quality " + q + " too low (needs 2 or more), waiting");
+            }
             return;
         }
         var deg = pos.toDegrees();
         lat = deg[0].toDouble();
         lon = deg[1].toDouble();
+        if (!hasFix) {
+            System.println("gps fix " + lat + "," + lon);
+        }
         hasFix = true;
         if (info.speed != null) {
             speed = info.speed as Float;

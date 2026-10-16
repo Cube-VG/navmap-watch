@@ -1,9 +1,19 @@
 #!/usr/bin/env bash
-# Builds the NavMap watch app. Usage: tools/build-watch.sh [device]   (default fr165)
+# Builds the NavMap watch app. Usage: tools/build-watch.sh [device] [--sim]   (default fr165)
+# --sim writes dist/NavMap-sim.prg for the Connect IQ simulator. It has no phone link, because the
+# simulator crashes when an app talks to the phone through it: map and GPS work, turns and the route don't.
 # The Maps API key is read from ~/.config/navmap/secrets.properties and never committed.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-DEVICE="${1:-fr165}"
+DEVICE=fr165
+JUNGLE="$ROOT/watch/monkey.jungle"
+OUT="$ROOT/dist/NavMap.prg"
+for arg in "$@"; do
+    case "$arg" in
+        --sim) JUNGLE="$ROOT/watch/sim.jungle"; OUT="$ROOT/dist/NavMap-sim.prg" ;;
+        *) DEVICE="$arg" ;;
+    esac
+done
 SECRETS="$HOME/.config/navmap/secrets.properties"
 KEY_DER="$HOME/.config/navmap/developer_key.der"
 export JAVA_HOME="${JAVA_HOME:-$(ls -d "$HOME"/opt/jdk-17* | head -1)}"
@@ -17,6 +27,5 @@ const MAPS_API_KEY = "$MAPS_API_KEY";
 MC
 
 mkdir -p "$ROOT/dist"
-"$SDK_BIN/monkeyc" -f "$ROOT/watch/monkey.jungle" -d "$DEVICE" -y "$KEY_DER" -l 2 -w \
-    -o "$ROOT/dist/NavMap.prg"
-echo "Built $ROOT/dist/NavMap.prg for $DEVICE"
+"$SDK_BIN/monkeyc" -f "$JUNGLE" -d "$DEVICE" -y "$KEY_DER" -l 2 -w -o "$OUT"
+echo "Built $OUT for $DEVICE"
