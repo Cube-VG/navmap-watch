@@ -1,17 +1,17 @@
-import Toybox.Activity;
-import Toybox.ActivityRecording;
 import Toybox.Application;
 import Toybox.Communications;
 import Toybox.Lang;
+import Toybox.Math;
 import Toybox.Position;
 import Toybox.System;
 import Toybox.WatchUi;
 
+// A plain watch app (no activity session): nothing is recorded, and leaving NavMap leaves the watch as it was.
 class NavMapApp extends Application.AppBase {
     var model as NavModel;
-    var view as MapView?;
     var exitRequested as Boolean = false;
-    private var _session as ActivityRecording.Session?;
+    private var _helloAt as Number = -100000;
+    private var _hellos as Number = 0;
 
     function initialize() {
         AppBase.initialize();
@@ -21,34 +21,17 @@ class NavMapApp extends Application.AppBase {
     function onStart(state as Dictionary?) as Void {
         Position.enableLocationEvents(Position.LOCATION_CONTINUOUS, method(:onPosition));
         Communications.registerForPhoneAppMessages(method(:onPhone));
-        // Running as an activity lets the watch's "During Activity: Always On" setting keep the screen on.
-        // The session is never saved.
-        if (Toybox has :ActivityRecording) {
-            try {
-                _session = ActivityRecording.createSession({:name => "NavMap", :sport => Activity.SPORT_MOTORCYCLING});
-                _session.start();
-            } catch (e) {
-                _session = null;
-            }
-        }
-        Communications.transmit({"t" => "hello"}, null, new PhoneListener());
     }
 
     function onStop(state as Dictionary?) as Void {
         Position.enableLocationEvents(Position.LOCATION_DISABLE, method(:onPosition));
-        var s = _session;
-        if (s != null) {
-            if (s.isRecording()) {
-                s.stop();
-            }
-            s.discard();
-            _session = null;
+        if (model.phoneAnswered) {
+            send({"t" => "bye"});
         }
     }
 
     function getInitialView() as [WatchUi.Views] or [WatchUi.Views, WatchUi.InputDelegates] {
         var v = new MapView(model);
-        view = v;
         return [v, new MapDelegate(v)];
     }
 
@@ -58,10 +41,50 @@ class NavMapApp extends Application.AppBase {
     }
 
     function onPhone(msg as Communications.PhoneAppMessage) as Void {
-        if (model.onPhoneMessage(msg.data)) {
+        var data = msg.data;
+        if (data instanceof Dictionary && "where".equals(data["t"] as Object?)) {
+            model.phoneAnswered = true;
+            model.msgCount++;
+            send(withPosition({"t" => "pos"}));
+            return;
+        }
+        if (model.onPhoneMessage(data)) {
             model.alertUser();
         }
         WatchUi.requestUpdate();
+    }
+
+    // Called every second. Says hello until NavBridge answers ("idle", or the current route and turn).
+    function tickPhone() as Void {
+        if (model.phoneAnswered || !System.getDeviceSettings().phoneConnected) {
+            return;
+        }
+        var now = System.getTimer();
+        if (now - _helloAt < (_hellos < 6 ? 5000 : 30000)) {
+            return;
+        }
+        _helloAt = now;
+        _hellos++;
+        model.hellos = _hellos;
+        send(withPosition({"t" => "hello", "v" => 2}));
+    }
+
+    private function withPosition(msg as Dictionary<String, String or Number>) as Dictionary<String, String or Number> {
+        var lat = model.lat;
+        var lon = model.lon;
+        if (lat != null && lon != null) {
+            msg["la"] = Math.round(lat * 100000.0d).toNumber();
+            msg["lo"] = Math.round(lon * 100000.0d).toNumber();
+        }
+        return msg;
+    }
+
+    private function send(msg as Dictionary<String, String or Number>) as Void {
+        try {
+            Communications.transmit(msg as Dictionary<Communications.TransmitKeyType, Communications.TransmitType>, null, new PhoneListener());
+        } catch (e) {
+            // Phone gone; the hello is repeated once it's back.
+        }
     }
 }
 
