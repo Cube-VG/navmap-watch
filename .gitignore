@@ -1,0 +1,6 @@
+watch/source/Secrets.mc
+dist/
+watch/bin/
+*.der
+*.pem
+secrets*.properties
