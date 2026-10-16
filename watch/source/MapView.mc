@@ -8,31 +8,33 @@ import Toybox.Time.Gregorian;
 import Toybox.Timer;
 import Toybox.WatchUi;
 
-// Night style tuned for AMOLED: dark background, bright roads, no POIs or transit clutter.
+// Day style for reading in sunlight: near-white ground, dark grey roads, dark labels, no POIs or transit.
 const MAP_STYLE =
-    "style=element:geometry%7Ccolor:0x1b2433" +
-    "&style=element:labels.text.fill%7Ccolor:0xe8eaed" +
-    "&style=element:labels.text.stroke%7Ccolor:0x1b2433%7Cweight:3" +
+    "style=element:geometry%7Ccolor:0xf7f7f5" +
+    "&style=element:labels.text.fill%7Ccolor:0x111827" +
+    "&style=element:labels.text.stroke%7Ccolor:0xffffff%7Cweight:4" +
     "&style=feature:poi%7Cvisibility:off" +
     "&style=feature:transit%7Cvisibility:off" +
     "&style=feature:administrative%7Celement:geometry%7Cvisibility:off" +
     "&style=feature:road%7Celement:labels.icons%7Cvisibility:off" +
-    "&style=feature:road%7Celement:geometry%7Ccolor:0x6f7a94" +
-    "&style=feature:road.arterial%7Celement:geometry%7Ccolor:0x9aa3b8" +
-    "&style=feature:road.highway%7Celement:geometry%7Ccolor:0xd8953a" +
-    "&style=feature:water%7Celement:geometry%7Ccolor:0x0e2a47" +
-    "&style=feature:landscape.man_made%7Celement:geometry%7Ccolor:0x222d3f";
+    "&style=feature:road%7Celement:geometry%7Ccolor:0x9ca3af" +
+    "&style=feature:road.arterial%7Celement:geometry%7Ccolor:0x4b5563" +
+    "&style=feature:road.highway%7Celement:geometry.fill%7Ccolor:0xf2a33a" +
+    "&style=feature:road.highway%7Celement:geometry.stroke%7Ccolor:0xb36b10" +
+    "&style=feature:water%7Celement:geometry%7Ccolor:0x8fc1ee" +
+    "&style=feature:landscape.man_made%7Celement:geometry%7Ccolor:0xecece8";
 
 // The style's colours plus a few in-between shades for anti-aliased edges. With 16 colours or fewer the
 // phone sends 4 bits per pixel instead of 16, so a map is a quarter of the size in Bluetooth and memory.
 const MAP_PALETTE = [
-    0x000000, 0x0e2a47, 0x1b2433, 0x222d3f, 0x343f55, 0x4d5770, 0x6f7a94, 0x9aa3b8,
-    0xc0c5d0, 0xe8eaed, 0xffffff, 0x7a5d37, 0xd8953a, 0xf0b060
+    0xffffff, 0xf7f7f5, 0xecece8, 0xd1d5db, 0x9ca3af, 0x6b7280, 0x4b5563, 0x2d3440,
+    0x111827, 0xf2a33a, 0xb36b10, 0xf8d29c, 0x8fc1ee, 0xc4def5, 0x000000
 ];
+const MAP_GROUND = 0xf7f7f5;
 
 const SCREEN = 390;
 const HALF = 195;
-const ROUTE_BLUE = 0x4f8ff7;
+const ROUTE_BLUE = 0x1a73e8;   // Google Maps route blue, strong on a light map
 const REQUEST_TIMEOUT_MS = 30000;
 
 // One map download. Each request gets its own callback object, so a reply that arrives after it was
@@ -342,6 +344,8 @@ class MapView extends WatchUi.View {
         var img = _img;
         var z = desiredZoom();
         if (img != null && lat != null && lon != null) {
+            dc.setColor(MAP_GROUND, MAP_GROUND);
+            dc.clear();
             drawMap(dc, img, lat, lon, z);
             drawRoute(dc, lat, lon, z);
         } else {
@@ -427,8 +431,10 @@ class MapView extends WatchUi.View {
             var y = pts[i][1];
             poly.add([(HALF + x * c - y * s).toNumber(), (HALF + x * s + y * c).toNumber()]);
         }
+        dc.setColor(0x1f2933, Graphics.COLOR_TRANSPARENT);
+        dc.fillCircle(HALF, HALF, 26);
         dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
-        dc.fillCircle(HALF, HALF, 24);
+        dc.fillCircle(HALF, HALF, 23);
         dc.setColor(_m.hasFix ? 0x1a73e8 : Graphics.COLOR_DK_GRAY, Graphics.COLOR_TRANSPARENT);
         dc.fillPolygon(poly);
     }
@@ -496,7 +502,7 @@ class MapView extends WatchUi.View {
         } else if (System.getTimer() - _zoomShownAt < 2500) {
             drawCenteredPill(dc, 318, "Zoom " + z);
         }
-        dc.setColor(Graphics.COLOR_LT_GRAY, Graphics.COLOR_TRANSPARENT);
+        dc.setColor(0x3a4350, Graphics.COLOR_TRANSPARENT);
         dc.drawText(HALF, 360, Graphics.FONT_XTINY, "Google", Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
         if (_inFlight) {
             dc.setColor(0x1a73e8, Graphics.COLOR_TRANSPARENT);

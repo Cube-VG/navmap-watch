@@ -5,7 +5,7 @@ A real Google map on the Garmin Forerunner 165 that follows your GPS and stays o
 **Status:** first watch test build. The Android companion app (auto-launch on Google Maps navigation, turn arrows, route line) is next.
 
 ## What the watch app does
-- Dark-style Google map tiles centred on your position, sliding as you move
+- Light, high-contrast Google map (readable in sunlight) centred on your position, sliding as you move
 - Zooms out automatically with speed
 - Runs as a plain watch app (no activity session); when the screen dims it shows only the next turn or the time
 - Maps come in a 14-colour palette, about a quarter of the Bluetooth and memory cost of full colour
