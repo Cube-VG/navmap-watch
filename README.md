@@ -36,5 +36,5 @@ Needs JDK 17 and the Android SDK (platform 36). The release signing key lives in
 Run `tools/build-phone.sh`. It runs the unit tests and writes `dist/NavBridge.apk`. The Maps key from `secrets.properties` is baked in for the route line, so don't publish that APK.
 
 ### Testing the watch without a phone
-`tools/sim-phone.py serve --ride` stands in for NavBridge against the Connect IQ simulator (Connection → Start). It prints what the watch sends and plays a demo ride with turn arrows and a route line.
+`tools/sim-phone.py serve --ride` stands in for NavBridge against the Connect IQ simulator (adb Connection → Start). It prints what the watch sends and plays a demo ride with turn arrows and a route line. Its message encoding matches Garmin's Android SDK, but it hasn't been run end to end yet. On the ARM build server the simulator runs under QEMU and crashes as soon as the watch app sends to the phone, so use the simulator on a Mac or PC.
 
