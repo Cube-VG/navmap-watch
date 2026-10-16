@@ -34,5 +34,6 @@ const NAVBRIDGE_TOKEN = "$NAVBRIDGE_TOKEN";
 MC
 
 mkdir -p "$ROOT/dist"
-"$SDK_BIN/monkeyc" -f "$JUNGLE" -d "$DEVICE" -y "$KEY_DER" -l 2 -w -o "$OUT"
+# -r (release): leaves out the debug information, which was four fifths of the .prg (124 KB -> 24 KB).
+"$SDK_BIN/monkeyc" -f "$JUNGLE" -d "$DEVICE" -y "$KEY_DER" -l 2 -w -r -o "$OUT"
 echo "Built $OUT for $DEVICE"

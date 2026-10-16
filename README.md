@@ -6,12 +6,12 @@ A real Google map on the Garmin Forerunner 165 that follows your GPS and stays o
 
 ## What the watch app does
 One thing: while Google Maps navigates on your phone, NavMap shows it on the watch, and when the navigation ends, NavMap closes.
-- Light, high-contrast Google map (readable in sunlight) centred on your position, sliding as you move, with the next turn (Google's own arrow), the distance, the street, the ETA and the route line (Google blue with a darker edge). Between the phone's answers the watch counts the distance down from its own GPS speed, so it keeps up on a fast bike. It zooms out automatically with speed
+- Light, high-contrast Google map (readable in sunlight: warm paper ground, blue-grey water and small roads, dark main roads) centred on your position, sliding as you move, with the next turn (Google's own arrow), the distance, the street, the ETA and the route line (Google blue with a darker edge). Between the phone's answers the watch counts the distance down from its own GPS speed, so it keeps up on a fast bike. It zooms out automatically with speed
 - Finds your position with every satellite system the watch has (GPS, GLONASS, Galileo and BeiDou on the FR165), not only GPS, Connect IQ's default: Garmin says that's faster. It needs open sky, so indoors it can wait for GPS for good
-- Buzzes and lights the screen at each new turn and 400, 150 and 50 m before it, and keeps the screen lit for the last 120 m before a turn (at most 40 s, because the screen's burn-in protection allows no more). When the screen dims it shows only the next turn and the distance, with under 4% of the pixels lit
+- Buzzes at most twice per turn, timed by seconds at your speed rather than metres: one long buzz about 25 s before ("turn coming") and three short strong ones about 6 s before ("turn now"), when the turn banner also turns blue. A turn that comes up too soon for both gets only "turn now", and there is never a buzz within 5 s of another, so close city turns don't stack up. Standing still at a light doesn't count down to one (only the last 15 m do). It lights the screen with each buzz and keeps the screen lit for the last 120 m before a turn (at most 40 s, because the screen's burn-in protection allows no more). When the screen dims it shows only the next turn and the distance, with under 4% of the pixels lit
 - Says "Arrived" or "Navigation ended" and closes 5 s later
 - Only Back does something (it asks before exiting). Taps, swipes and the other buttons do nothing, so nothing pops up over the map
-- Maps come in three greys at 2 bits per pixel, 40-45% fewer Bluetooth bytes than v0.5's 15 colours (see "Bluetooth bytes" below)
+- Maps come at 2 bits per pixel with the land transparent (the watch paints it), 7% fewer Bluetooth bytes than v0.8's three greys and about half v0.5's 15 colours (see "Bluetooth bytes" below)
 - Runs as a plain watch app (no activity session), so nothing is recorded
 - Gets the turns by asking NavBridge every 2 s, every second in the last 500 m before a turn (every 5 s when not navigating), at `http://127.0.0.1:18165/nav`. Garmin Connect makes that request on the phone, the same way it fetches the map pictures, so the turns don't depend on Connect IQ phone messages: Garmin Connect for Android accepts the watch's messages but no longer delivers them to phone apps (Garmin bug [CIQQA-4631](https://forums.garmin.com/developer/connect-iq/i/bug-reports/gcm-5-27-3-android-accepts-communications-transmit-messages-from-watch-app-but-never-delivers-them-to-the-companion-app)). Garmin Connect allows plain HTTP only to 127.0.0.1, and NavBridge answers only requests that carry the key both apps are built with
 
@@ -60,6 +60,8 @@ So NavMap 0.6 asks for (`c=1`) and reads a compact answer: the turn as one line 
 | Turn arrow | 515 B | 154-186 B |
 | Turn answer every 2 s | 176 B | 103 B |
 | Map picture, suburb / Kansas City / Times Square | 11.8 / 16.9 / 21.5 KB | 6.7 / 10.3 / 12.4 KB |
+
+Since v0.9 the map picture leaves the land transparent: Google draws only roads, water and road names, and a pixel under half opacity becomes Garmin's transparent index, which the watch fills with its own ground colour. Two colours plus transparent still fit 2 bits, and road edges on transparent land come out as clean steps instead of blended greys, which pack smaller. On 14 maps in 7 cities (zoom 15 and 16) every v0.9 map was smaller than v0.8's, 7% in all.
 
 The watch decodes the route a slice per second: Connect IQ stops an app that runs too long at once.
 

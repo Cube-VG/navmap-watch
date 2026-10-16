@@ -99,8 +99,9 @@ def over_air(obj):
     return len(raw), min(len(raw), len(lzw(raw, 9)))
 
 
-def pack_image(img, palette):
-    """Nearest palette colour per pixel, packed like the phone does (transparent counts as a colour)."""
+def pack_image(img, palette, ground=0xffffff):
+    """Nearest palette colour per pixel, packed like the phone does (transparent counts as a colour, and a
+    pixel with alpha under 128 gets it). The preview shows transparent pixels in `ground`, as the watch does."""
     from PIL import Image
     colours = len(palette) + 1
     bpp = 1 if colours <= 2 else 2 if colours <= 4 else 4 if colours <= 16 else 8
@@ -110,8 +111,11 @@ def pack_image(img, palette):
         flat += [(c >> 16) & 255, (c >> 8) & 255, c & 255]
     pal.putpalette(flat + flat[:3] * (256 - len(palette)))
     q = img.convert("RGB").quantize(palette=pal, dither=Image.Dither.NONE)
-    px = q.tobytes()
+    alpha = img.convert("RGBA").getchannel("A").tobytes()
+    px = bytes(0 if a < 128 else i + 1 for i, a in zip(q.tobytes(), alpha))   # index 0 = transparent
     w, h = q.size
+    cols = [ground] + list(palette)
+    q = Image.frombytes("RGB", (w, h), b"".join(bytes([c >> 16, (c >> 8) & 255, c & 255]) for c in (cols[i] for i in px)))
     out = bytearray()
     per = 8 // bpp
     for y in range(h):
@@ -119,7 +123,7 @@ def pack_image(img, palette):
         for x in range(0, w, per):
             v = 0
             for k in range(per):
-                v = (v << bpp) | ((row[x + k] + 1) if x + k < w else 0)   # index 0 = transparent
+                v = (v << bpp) | (row[x + k] if x + k < w else 0)
             out.append(v)
     return q, bpp, bytes(out)
 
@@ -174,12 +178,12 @@ def map_report(lat, lon):
     out_dir = os.path.join(HERE, "..", "dist", "map-bytes")
     os.makedirs(out_dir, exist_ok=True)
     print(f"{'variant':34} {'px':>4} {'bpp':>3} {'packed':>7} {'over air':>8}")
-    for name, (style, palette, size) in styles.items():
+    for name, (style, palette, size, *ground) in styles.items():
         url = ("https://maps.googleapis.com/maps/api/staticmap?center=%.6f,%.6f&zoom=16&size=%dx%d&scale=2"
                "&maptype=roadmap&%s&key=%s" % (lat, lon, size, size, style, key))
         png = urllib.request.urlopen(url, timeout=30).read()
         img = Image.open(io.BytesIO(png))
-        q, bpp, packed = pack_image(img, palette)
+        q, bpp, packed = pack_image(img, palette, *ground)
         sent = lzw(packed, 10)
         q.convert("RGB").save(os.path.join(out_dir, f"{name}.png"))
         print(f"{name:34} {img.size[0]:>4} {bpp:>3} {len(packed):>7} {len(sent):>8}")
@@ -212,10 +216,20 @@ def _styles():
                     "element:labels.text.stroke|color:0xf7f7f5|weight:4"]
     pal3 = [0xf7f7f5, 0x9ca3af, 0x4b5563]
     nolabels = ["element:labels|visibility:off"]
+    # v0.9: land transparent (the watch fills it with 0xf6f3ec), minor roads and water one blue-grey, main
+    # roads and names dark slate with a thin blue-grey outline, no area names. Smaller on every map tried.
+    v09 = ["element:geometry|visibility:off", "feature:poi|visibility:off", "feature:transit|visibility:off",
+           "feature:administrative|visibility:off", "feature:road|element:labels.icons|visibility:off",
+           "element:labels.text.fill|color:0x3d4654", "element:labels.text.stroke|color:0x9fb3c9|weight:2",
+           "feature:road|element:geometry|visibility:on|color:0x9fb3c9",
+           "feature:road.arterial|element:geometry|color:0x3d4654",
+           "feature:road.highway|element:geometry|color:0x3d4654",
+           "feature:water|element:geometry|visibility:on|color:0x9fb3c9"]
     return {
         "v0.5 (15 colours, labels)": (s(*v05), pal05, 280),
         "v0.5 style, no labels": (s(*(v05 + nolabels)), pal05, 280),
-        "3 colours, labels": (s(*flat3), pal3, 280),
+        "3 colours, labels (v0.6-0.8)": (s(*flat3), pal3, 280),
+        "v0.9, transparent land": (s(*v09), [0x9fb3c9, 0x3d4654], 280, 0xf6f3ec),
         "3 colours, no labels": (s(*(flat3 + nolabels)), pal3, 280),
         "3 colours, no labels, 240": (s(*(flat3 + nolabels)), pal3, 240),
     }
