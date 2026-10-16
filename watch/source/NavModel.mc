@@ -1,6 +1,8 @@
 import Toybox.Attention;
 import Toybox.Lang;
+import Toybox.Math;
 import Toybox.Position;
+import Toybox.Sensor;
 import Toybox.System;
 
 // Shared state: watch GPS fix plus the navigation instruction relayed from the phone.
@@ -9,6 +11,7 @@ class NavModel {
     var lat as Double? = null;
     var lon as Double? = null;
     var heading as Float = 0.0;   // radians, 0 = north, clockwise
+    var mapHeading as Float = 0.0; // where the map turns to (see updateMapHeading), same units
     var speed as Float = 0.0;     // m/s
     var hasFix as Boolean = false;
 
@@ -108,6 +111,26 @@ class NavModel {
         if (info.heading != null && speed > 1.0) {
             heading = info.heading as Float;
         }
+    }
+
+    // The way you're facing, which the map turns to, as in Google Maps: the direction of travel when moving,
+    // and the compass (where the top of the watch points) when slower than walking pace. The compass is
+    // smoothed so the map doesn't shake with the wrist. Called once a second, before drawing.
+    function updateMapHeading() as Void {
+        var target = heading;
+        var moving = speed > 1.0;
+        if (!moving) {
+            var si = Sensor.getInfo();
+            if (si has :heading && si.heading != null) {
+                target = si.heading as Float;
+            }
+        }
+        var d = target - mapHeading;
+        while (d > Math.PI) { d -= 2 * Math.PI; }
+        while (d < -Math.PI) { d += 2 * Math.PI; }
+        mapHeading += moving ? d : d * 0.5;
+        if (mapHeading > Math.PI) { mapHeading -= 2 * Math.PI; }
+        if (mapHeading < -Math.PI) { mapHeading += 2 * Math.PI; }
     }
 
     // The same messages come from the /nav answer and from Connect IQ phone messages.

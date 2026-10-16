@@ -31,6 +31,8 @@ const MAP_GROUND = 0xf6f3ec;   // warm paper, drawn by the watch under the trans
 
 const SCREEN = 390;
 const HALF = 195;
+// Heading up, we're drawn below the centre, as in Google Maps, so more of the road ahead shows under the banner.
+const MARK_Y = HALF + 60;
 const ROUTE_BLUE = 0x1a73e8;   // Google Maps route blue, strong on a light map
 const ROUTE_EDGE = 0x0b4fb3;   // its darker edge, which keeps the line clear of the dark roads
 const RUN_START = -99999;      // marks the start of a run of points in drawRoute
@@ -58,7 +60,7 @@ class ImageReq {
     }
 }
 
-// The one screen: the map around you, north up, with Google Maps' next turn on top.
+// The one screen: the map around you, turned so the way you face is up, with Google Maps' next turn on top.
 class MapView extends WatchUi.View {
     private var _m as NavModel;
     private var _timer as Timer.Timer;
@@ -83,6 +85,24 @@ class MapView extends WatchUi.View {
 
     // Zoom follows speed only; there are no zoom buttons.
     private var _autoZoom as Number = 16;
+
+    // The map turns so the way we face is up: _rot is that angle (radians clockwise from north), 0 for north up.
+    private var _rot as Float = 0.0;
+    private var _rc as Float = 1.0;
+    private var _rs as Float = 0.0;
+    // Only bitmaps in the screen's own colour format can be drawn turned, and the map comes 2-bit, so the
+    // part of it on screen is copied into this first: a square around the circle the screen shows.
+    private const BUF = 392;
+    private var _buf as Graphics.BufferedBitmapReference? = null;
+
+    // Where we are along the route line, so only the part ahead is drawn (see routeProgress).
+    private const CUT_AHEAD = 40;     // segments searched on from last time
+    private const CUT_FAR = 50.0;     // 1e-5 degrees (~55 m): further than this from it, search the whole line
+    private var _cutRoute as Array<Number>? = null;
+    private var _cutAt as Number = -1;
+    private var _sAt as Number = 0;   // nearestSegment's answer: segment, how far along it, distance squared
+    private var _sT as Float = 0.0;
+    private var _sD2 as Float = -1.0;
 
     function initialize(model as NavModel) {
         View.initialize();
@@ -114,6 +134,7 @@ class MapView extends WatchUi.View {
         }
         _m.keepAwake();
         _m.decodeStep();
+        _m.updateMapHeading();
         maybeFetch();
         WatchUi.requestUpdate();
     }
@@ -171,6 +192,11 @@ class MapView extends WatchUi.View {
             need = true;
         } else {
             var off = offsetPx(lat, lon, _imgLat, _imgLon, _imgZoom);
+            // The screen's centre shows the map MARK_Y - HALF pixels ahead of us: that is what must stay covered.
+            if (_rot != 0.0) {
+                off[0] += Math.sin(_rot) * (MARK_Y - HALF);
+                off[1] -= Math.cos(_rot) * (MARK_Y - HALF);
+            }
             var mpp = 40075016.686d * Math.cos(_imgLat * Math.PI / 180.0d) / (256.0d * (1 << _imgZoom) * 2.0d);
             // Where will we be by the time a new image could arrive?
             var adv = _m.speed * (_fetchSecs + 3.0) / mpp;
@@ -300,6 +326,9 @@ class MapView extends WatchUi.View {
         var img = _img;
         if (img != null && lat != null && lon != null) {
             var z = desiredZoom();
+            _rot = (dc has :drawBitmap2) ? _m.mapHeading : 0.0;
+            _rc = Math.cos(_rot).toFloat();
+            _rs = Math.sin(_rot).toFloat();
             dc.setColor(MAP_GROUND, MAP_GROUND);
             dc.clear();
             drawMap(dc, img, lat, lon, z);
@@ -337,26 +366,65 @@ class MapView extends WatchUi.View {
         return "Waiting for Google Maps";
     }
 
-    // Draws the map so our position is at the centre. After a zoom change the current image is shown
-    // scaled until the sharp one arrives.
+    // Draws the map turned so the way we face is up, with our position at (HALF, MARK_Y). After a zoom change
+    // the current image is shown scaled until the sharp one arrives.
     private function drawMap(dc as Graphics.Dc, img as WatchUi.BitmapResource or Graphics.BitmapReference, lat as Double, lon as Double, z as Number) as Void {
         var off = offsetPx(lat, lon, _imgLat, _imgLon, _imgZoom);
         var dz = z - _imgZoom;
+        if (dz > 2 || dz < -2) {
+            dz = 0;
+        }
+        var k = dz >= 0 ? (1 << dz).toFloat() : 1.0 / (1 << -dz);
+        // Our pixel in the image.
+        var ix = (_imgHalfW + off[0]).toFloat();
+        var iy = (_imgHalfH + off[1]).toFloat();
         try {
-            if (dz == 0 || dz > 2 || dz < -2 || !(dc has :drawScaledBitmap)) {
-                dc.drawBitmap(HALF - _imgHalfW - off[0].toNumber(), HALF - _imgHalfH - off[1].toNumber(), img);
+            var bb = (dc has :drawBitmap2) ? turnBuffer() : null;
+            if (bb != null) {
+                // The map point at the screen's centre, which is ahead of us: q = ours + R^-1 (0, HALF - MARK_Y) / k.
+                var qx = ix + _rs * (MARK_Y - HALF) / k;
+                var qy = iy - _rc * (MARK_Y - HALF) / k;
+                var bdc = bb.getDc();
+                bdc.setColor(MAP_GROUND, MAP_GROUND);
+                bdc.clear();
+                bdc.drawBitmap((BUF / 2 - qx).toNumber(), (BUF / 2 - qy).toNumber(), img);
+                // Screen = (HALF, HALF) + k * R * (buffer pixel - buffer centre), R turning by -_rot.
+                var m00 = k * _rc;
+                var m01 = k * _rs;
+                var m10 = -k * _rs;
+                var m11 = k * _rc;
+                var b2 = BUF / 2.0;
+                var t = new Graphics.AffineTransform();
+                t.setMatrix([m00, m01, HALF - (m00 + m01) * b2, m10, m11, HALF - (m10 + m11) * b2]);
+                dc.drawBitmap2(0, 0, bb, {:transform => t});
+            } else if (dz == 0 || !(dc has :drawScaledBitmap)) {
+                _rot = 0.0;   // can't turn: north up, with route and chevron to match
+                _rc = 1.0;
+                _rs = 0.0;
+                dc.drawBitmap(HALF - ix.toNumber(), MARK_Y - iy.toNumber(), img);
             } else {
-                var s = dz > 0 ? (1 << dz).toFloat() : 1.0 / (1 << -dz);
-                var w = (_imgHalfW * 2 * s).toNumber();
-                var h = (_imgHalfH * 2 * s).toNumber();
-                var x = HALF - ((_imgHalfW + off[0]) * s).toNumber();
-                var y = HALF - ((_imgHalfH + off[1]) * s).toNumber();
-                dc.drawScaledBitmap(x, y, w, h, img);
+                _rot = 0.0;
+                _rc = 1.0;
+                _rs = 0.0;
+                dc.drawScaledBitmap(HALF - (ix * k).toNumber(), MARK_Y - (iy * k).toNumber(),
+                    (_imgHalfW * 2 * k).toNumber(), (_imgHalfH * 2 * k).toNumber(), img);
             }
         } catch (e) {
             // The graphics pool dropped the image: fetch a fresh one.
             _img = null;
         }
+    }
+
+    // The buffer for turning the map, made again if the graphics pool dropped it.
+    private function turnBuffer() as Graphics.BufferedBitmap? {
+        var ref = _buf;
+        var bb = ref != null ? ref.get() as Graphics.BufferedBitmap? : null;
+        if (bb == null) {
+            ref = Graphics.createBufferedBitmap({:width => BUF, :height => BUF});
+            _buf = ref;
+            bb = ref.get() as Graphics.BufferedBitmap?;
+        }
+        return bb;
     }
 
     // Google-style line: a darker blue edge under the blue, smoothed, with round bends. The screen points are
@@ -371,17 +439,31 @@ class MapView extends WatchUi.View {
         var ky = (kx / Math.cos(lat * Math.PI / 180.0d)).toFloat();
         var lat5 = Math.round(lat * 100000.0d).toNumber();
         var lon5 = Math.round(lon * 100000.0d).toNumber();
+        // Like Google Maps, only the line ahead of us: it starts at the point of it closest to us.
+        var at = routeProgress(r, lat5, lon5, kx / ky);
+        // Screen points are north-up offsets from us, turned with the map.
+        var ex = (r[at + 1] - lon5 + (r[at + 3] - r[at + 1]) * _sT) * kx;
+        var ey = -(r[at] - lat5 + (r[at + 2] - r[at]) * _sT) * ky;
+        var cx = HALF + (_rc * ex + _rs * ey).toNumber();
+        var cy = MARK_Y + (_rc * ey - _rs * ex).toNumber();
         // Segments near the screen (cheap cull), as runs of points: a run ends where the line leaves it.
         var pts = [] as Array<Number>;
         var px = 0;
         var py = 0;
         var prevOn = false;
-        for (var i = 0; i + 1 < r.size(); i += 2) {
-            var x = HALF + ((r[i + 1] - lon5) * kx).toNumber();
-            var y = HALF - ((r[i] - lat5) * ky).toNumber();
+        for (var i = at; i + 1 < r.size(); i += 2) {
+            var x = cx;
+            var y = cy;
+            if (i > at) {
+                ex = (r[i + 1] - lon5) * kx;
+                ey = (lat5 - r[i]) * ky;
+                x = HALF + (_rc * ex + _rs * ey).toNumber();
+                y = MARK_Y + (_rc * ey - _rs * ex).toNumber();
+            }
             var on = x > -400 && x < 790 && y > -400 && y < 790;
-            if (i > 0 && (on || prevOn)) {
-                if (!prevOn) {
+            if (i > at && (on || prevOn)) {
+                // A run starts where the line comes onto the screen, and at its first point.
+                if (!prevOn || pts.size() == 0) {
                     pts.add(RUN_START);
                     pts.add(px);
                     pts.add(py);
@@ -404,6 +486,52 @@ class MapView extends WatchUi.View {
         dc.setPenWidth(1);
         if (dc has :setAntiAlias) {
             dc.setAntiAlias(false);
+        }
+    }
+
+    // The segment of the route we're on: the index in r of its first point, with how far along it we are in _sT.
+    // It's searched for a few segments on from last time, because a route can pass the same place twice, and
+    // over the whole line when the line is new or we're no longer near where we were on it. c is cos(latitude),
+    // which makes 1e-5 degrees of longitude the same length as 1e-5 degrees of latitude.
+    private function routeProgress(r as Array<Number>, lat5 as Number, lon5 as Number, c as Float) as Number {
+        if (r != _cutRoute) {
+            _cutRoute = r;
+            _cutAt = -1;
+        }
+        var found = false;
+        if (_cutAt >= 0) {
+            nearestSegment(r, _cutAt, _cutAt + 2 * CUT_AHEAD, lat5, lon5, c);
+            found = _sD2 <= CUT_FAR * CUT_FAR;
+        }
+        if (!found) {
+            nearestSegment(r, 0, r.size(), lat5, lon5, c);
+        }
+        _cutAt = _sAt;
+        return _sAt;
+    }
+
+    private function nearestSegment(r as Array<Number>, from as Number, to as Number, lat5 as Number, lon5 as Number, c as Float) as Void {
+        _sD2 = -1.0;
+        for (var i = from; i + 3 < r.size() && i <= to; i += 2) {
+            // From us to the segment's start, and along the segment, with us at (0, 0).
+            var ax = (r[i + 1] - lon5) * c;
+            var ay = (r[i] - lat5).toFloat();
+            var dx = (r[i + 3] - r[i + 1]) * c;
+            var dy = (r[i + 2] - r[i]).toFloat();
+            var len2 = dx * dx + dy * dy;
+            var t = 0.0;
+            if (len2 > 0.0) {
+                t = -(ax * dx + ay * dy) / len2;
+                t = t < 0.0 ? 0.0 : (t > 1.0 ? 1.0 : t);
+            }
+            var qx = ax + t * dx;
+            var qy = ay + t * dy;
+            var d2 = qx * qx + qy * qy;
+            if (_sD2 < 0.0 || d2 < _sD2) {
+                _sD2 = d2;
+                _sAt = i;
+                _sT = t;
+            }
         }
     }
 
@@ -434,9 +562,11 @@ class MapView extends WatchUi.View {
         }
     }
 
-    // Direction-of-travel chevron at the centre of the screen (map is north-up).
+    // Our chevron: straight up when the map turns with us, otherwise the way we face on a north-up map.
     private function drawMarker(dc as Graphics.Dc) as Void {
-        var h = _m.heading;
+        // Straight up when the map turns with us.
+        var h = _m.mapHeading - _rot;
+        var cy = _m.lat != null && _img != null ? MARK_Y : HALF;
         var s = Math.sin(h);
         var c = Math.cos(h);
         var pts = [[0.0, -20.0], [13.0, 14.0], [0.0, 6.0], [-13.0, 14.0]];
@@ -444,12 +574,12 @@ class MapView extends WatchUi.View {
         for (var i = 0; i < pts.size(); i++) {
             var x = pts[i][0];
             var y = pts[i][1];
-            poly.add([(HALF + x * c - y * s).toNumber(), (HALF + x * s + y * c).toNumber()]);
+            poly.add([(HALF + x * c - y * s).toNumber(), (cy + x * s + y * c).toNumber()]);
         }
         dc.setColor(0x1f2933, Graphics.COLOR_TRANSPARENT);
-        dc.fillCircle(HALF, HALF, 26);
+        dc.fillCircle(HALF, cy, 26);
         dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
-        dc.fillCircle(HALF, HALF, 23);
+        dc.fillCircle(HALF, cy, 23);
         dc.setColor(_m.hasFix ? 0x1a73e8 : Graphics.COLOR_DK_GRAY, Graphics.COLOR_TRANSPARENT);
         dc.fillPolygon(poly);
     }
