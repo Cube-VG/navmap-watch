@@ -12,6 +12,6 @@ class NavBridgeApp : Application() {
         // NavServer whenever it's open: both start with the process, which the notification listener keeps alive.
         CiqBridge.init(this)
         NavSession.init(this)
-        NavServer.start()
+        NavServer.start(this)
     }
 }

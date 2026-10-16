@@ -9,6 +9,7 @@
     <string name="setup">Setup</string>
     <string name="watch">Watch</string>
     <string name="refresh">Refresh</string>
+    <string name="pair_again">Pair again</string>
     <string name="route_line">Route line</string>
     <string name="route_line_how">For the blue route line: in Google Maps, open a place, tap Share and choose “Navigate with NavMap”. Maps starts navigating and the watch draws the route.</string>
     <string name="travel_by">I travel by</string>
@@ -16,7 +17,7 @@
     <string name="mode_car">Car</string>
     <string name="mode_bicycle">Bicycle</string>
     <string name="mode_walk">Walking</string>
-    <string name="routes_key_hint">Routes API key (only for your own key)</string>
+    <string name="maps_key_hint">Google Maps key (setup.sh fills this in)</string>
     <string name="save_key">Save key</string>
     <string name="last_notification">Last Google Maps notification</string>
     <string name="log">Log</string>

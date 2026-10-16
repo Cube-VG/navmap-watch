@@ -209,6 +209,8 @@ object NavSession : CiqBridge.Listener {
         }
         watch = device
         openTries++
+        // A NavMap that has never paired can pair now: it was NavBridge that asked for it.
+        NavServer.pairing.openWindow()
         setStatus("Asking ${device.friendlyName} to open NavMap")
         CiqBridge.openApp(device) { result ->
             if (!active || watchShowing) return@openApp
@@ -572,7 +574,7 @@ object NavSession : CiqBridge.Listener {
     private fun requestRoute() {
         val place = destination ?: return
         if (routing || (route != null && !rerouteWanted)) return
-        val key = Prefs.routesKey(context)
+        val key = Prefs.mapsKey(context)
         if (key.isEmpty()) {
             routeSummary = "No Routes API key, so no route line"
             return

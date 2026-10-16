@@ -110,6 +110,11 @@ class NavModel {
             return false;
         }
         phoneAnswered = true;
+        // NavBridge's Google Maps key for the map pictures (see Keys), sent when the watch has none or an old one.
+        var mk = data["mk"] as Object?;
+        if (mk instanceof String && mk.length() > 0) {
+            Keys.setMapsKey(mk);
+        }
         var t = data["t"] as Object?;
         var line = data["n"] as Object?;
         if (line instanceof String) {

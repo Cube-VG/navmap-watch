@@ -95,6 +95,11 @@ class MainActivity : AppCompatActivity() {
             CiqBridge.refresh()
             render()
         }
+        findViewById<View>(R.id.pair_watch).setOnClickListener {
+            NavServer.pairing.forget()
+            toast("Now open NavMap on the watch")
+            render()
+        }
         findViewById<View>(R.id.copy_log).setOnClickListener {
             val clip = ClipData.newPlainText("NavBridge log", DebugLog.lines().joinToString("\n"))
             getSystemService(ClipboardManager::class.java).setPrimaryClip(clip)
@@ -102,9 +107,15 @@ class MainActivity : AppCompatActivity() {
         }
         setUpModes()
         keySave.setOnClickListener {
-            Prefs.setRoutesKey(this, keyInput.text?.toString().orEmpty())
-            toast("Saved")
-            render()
+            val key = keyInput.text?.toString().orEmpty()
+            if (Prefs.looksLikeMapsKey(key)) {
+                Prefs.setMapsKey(this, key)
+                keyInput.text = null
+                toast("Saved. NavMap gets it the next time it asks for turns.")
+                render()
+            } else {
+                toast("That isn't a Google Maps key: they start with AIza and are 39 characters long")
+            }
         }
 
         val steps = findViewById<LinearLayout>(R.id.steps)
@@ -137,6 +148,8 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        // A NavMap that has never paired can pair now: the user has NavBridge open.
+        NavServer.pairing.openWindow()
         CiqBridge.refresh()
         main.post(tick)
     }
@@ -229,12 +242,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun renderRoute() {
-        val key = Prefs.routesKey(this)
-        val builtIn = BuildConfig.MAPS_API_KEY.isNotEmpty()
-        keyLayout.isVisible = !builtIn
-        keySave.isVisible = !builtIn
+        val key = Prefs.mapsKey(this)
+        keyLayout.hint = if (key.isEmpty()) getString(R.string.maps_key_hint) else "Google Maps key: …${key.takeLast(4)}"
         routeStatus.text = when {
-            key.isEmpty() -> "This build has no Routes API key, so there's no route line. Turns still work."
+            key.isEmpty() -> "No Google Maps key yet, so no map pictures or route line. Turns still work. " +
+                "Run setup.sh again, or paste your key here."
             NavSession.routeSummary.isNotEmpty() -> NavSession.routeSummary
             NavSession.destination != null -> "Destination: ${NavSession.destination?.name ?: "shared place"}"
             else -> "Ready"

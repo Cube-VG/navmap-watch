@@ -156,7 +156,8 @@ class MapView extends WatchUi.View {
         }
         var lat = _m.lat;
         var lon = _m.lon;
-        if (lat == null || lon == null || now < _retryAt || !System.getDeviceSettings().phoneConnected) {
+        var key = Keys.mapsKey();
+        if (key == null || lat == null || lon == null || now < _retryAt || !System.getDeviceSettings().phoneConnected) {
             return;
         }
         // While the screen is dimmed nobody is looking: only keep the map fresh during navigation.
@@ -197,7 +198,7 @@ class MapView extends WatchUi.View {
         var url = "https://maps.googleapis.com/maps/api/staticmap?center=" +
             cLat.format("%.6f") + "," + cLon.format("%.6f") +
             "&zoom=" + z + "&size=" + size + "x" + size + "&scale=2&maptype=roadmap&" + MAP_STYLE +
-            "&key=" + MAPS_API_KEY;
+            "&key=" + key;
         var opts = {
             :maxWidth => size * 2,
             :maxHeight => size * 2,
@@ -307,7 +308,7 @@ class MapView extends WatchUi.View {
             dc.drawText(HALF, 352, Graphics.FONT_XTINY, "Google", Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
         } else {
             dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
-            dc.drawText(HALF, HALF + 50, Graphics.FONT_SMALL, lat == null ? "Waiting for GPS" : "Loading map",
+            dc.drawText(HALF, HALF + 50, Graphics.FONT_SMALL, lat == null ? "Waiting for GPS" : Keys.mapsKey() == null ? "No map key yet" : "Loading map",
                 Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
         }
         drawMarker(dc);
@@ -329,6 +330,9 @@ class MapView extends WatchUi.View {
     private function waitingText() as String {
         if (!System.getDeviceSettings().phoneConnected) {
             return "Phone not connected";
+        }
+        if (getApp().link.refused) {
+            return "Open NavBridge to pair";
         }
         if (getApp().link.fails >= 3) {
             return "NavBridge not answering";

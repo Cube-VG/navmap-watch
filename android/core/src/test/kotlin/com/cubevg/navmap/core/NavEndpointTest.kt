@@ -18,6 +18,9 @@ import java.util.concurrent.TimeUnit
 /** NavMap's /nav through a real [LoopbackServer], over HTTP like Garmin Connect makes it. */
 class NavEndpointTest {
     private val key = "0123456789abcdef0123456789abcdef"
+
+    // The user's Google Maps key as NavBridge keeps it; "" until set up. Not a real one.
+    private var mapsKey = ""
     private val info = NavInfo(NavKind.NAVIGATING, "Turn right onto Café Road", Distance("150 m", 150), "Arrive 10:01", "10:01")
     private val arrow = IntArray(96) { it * 7919 - 300_000 }
     private val polls = CopyOnWriteArrayList<WatchProtocol.Poll>()
@@ -39,7 +42,9 @@ class NavEndpointTest {
     @Before
     fun start() {
         val listening = CountDownLatch(1)
-        server = LoopbackServer(0, { method, target -> NavEndpoint.answer(method, target, key) { onPoll(it) } }) {
+        server = LoopbackServer(0, { method, target ->
+            NavEndpoint.answer(method, target, { NavEndpoint.keyMatches(it, key) }, mapsKey) { onPoll(it) }
+        }) {
             if (it.startsWith("Listening")) listening.countDown()
         }
         server.start()
@@ -116,6 +121,23 @@ class NavEndpointTest {
     }
 
     @Test
+    fun handsOverTheMapsKey() {
+        mapsKey = "test-maps-key-0123456789-abcdefXYZ_789"
+        // NavMap 0.9 without a key, then with an old one: the key comes along, in either form of the answer.
+        assertEquals(mapsKey, JSONObject(get("/nav?k=$key&ah=555&rv=42&kf=none").body).getString("mk"))
+        assertEquals(setOf("n", "mk"), JSONObject(get("/nav?k=$key&ah=555&rv=42&c=1&kf=Q12345").body).keySet())
+        // Once the watch has it, or for NavMap 0.8, which sends no kf and has the key built in: not again.
+        assertFalse(JSONObject(get("/nav?k=$key&ah=555&rv=42&c=1&kf=YZ_789").body).has("mk"))
+        assertFalse(JSONObject(get("/nav?k=$key&ah=555&rv=42&c=1").body).has("mk"))
+        // A refused watch never sees it.
+        assertEquals("""{"t":"denied"}""", get("/nav?k=${key.reversed()}&kf=none").body)
+        // Nothing to hand over before the user has set one.
+        mapsKey = ""
+        assertFalse(JSONObject(get("/nav?k=$key&ah=555&rv=42&kf=none").body).has("mk"))
+        assertEquals(mapOf("t" to "idle"), NavEndpoint.withMapsKey(mapOf("t" to "idle"), "", ""))
+    }
+
+    @Test
     fun refusesOtherRequests() {
         assertEquals(403, get("/nav?ah=0&rv=0").code)
         assertEquals("""{"t":"denied"}""", get("/nav?k=${key.reversed()}&ah=0").body)
@@ -173,7 +195,7 @@ class NavEndpointTest {
         assertFalse(NavEndpoint.keyMatches("", key))
         assertFalse(NavEndpoint.keyMatches(key.uppercase(), key))
         assertFalse(NavEndpoint.keyMatches(key.dropLast(1), key))
-        // A build without a key takes anything.
+        // An empty expected key takes anything; WatchPairing never passes one.
         assertTrue(NavEndpoint.keyMatches(null, ""))
     }
 

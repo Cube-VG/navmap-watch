@@ -14,6 +14,7 @@ const NAV_URL = "http://127.0.0.1:18165/nav";
 // turn, every 5 s otherwise.
 class NavLink {
     var fails as Number = 0;   // requests in a row that got no answer
+    var refused as Boolean = false;   // NavBridge answered 403: this watch isn't paired with it (yet)
 
     private var _m as NavModel;
     private var _inFlight as Boolean = false;
@@ -36,7 +37,7 @@ class NavLink {
         if (now < _nextAt || !System.getDeviceSettings().phoneConnected) {
             return;
         }
-        var params = {"k" => NAVBRIDGE_TOKEN, "ah" => _m.arrowHash.toString(), "rv" => _m.routeVersion.toString(), "c" => "1"};
+        var params = {"k" => Keys.token(), "kf" => Keys.mapsKeyTail(), "ah" => _m.arrowHash.toString(), "rv" => _m.routeVersion.toString(), "c" => "1"};
         var lat = _m.lat;
         var lon = _m.lon;
         if (lat != null && lon != null) {
@@ -63,6 +64,7 @@ class NavLink {
                 System.println("nav answer");
             }
             fails = 0;
+            refused = false;
             _m.lagMs = (System.getTimer() - _sentAt) / 2;
             if (_m.onPhoneMessage(data)) {
                 _m.alertUser();
@@ -71,6 +73,7 @@ class NavLink {
             var near = _m.liveMeters >= 0 && _m.liveMeters <= 500;
             _nextAt = _sentAt + (_m.navActive ? (near ? 1000 : 2000) : 5000) - 300;
         } else {
+            refused = code == 403;
             fails++;
             if (fails <= 3) {
                 System.println("nav " + code);

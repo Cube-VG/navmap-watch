@@ -149,6 +149,10 @@ class WatchProtocolTest {
         assertFalse(WatchProtocol.poll("k=a&ah=1&rv=2").compact)
         assertFalse(WatchProtocol.poll("c=0").compact)
         assertFalse(WatchProtocol.poll("c=yes").compact)
+        // NavMap 0.9 says which Google Maps key it has.
+        assertEquals("YZ_789", WatchProtocol.poll("k=a&kf=YZ_789").keyTail)
+        assertEquals("none", WatchProtocol.poll("k=a&kf=none").keyTail)
+        assertEquals(null, WatchProtocol.poll("k=a&ah=1").keyTail)
     }
 
     @Test
