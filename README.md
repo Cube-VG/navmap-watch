@@ -2,7 +2,7 @@
 
 A real Google map on the Garmin Forerunner 165 that follows your GPS and stays on screen while you navigate. Built in public.
 
-**Status:** first watch test build. The Android companion app (auto-launch on Google Maps navigation, turn arrows, route line) is next.
+**Status:** test builds of the watch app and the NavBridge phone app. Setup: [docs/SETUP.md](docs/SETUP.md).
 
 ## What the watch app does
 - Light, high-contrast Google map (readable in sunlight) centred on your position, sliding as you move
@@ -12,6 +12,15 @@ A real Google map on the Garmin Forerunner 165 that follows your GPS and stays o
 - Up/Down zoom instantly (the current map is scaled until the sharp one arrives), Start shows a debug panel, Back asks before exiting
 - Talks to the NavBridge phone app: says hello until it answers, then shows turns, distance, ETA and the route line
 
+## What the phone app (NavBridge) does
+- Reads Google Maps' turn-by-turn notification. No Google Maps changes, no root
+- Opens NavMap on the watch when navigation starts (Garmin asks for one button press)
+- Sends each turn: Google's own arrow, the distance, the street and the ETA
+- Share a place from Google Maps to **Navigate with NavMap** to also get the blue route line. It's computed with the Routes API (motorbike, car, bicycle or walking) and redrawn after a reroute
+- **Simulate navigation** demo ride for testing without riding
+
+The notification parser is tested against 174 Google Maps notifications in 17 locales (real captures and hand-written ones) from [PebbleNTN](https://github.com/optio/PebbleNTN) (MIT).
+
 ## Build
 Needs the Connect IQ SDK, a developer key and your own Google Maps Static API key.
 
@@ -20,3 +29,12 @@ Needs the Connect IQ SDK, a developer key and your own Google Maps Static API ke
 3. Run `tools/build-watch.sh fr165` (or `fr165m`)
 
 `watch/source/Secrets.mc` is generated at build time and never committed.
+
+### Phone app
+Needs JDK 17 and the Android SDK (platform 36). The release signing key lives in `~/.config/navmap/navbridge-release.jks`, with its password in `navbridge-signing.properties` next to it. Without them the APK is debug-signed.
+
+Run `tools/build-phone.sh`. It runs the unit tests and writes `dist/NavBridge.apk`. The Maps key from `secrets.properties` is baked in for the route line, so don't publish that APK.
+
+### Testing the watch without a phone
+`tools/sim-phone.py serve --ride` stands in for NavBridge against the Connect IQ simulator (Connection → Start). It prints what the watch sends and plays a demo ride with turn arrows and a route line.
+

@@ -4,3 +4,11 @@ watch/bin/
 *.der
 *.pem
 secrets*.properties
+android/.gradle/
+android/.kotlin/
+android/**/build/
+android/local.properties
+*.jks
+*.keystore
+*.apk
+__pycache__/

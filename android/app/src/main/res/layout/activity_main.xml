@@ -1,0 +1,307 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:clipToPadding="false"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/app_name"
+            android:textAppearance="?attr/textAppearanceHeadlineMedium" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="@string/tagline"
+            android:textAppearance="?attr/textAppearanceBodyMedium" />
+
+        <com.google.android.material.card.MaterialCardView
+            style="?attr/materialCardViewFilledStyle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:id="@+id/session_status"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textAppearance="?attr/textAppearanceTitleMedium" />
+
+                <TextView
+                    android:id="@+id/session_detail"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:textAppearance="?attr/textAppearanceBodyMedium" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/simulate"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="@string/simulate" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/open_watch"
+                    style="?attr/materialButtonOutlinedStyle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/open_on_watch" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <com.google.android.material.card.MaterialCardView
+            style="?attr/materialCardViewOutlinedStyle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp">
+
+            <LinearLayout
+                android:id="@+id/steps"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/setup"
+                    android:textAppearance="?attr/textAppearanceTitleMedium" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <com.google.android.material.card.MaterialCardView
+            style="?attr/materialCardViewOutlinedStyle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/watch"
+                        android:textAppearance="?attr/textAppearanceTitleMedium" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/refresh_watch"
+                        style="?attr/borderlessButtonStyle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/refresh" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/watch_status"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textAppearance="?attr/textAppearanceBodyMedium" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <com.google.android.material.card.MaterialCardView
+            style="?attr/materialCardViewOutlinedStyle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/route_line"
+                    android:textAppearance="?attr/textAppearanceTitleMedium" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="@string/route_line_how"
+                    android:textAppearance="?attr/textAppearanceBodyMedium" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="@string/travel_by"
+                    android:textAppearance="?attr/textAppearanceLabelLarge" />
+
+                <com.google.android.material.chip.ChipGroup
+                    android:id="@+id/modes"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:selectionRequired="true"
+                    app:singleSelection="true">
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/mode_motorbike"
+                        style="@style/Widget.Material3.Chip.Filter"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/mode_motorbike" />
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/mode_car"
+                        style="@style/Widget.Material3.Chip.Filter"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/mode_car" />
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/mode_bicycle"
+                        style="@style/Widget.Material3.Chip.Filter"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/mode_bicycle" />
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/mode_walk"
+                        style="@style/Widget.Material3.Chip.Filter"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/mode_walk" />
+                </com.google.android.material.chip.ChipGroup>
+
+                <TextView
+                    android:id="@+id/route_status"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:textAppearance="?attr/textAppearanceBodyMedium" />
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/key_layout"
+                    style="?attr/textInputOutlinedStyle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:hint="@string/routes_key_hint">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/key_input"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:importantForAutofill="no"
+                        android:inputType="textNoSuggestions|textVisiblePassword"
+                        android:singleLine="true" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/key_save"
+                    style="?attr/borderlessButtonStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="end"
+                    android:text="@string/save_key" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <com.google.android.material.card.MaterialCardView
+            style="?attr/materialCardViewOutlinedStyle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/last_notification"
+                    android:textAppearance="?attr/textAppearanceTitleMedium" />
+
+                <TextView
+                    android:id="@+id/last_notification"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:fontFamily="monospace"
+                    android:textIsSelectable="true"
+                    android:textSize="12sp" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <com.google.android.material.card.MaterialCardView
+            style="?attr/materialCardViewOutlinedStyle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/log"
+                        android:textAppearance="?attr/textAppearanceTitleMedium" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/copy_log"
+                        style="?attr/borderlessButtonStyle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/copy" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/log"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="monospace"
+                    android:textIsSelectable="true"
+                    android:textSize="11sp" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+    </LinearLayout>
+</ScrollView>

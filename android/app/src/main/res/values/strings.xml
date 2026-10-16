@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">NavBridge</string>
+    <string name="share_label">Navigate with NavMap</string>
+    <string name="tagline">Shows Google Maps turns, and the route line, on NavMap on your Garmin watch.</string>
+    <string name="simulate">Simulate navigation</string>
+    <string name="stop_simulation">Stop simulation</string>
+    <string name="open_on_watch">Open NavMap on the watch</string>
+    <string name="setup">Setup</string>
+    <string name="watch">Watch</string>
+    <string name="refresh">Refresh</string>
+    <string name="route_line">Route line</string>
+    <string name="route_line_how">For the blue route line: in Google Maps, open a place, tap Share and choose “Navigate with NavMap”. Maps starts navigating and the watch draws the route.</string>
+    <string name="travel_by">I travel by</string>
+    <string name="mode_motorbike">Motorbike</string>
+    <string name="mode_car">Car</string>
+    <string name="mode_bicycle">Bicycle</string>
+    <string name="mode_walk">Walking</string>
+    <string name="routes_key_hint">Routes API key (only for your own key)</string>
+    <string name="save_key">Save key</string>
+    <string name="last_notification">Last Google Maps notification</string>
+    <string name="log">Log</string>
+    <string name="copy">Copy</string>
+</resources>
