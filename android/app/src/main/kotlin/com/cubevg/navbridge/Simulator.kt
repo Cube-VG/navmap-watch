@@ -9,7 +9,6 @@ import android.os.Looper
 import com.cubevg.navmap.core.ArrowEncoder
 import com.cubevg.navmap.core.LatLng
 import com.cubevg.navmap.core.MapsNotificationParser
-import com.cubevg.navmap.core.Polyline
 import com.cubevg.navmap.core.RawNotification
 import java.text.DateFormat
 import java.util.Date
@@ -137,7 +136,7 @@ object Simulator {
             points += LatLng(last.lat + dLat, last.lng + dLng)
         }
         routeSent = true
-        NavSession.setRoute(Polyline.forWatch(points))
+        NavSession.setRoute(points)
     }
 
     // Simple white arrows on transparency, like Google's maneuver icons.

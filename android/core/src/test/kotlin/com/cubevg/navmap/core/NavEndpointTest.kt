@@ -22,10 +22,16 @@ class NavEndpointTest {
     private val arrow = IntArray(96) { it * 7919 - 300_000 }
     private val polls = CopyOnWriteArrayList<WatchProtocol.Poll>()
 
+    private val route = listOf(1297000, 7759000, 1297100, 7759100)
+
     // What NavSession would answer: navigating, with an arrow and route line version 42.
     private var onPoll: (WatchProtocol.Poll) -> Map<String, Any>? = { poll ->
         polls += poll
-        WatchProtocol.navReply(info, arrow, 555, listOf(1297000, 7759000, 1297100, 7759100), 42, poll)
+        if (poll.compact) {
+            WatchProtocol.compactNavReply(info, arrow, 555, NavCodec.route(route.toIntArray()), 42, poll)
+        } else {
+            WatchProtocol.navReply(info, arrow, 555, route, 42, poll)
+        }
     }
     private lateinit var server: LoopbackServer
     private var port = -1
@@ -81,7 +87,7 @@ class NavEndpointTest {
         assertEquals(555, json.getInt("ah"))
         assertEquals(42, json.getInt("rv"))
         assertEquals(arrow.toList(), json.getJSONArray("a").toList())
-        assertEquals(listOf(1297000, 7759000, 1297100, 7759100), json.getJSONArray("p").toList())
+        assertEquals(route, json.getJSONArray("p").toList())
         assertEquals(WatchProtocol.Poll(key, 0, 0, LatLng(12.97, 77.59)), polls.single())
 
         // The watch now has both: only the turn comes back.
@@ -89,6 +95,24 @@ class NavEndpointTest {
         assertFalse(next.has("a"))
         assertFalse(next.has("p"))
         assertEquals(null, polls.last().position)
+    }
+
+    @Test
+    fun answersCompactPolls() {
+        val reply = get("/nav?k=$key&ah=0&rv=0&c=1")
+        assertEquals(200, reply.code)
+        // Ascii on the wire; the arrow text holds backslashes, which JSON escapes.
+        assertTrue(reply.body.all { it.code in 0x20..0x7e })
+        val json = JSONObject(reply.body)
+        assertEquals(setOf("n", "A", "P"), json.keySet())
+        assertEquals("150|555|42|150 m|Arrive 10:01|Turn right onto Caf\u00e9 Road", json.getString("n"))
+        assertEquals(NavCodec.arrow(arrow), json.getString("A"))
+        assertEquals(route, Polyline.decode(json.getString("P")).flatMap { listOf(WatchProtocol.toE5(it).first, WatchProtocol.toE5(it).second) })
+        assertTrue(polls.single().compact)
+
+        assertEquals(setOf("n"), JSONObject(get("/nav?k=$key&ah=555&rv=42&c=1").body).keySet())
+        // Without c=1, the 0.4 answer.
+        assertEquals("nav", JSONObject(get("/nav?k=$key&ah=555&rv=42").body).getString("t"))
     }
 
     @Test

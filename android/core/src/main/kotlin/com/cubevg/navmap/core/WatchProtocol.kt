@@ -25,13 +25,16 @@ import kotlin.math.roundToInt
  *
  * NavMap also polls NavBridge over HTTP, which works when Connect IQ messaging doesn't: Garmin Connect runs the
  * watch's makeWebRequest on the phone, and plain HTTP to 127.0.0.1 is allowed.
- *  - GET /nav?k=key&ah=arrowHash&rv=routeVersion[&la=lat·1e5&lo=lng·1e5] on 127.0.0.1:18165, with the hash of
+ *  - GET /nav?k=key&ah=arrowHash&rv=routeVersion[&la=lat·1e5&lo=lng·1e5][&c=1] on 127.0.0.1:18165, with the hash of
  *    the arrow and the version of the route line the watch has. Any poll means NavMap is open.
  *  - The reply is always one JSON object (Garmin Connect rejects a top-level array):
  *    {"t":"nav","i","d","dm","e","ah","rv"[,"a":[96 ints]][,"p":[lat·1e5, lng·1e5, …]]} while navigating, with "a"
  *    only when the watch's arrow hash differs and "p" only when its route version does. Route version 0 is no
  *    route; a cleared route gets a new version and "p":[]. Then {"t":"end","ar":arrived} for a minute after
  *    navigation ends, and {"t":"idle"} otherwise.
+ *  - With c=1 (NavMap 0.6+) the answer while navigating is compact, see [NavCodec]: {"n":"dm|ah|rv|d|e|i"} with
+ *    "A" (arrow runs) instead of "a" and "P" (encoded polyline) instead of "p", under the same rules; "" clears
+ *    either. "end" and "idle" don't change.
  */
 object WatchProtocol {
     const val VERSION = 2
@@ -87,12 +90,21 @@ object WatchProtocol {
         return m
     }
 
+    /** [navReply] for NavMap 0.6+, which asks with c=1: the turn as one line, the arrow and route line as text. */
+    fun compactNavReply(info: NavInfo, arrow: IntArray?, arrowHash: Int, routeText: String?, routeVersion: Int, poll: Poll): Map<String, Any> {
+        val line = NavCodec.navLine(info.distance?.meters ?: -1, arrowHash, routeVersion, info.distance?.text ?: "", info.trip, info.instruction)
+        val m = linkedMapOf<String, Any>("n" to line)
+        if (poll.arrowHash != arrowHash) m["A"] = arrow?.let(NavCodec::arrow) ?: ""
+        if (poll.routeVersion != routeVersion) m["P"] = routeText ?: ""
+        return m
+    }
+
     /** The answer to a poll when Maps isn't navigating: "end" for a minute after navigation ended, then "idle". */
     fun notNavigatingReply(endedAgoMs: Long?, arrived: Boolean): Map<String, Any> =
         if (endedAgoMs != null && endedAgoMs in 0 until END_SHOWN_MS) end(arrived) else idle()
 
     /** NavMap's GET /nav, read from its query string. Missing or unreadable values are null. */
-    data class Poll(val key: String?, val arrowHash: Int?, val routeVersion: Int?, val position: LatLng?)
+    data class Poll(val key: String?, val arrowHash: Int?, val routeVersion: Int?, val position: LatLng?, val compact: Boolean = false)
 
     fun poll(query: String?): Poll {
         val q = query(query)
@@ -102,6 +114,7 @@ object WatchProtocol {
             arrowHash = q["ah"]?.toLongOrNull()?.toInt(),
             routeVersion = q["rv"]?.toIntOrNull(),
             position = position(q["la"]?.toDoubleOrNull(), q["lo"]?.toDoubleOrNull()),
+            compact = q["c"] == "1",
         )
     }
 

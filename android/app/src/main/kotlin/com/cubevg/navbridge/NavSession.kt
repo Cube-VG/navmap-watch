@@ -7,6 +7,7 @@ import android.os.SystemClock
 import com.cubevg.navmap.core.ArrowEncoder
 import com.cubevg.navmap.core.Destination
 import com.cubevg.navmap.core.LatLng
+import com.cubevg.navmap.core.NavCodec
 import com.cubevg.navmap.core.NavInfo
 import com.cubevg.navmap.core.NavKind
 import com.cubevg.navmap.core.Polyline
@@ -102,6 +103,7 @@ object NavSession : CiqBridge.Listener {
         private set
     private var destinationAt = 0L
     private var route: List<Int>? = null
+    private var routeText: String? = null // the same line for NavMap 0.6+, see NavCodec
     private var routeVersion = 0
     private var routeDirty = false
     private var routing = false
@@ -331,15 +333,15 @@ object NavSession : CiqBridge.Listener {
         main.postDelayed(pollsStopped, POLL_GONE_MS)
         if (!polling) {
             polling = true
-            DebugLog.log("NavMap is asking for turns")
+            DebugLog.log("NavMap is asking for turns" + if (poll.compact) " (compact)" else "")
         }
         if (active && latest != null && !shown) onShowing()
         poll.position?.let(::onWatchPosition)
         val info = latest
-        return if (info != null) {
-            WatchProtocol.navReply(info, arrow, arrowHash, route, routeVersion, poll)
-        } else {
-            WatchProtocol.notNavigatingReply(if (endedAt > 0) now - endedAt else null, endArrived)
+        return when {
+            info == null -> WatchProtocol.notNavigatingReply(if (endedAt > 0) now - endedAt else null, endArrived)
+            poll.compact -> WatchProtocol.compactNavReply(info, arrow, arrowHash, routeText, routeVersion, poll)
+            else -> WatchProtocol.navReply(info, arrow, arrowHash, route, routeVersion, poll)
         }
     }
 
@@ -512,15 +514,16 @@ object NavSession : CiqBridge.Listener {
     }
 
     /** For the simulator: a route made up on the phone. */
-    fun setRoute(points: List<Int>) {
+    fun setRoute(points: List<LatLng>) {
         setRouteLine(points)
         pump()
     }
 
     /** A new line, or none: it gets a new version, so a polling NavMap fetches it. */
-    private fun setRouteLine(points: List<Int>?) {
+    private fun setRouteLine(points: List<LatLng>?) {
         if (points == null && route == null) return
-        route = points
+        route = points?.let { Polyline.forWatch(it) }
+        routeText = points?.let { NavCodec.routeForWatch(it) }
         routeDirty = points != null
         // Random, so a restarted NavBridge never reuses the version of a line the watch still has.
         val old = routeVersion
@@ -587,7 +590,7 @@ object NavSession : CiqBridge.Listener {
             if (destination !== place) return@computeRoute
             lastRouteAt = SystemClock.elapsedRealtime()
             result.onSuccess { r ->
-                setRouteLine(Polyline.forWatch(r.points))
+                setRouteLine(r.points)
                 routeSummary = r.summary()
                 DebugLog.log("Route: ${r.summary()}, ${route!!.size / 2} points for the watch")
                 pump()

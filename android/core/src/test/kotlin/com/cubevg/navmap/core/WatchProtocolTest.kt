@@ -93,6 +93,32 @@ class WatchProtocolTest {
     }
 
     @Test
+    fun compactReplySendsOnlyWhatTheWatchLacks() {
+        val routeText = NavCodec.route(route.toIntArray())
+        val m = WatchProtocol.compactNavReply(info, arrow, 1234, routeText, 77, poll(1234, 77))
+        assertEquals(mapOf("n" to "350|1234|77|350 m|Arrive 10:01|Turn left onto Elm St"), m)
+
+        val fresh = WatchProtocol.compactNavReply(info, arrow, 1234, routeText, 77, poll(null, null))
+        assertEquals(NavCodec.arrow(arrow), fresh["A"])
+        assertEquals(routeText, fresh["P"])
+        assertFalse(fresh.containsKey("a") || fresh.containsKey("p") || fresh.containsKey("t"))
+
+        val newRoute = WatchProtocol.compactNavReply(info, arrow, 1234, routeText, 78, poll(1234, 77))
+        assertFalse(newRoute.containsKey("A"))
+        assertEquals(routeText, newRoute["P"])
+    }
+
+    @Test
+    fun compactReplyClearsWhatsGone() {
+        val m = WatchProtocol.compactNavReply(info.copy(distance = null), null, 0, null, 5, poll(1234, 77))
+        assertEquals("-1|0|5||Arrive 10:01|Turn left onto Elm St", m["n"])
+        assertEquals("", m["A"])
+        assertEquals("", m["P"])
+        val none = WatchProtocol.compactNavReply(info, null, 0, null, 0, poll(0, 0))
+        assertEquals(setOf("n"), none.keys)
+    }
+
+    @Test
     fun endForAMinuteThenIdle() {
         assertEquals(mapOf("t" to "end", "ar" to true), WatchProtocol.notNavigatingReply(0, arrived = true))
         assertEquals(mapOf("t" to "end", "ar" to false), WatchProtocol.notNavigatingReply(59_999, arrived = false))
@@ -118,6 +144,11 @@ class WatchProtocolTest {
         assertEquals(null, WatchProtocol.poll("la=NaN&lo=7759000").position)
         assertEquals(null, WatchProtocol.poll("la=99999999&lo=7759000").position)
         assertEquals(null, WatchProtocol.poll("ah=x&rv=").arrowHash)
+        // NavMap 0.6 asks for the compact form.
+        assertTrue(WatchProtocol.poll("k=a&ah=1&rv=2&c=1").compact)
+        assertFalse(WatchProtocol.poll("k=a&ah=1&rv=2").compact)
+        assertFalse(WatchProtocol.poll("c=0").compact)
+        assertFalse(WatchProtocol.poll("c=yes").compact)
     }
 
     @Test

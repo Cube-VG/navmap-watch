@@ -17,7 +17,7 @@ One thing: while Google Maps navigates on your phone, NavMap shows it on the wat
 ## What the phone app (NavBridge) does
 - Reads Google Maps' turn-by-turn notification. No Google Maps changes, no root
 - Opens NavMap on the watch when navigation starts (Garmin asks for one button press)
-- Answers NavMap's requests on 127.0.0.1:18165 with the current turn: Google's own arrow, the distance, the street and the ETA, plus the route line when it changes. Where Garmin Connect still delivers Connect IQ messages, turns are pushed that way too
+- Answers NavMap's requests on 127.0.0.1:18165 with the current turn: Google's own arrow, the distance, the street and the ETA, plus the route line when it changes. From 0.5 it answers in the compact form NavMap 0.6 asks for (see "Bluetooth bytes"). Where Garmin Connect still delivers Connect IQ messages, turns are pushed that way too
 - Share a place from Google Maps to **Navigate with NavMap** to also get the blue route line. It's computed with the Routes API (motorbike, car, bicycle or walking) and redrawn after a reroute
 - **Simulate navigation** demo ride for testing without riding
 
@@ -51,7 +51,7 @@ Everything NavMap receives goes over Bluetooth, which is slow, so it is packed t
 - **JSON answers** are re-serialized into Monkey C's format: every number costs 5 bytes, text 1 byte per ASCII character. Then Garmin's LZW (9-bit codes) may shrink it.
 - **Map pictures** go through Garmin's cloud image service, or the phone if that fails. Every pixel becomes the nearest palette colour, packed at 1, 2, 4 or 8 bits (palette + 1 transparent: 4 colours fit 2 bits), then Garmin's LZW with 10-bit codes.
 
-So NavMap 0.6 asks for (`c=1`) and reads a compact answer: the turn as one line of text, the arrow as runs of rows, the route as a Google encoded polyline thinned to 2 m. `tools/navcodec.py` is the spec and reference encoder (run it to self-test). `tools/link_bytes.py msg` and `tools/link_bytes.py map [lat lon]` measure the bytes with a copy of Garmin's LZW:
+So NavMap 0.6 asks for (`c=1`) and reads a compact answer: the turn as one line of text, the arrow as runs of rows, the route as a Google encoded polyline thinned to 2 m. `tools/navcodec.py` is the spec and reference encoder (run it to self-test). NavBridge 0.5 answers this way (`NavCodec.kt`, tested against navcodec.py's own output from `tools/navcodec-vectors.py`); with NavBridge 0.4, NavMap 0.6 reads the old answer. A route still over 250 points after thinning is thinned harder, as before, because the watch redraws every point each second. `tools/link_bytes.py msg` and `tools/link_bytes.py map [lat lon]` measure the bytes with a copy of Garmin's LZW:
 
 | | v0.5 | v0.6 |
 |---|---|---|
