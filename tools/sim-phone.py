@@ -192,29 +192,41 @@ def _arrow_shapes():
     }
 
 
+def _in_polygon(x, y, poly):
+    inside = False
+    for (x0, y0), (x1, y1) in zip(poly, poly[-1:] + poly[:-1]):
+        if (y0 > y) != (y1 > y) and x < x0 + (y - y0) * (x1 - x0) / (y1 - y0):
+            inside = not inside
+    return inside
+
+
+def _in_ellipse(x, y, box):
+    left, top, right, bottom = box
+    rx, ry = (right - left) / 2, (bottom - top) / 2
+    return ((x - left - rx) / rx) ** 2 + ((y - top - ry) / ry) ** 2 <= 1
+
+
+def _filled(shapes, x, y):
+    if shapes is None:  # destination pin: a ring on a downward point
+        if _in_ellipse(x, y, (19, 11, 29, 21)):
+            return False
+        return _in_ellipse(x, y, (12, 4, 36, 28)) or _in_polygon(x, y, [(14, 22), (34, 22), (24, 44)])
+    return any(_in_polygon(x, y, poly) for poly in shapes)
+
+
 def arrow_bits(name):
-    """Draws a maneuver arrow and packs it: 48 rows x 2 ints, int 0 bit 31 = x0, int 1 bit 15 = x32."""
-    from PIL import Image, ImageDraw
-    img = Image.new("1", (48, 48), 0)
-    d = ImageDraw.Draw(img)
+    """Draws a maneuver arrow and packs it: 48 rows x 2 ints, int 0 bit 31 = x0, int 1 bit 15 = x32.
+    Plain Python (no Pillow), so the script runs on any computer with Python 3."""
     shapes = _arrow_shapes()[name]
-    if shapes is None:  # destination pin
-        d.ellipse((12, 4, 36, 28), fill=1)
-        d.polygon([(14, 22), (34, 22), (24, 44)], fill=1)
-        d.ellipse((19, 11, 29, 21), fill=0)
-    else:
-        for poly in shapes:
-            d.polygon(poly, fill=1)
-    px = img.load()
     bits = []
     for y in range(48):
         a = b = 0
-        for x in range(32):
-            if px[x, y]:
-                a |= 1 << (31 - x)
-        for x in range(32, 48):
-            if px[x, y]:
-                b |= 1 << (47 - x)
+        for x in range(48):
+            if _filled(shapes, x + 0.5, y + 0.5):
+                if x < 32:
+                    a |= 1 << (31 - x)
+                else:
+                    b |= 1 << (47 - x)
         bits += [a - (1 << 32) if a >= 1 << 31 else a, b]
     return bits
 
@@ -309,7 +321,7 @@ class Phone:
         srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         srv.bind(("127.0.0.1", port))
         srv.listen(1)
-        log(f"Waiting for the simulator on 127.0.0.1:{port} (simulator: Connection > Start)")
+        log(f"Waiting for the simulator on 127.0.0.1:{port} (simulator: adb Connection > Start)")
         while True:
             conn, _ = srv.accept()
             conn.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
