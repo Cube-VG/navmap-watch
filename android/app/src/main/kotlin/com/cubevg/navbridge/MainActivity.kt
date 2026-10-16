@@ -221,6 +221,8 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             if (CiqBridge.state == CiqBridge.State.READY && CiqBridge.devices.isEmpty()) append("\nNo watch paired in Garmin Connect")
+            if (NavSession.appOpen) append("\nNavMap is open")
+            if (Roads.status.isNotEmpty()) append("\nRoads © OpenStreetMap contributors: ").append(Roads.status)
         }
     }
 

@@ -18,6 +18,7 @@ import com.garmin.android.connectiq.IQDevice
 /**
  * One navigation, relayed to the watch. When Google Maps starts navigating, NavMap is opened with the watch's
  * "Open NavMap?" prompt; once it says hello, the watch always gets the newest turn, one message at a time.
+ * Whenever NavMap is open, navigating or not, it also gets the road lines around it ([Roads]).
  * Main thread only.
  */
 object NavSession : CiqBridge.Listener {
@@ -29,6 +30,15 @@ object NavSession : CiqBridge.Listener {
     private const val DESTINATION_FRESH_MS = 10 * 60_000L
     private const val REROUTE_GAP_MS = 20_000L
     private const val WHERE_RETRY_MS = 8_000L
+    private const val WHERE_EVERY_MS = 15_000L
+    private const val WHERE_MISSES = 4
+
+    /** The watch can never take a message that failed like this, so it isn't retried. */
+    private val REFUSED = setOf(
+        IQMessageStatus.FAILURE_MESSAGE_TOO_LARGE,
+        IQMessageStatus.FAILURE_INVALID_FORMAT,
+        IQMessageStatus.FAILURE_UNSUPPORTED_TYPE,
+    )
 
     private val main = Handler(Looper.getMainLooper())
     private lateinit var context: Context
@@ -41,6 +51,10 @@ object NavSession : CiqBridge.Listener {
     var watchReady = false
         private set
     var watch: IQDevice? = null
+        private set
+
+    /** NavMap is open on the watch, navigating or not: it said hello or answers "where". */
+    var appOpen = false
         private set
     var status = "Waiting for Google Maps navigation"
         private set
@@ -61,6 +75,8 @@ object NavSession : CiqBridge.Listener {
     private var endPending = false
     private var endArrived = false
     private var whereDirty = false
+    private var idleDirty = false
+    private var wheresUnanswered = 0
 
     // Route line, from a place shared to NavBridge or from the simulator.
     var destination: Destination? = null
@@ -80,6 +96,8 @@ object NavSession : CiqBridge.Listener {
     fun init(appContext: Context) {
         context = appContext.applicationContext
         CiqBridge.listener = this
+        Roads.init(context)
+        Roads.onReady = ::pump
     }
 
     // ---- Google Maps ----
@@ -129,6 +147,7 @@ object NavSession : CiqBridge.Listener {
         failures = 0
         openTries = 0
         deliveredArrowHash = -1
+        idleDirty = false
         if (destination != null && SystemClock.elapsedRealtime() - destinationAt > DESTINATION_FRESH_MS) clearDestination()
         DebugLog.log("Navigation started" + (destination?.let { " to ${it.name ?: "shared place"}" } ?: ""))
         openOnWatch()
@@ -209,19 +228,28 @@ object NavSession : CiqBridge.Listener {
         when (message) {
             is WatchProtocol.FromWatch.Hello -> {
                 DebugLog.log("Hello from NavMap v${message.version} on ${device.friendlyName}")
-                message.position?.let(::onWatchPosition)
+                // NavMap has just started, so it has no roads yet.
+                Roads.restart()
+                onAppOpen(device)
+                val position = message.position
+                if (position != null) onWatchPosition(position) else Locator.lastKnown(context)?.let(Roads::seed)
                 if (active) {
                     onWatchReady(device)
                 } else {
                     // NavMap was opened by hand: tell it the phone is here so it stops asking.
-                    CiqBridge.send(device, WatchProtocol.idle()) {}
+                    idleDirty = true
+                    pump()
                 }
             }
-            is WatchProtocol.FromWatch.Position -> message.position?.let(::onWatchPosition)
+            is WatchProtocol.FromWatch.Position -> {
+                onAppOpen(device)
+                message.position?.let(::onWatchPosition)
+            }
             WatchProtocol.FromWatch.Bye -> {
                 DebugLog.log("NavMap closed on ${device.friendlyName}")
                 if (device == watch) {
                     watchReady = false
+                    onAppClosed()
                     if (active) setStatus("NavMap was closed on the watch")
                 }
             }
@@ -235,6 +263,8 @@ object NavSession : CiqBridge.Listener {
         Alerts.clear(context)
         watch = device
         watchReady = true
+        idleDirty = false
+        onAppOpen(device)
         // NavMap may have just started: send everything again.
         deliveredArrowHash = -1
         navDirty = latest != null
@@ -245,44 +275,100 @@ object NavSession : CiqBridge.Listener {
         pump()
     }
 
+    // ---- NavMap open, navigating or not ----
+
+    /** NavMap said hello or answered "where": it's open, so it's asked where it is every 15 s and gets roads. */
+    private fun onAppOpen(device: IQDevice) {
+        wheresUnanswered = 0
+        watch = device
+        if (appOpen) return
+        appOpen = true
+        main.removeCallbacks(pollWhere)
+        main.postDelayed(pollWhere, WHERE_EVERY_MS)
+    }
+
+    private fun onAppClosed() {
+        appOpen = false
+        idleDirty = false
+        main.removeCallbacks(pollWhere)
+        Roads.stop()
+    }
+
+    // Where the watch is, for the road squares, and whether NavMap is still there to answer.
+    private val pollWhere = object : Runnable {
+        override fun run() {
+            if (!appOpen) return
+            if (wheresUnanswered >= WHERE_MISSES && !active) {
+                // Closed without a bye. While Maps is navigating, turns keep going regardless.
+                DebugLog.log("NavMap stopped answering")
+                onAppClosed()
+                return
+            }
+            whereDirty = true
+            pump()
+            main.postDelayed(this, WHERE_EVERY_MS)
+        }
+    }
+
     // ---- Sending, one message at a time ----
 
-    private enum class Kind { NAV, ROUTE, WHERE, END }
+    // Most urgent first. A road chunk is about 2.5 KB, so a turn waits for at most one.
+    private enum class Kind { END, NAV, IDLE, WHERE, ROUTE, ROADS }
 
     private fun pump() {
-        if (!watchReady || inFlight) return
+        if (inFlight || (!watchReady && !appOpen)) return
         val device = watch ?: return
         val info = latest
         val kind: Kind
         val message: Map<String, Any>
         val sentArrowHash = arrowHash
         val sentRoute = route
+        val roads = if (appOpen) Roads.next() else null
         when {
-            endPending -> {
+            watchReady && endPending -> {
                 kind = Kind.END
                 message = WatchProtocol.end(endArrived)
             }
-            navDirty && info != null -> {
+            watchReady && navDirty && info != null -> {
                 kind = Kind.NAV
                 message = WatchProtocol.nav(++seq, info, arrow, arrowHash, sendArrow = arrowHash != deliveredArrowHash)
+            }
+            idleDirty && !active -> {
+                kind = Kind.IDLE
+                message = WatchProtocol.idle()
             }
             whereDirty -> {
                 kind = Kind.WHERE
                 message = WatchProtocol.where()
             }
-            routeDirty && sentRoute != null -> {
+            watchReady && routeDirty && sentRoute != null -> {
                 kind = Kind.ROUTE
                 message = WatchProtocol.route(sentRoute)
+            }
+            roads != null -> {
+                kind = Kind.ROADS
+                message = roads
+                Roads.onSending(roads)
             }
             else -> return
         }
         inFlight = true
         val id = ++sendId
-        main.postDelayed({ if (inFlight && id == sendId) onSent(id, kind, null, info, sentArrowHash, sentRoute) }, SEND_TIMEOUT_MS)
-        CiqBridge.send(device, message) { result -> onSent(id, kind, result, info, sentArrowHash, sentRoute) }
+        val sentAt = SystemClock.elapsedRealtime()
+        main.postDelayed({ if (inFlight && id == sendId) onSent(id, kind, null, info, sentArrowHash, sentRoute, message, sentAt) }, SEND_TIMEOUT_MS)
+        CiqBridge.send(device, message) { result -> onSent(id, kind, result, info, sentArrowHash, sentRoute, message, sentAt) }
     }
 
-    private fun onSent(id: Int, kind: Kind, result: IQMessageStatus?, info: NavInfo?, hash: Int, sentRoute: List<Int>?) {
+    private fun onSent(
+        id: Int,
+        kind: Kind,
+        result: IQMessageStatus?,
+        info: NavInfo?,
+        hash: Int,
+        sentRoute: List<Int>?,
+        message: Map<String, Any>,
+        sentAt: Long,
+    ) {
         if (id != sendId || !inFlight) return
         inFlight = false
         if (result == IQMessageStatus.SUCCESS) {
@@ -294,7 +380,12 @@ object NavSession : CiqBridge.Listener {
                     if (latest === info && arrowHash == hash) navDirty = false
                 }
                 Kind.ROUTE -> if (route === sentRoute) routeDirty = false
-                Kind.WHERE -> whereDirty = false
+                Kind.IDLE -> idleDirty = false
+                Kind.WHERE -> {
+                    whereDirty = false
+                    wheresUnanswered++
+                }
+                Kind.ROADS -> Roads.onDelivered(message, SystemClock.elapsedRealtime() - sentAt)
                 Kind.END -> if (endPending) {
                     finish()
                     return
@@ -304,6 +395,11 @@ object NavSession : CiqBridge.Listener {
         } else {
             failures++
             DebugLog.log("Send $kind failed: ${result ?: "timeout"}")
+            if (kind == Kind.ROADS && result in REFUSED) {
+                Roads.onRejected(message)
+                pump()
+                return
+            }
             if (result == IQMessageStatus.FAILURE_DEVICE_NOT_CONNECTED) {
                 // Resumes from onWatchConnected; the slow retry covers a missed connection event.
                 setStatus("Watch disconnected")
@@ -365,6 +461,7 @@ object NavSession : CiqBridge.Listener {
         watchPosition = position
         main.removeCallbacks(askWhere)
         requestRoute()
+        Roads.onPosition(position)
     }
 
     // Repeats until the watch has a GPS fix to report.

@@ -19,8 +19,8 @@ android {
         applicationId = "com.cubevg.navbridge"
         minSdk = 26
         targetSdk = 36
-        versionCode = (setting("NAVBRIDGE_VERSION_CODE") ?: "2").toInt()
-        versionName = setting("NAVBRIDGE_VERSION_NAME") ?: "0.2"
+        versionCode = (setting("NAVBRIDGE_VERSION_CODE") ?: "3").toInt()
+        versionName = setting("NAVBRIDGE_VERSION_NAME") ?: "0.3"
         // Routes API key for the blue route line. Builds without one still relay turns.
         buildConfigField("String", "MAPS_API_KEY", "\"${setting("MAPS_API_KEY") ?: ""}\"")
         // Must match the id in watch/manifest.xml.

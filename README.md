@@ -19,6 +19,7 @@ A real Google map on the Garmin Forerunner 165 that follows your GPS and stays o
 - Sends each turn: Google's own arrow, the distance, the street and the ETA
 - Share a place from Google Maps to **Navigate with NavMap** to also get the blue route line. It's computed with the Routes API (motorbike, car, bicycle or walking) and redrawn after a reroute
 - **Simulate navigation** demo ride for testing without riding
+- Test: whenever NavMap is open, sends it the road lines around the watch, and a new 2.4 km square before you leave the current one. Map data © OpenStreetMap contributors, from [OpenFreeMap](https://openfreemap.org) tiles (no key). Tiles are cached on the phone (up to 64 MB); new ground costs about 0.2 MB per 2.4 km tile
 
 The notification parser is tested against 174 Google Maps notifications in 17 locales (real captures and hand-written ones) from [PebbleNTN](https://github.com/optio/PebbleNTN) (MIT).
 
