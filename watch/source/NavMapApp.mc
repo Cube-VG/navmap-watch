@@ -20,9 +20,7 @@ class NavMapApp extends Application.AppBase {
 
     function onStart(state as Dictionary?) as Void {
         Position.enableLocationEvents(Position.LOCATION_CONTINUOUS, method(:onPosition));
-        if (hasPhoneLink()) {
-            Communications.registerForPhoneAppMessages(method(:onPhone));
-        }
+        Communications.registerForPhoneAppMessages(method(:onPhone));
     }
 
     function onStop(state as Dictionary?) as Void {
@@ -35,18 +33,6 @@ class NavMapApp extends Application.AppBase {
     function getInitialView() as [WatchUi.Views] or [WatchUi.Views, WatchUi.InputDelegates] {
         var v = new MapView(model);
         return [v, new MapDelegate(v)];
-    }
-
-    // The Connect IQ simulator crashes when an app talks to the phone through it, so the simulator
-    // build (tools/build-watch.sh fr165 --sim, watch/sim.jungle) leaves the phone out: map and GPS only.
-    (:phoneLink)
-    function hasPhoneLink() as Boolean {
-        return true;
-    }
-
-    (:noPhoneLink)
-    function hasPhoneLink() as Boolean {
-        return false;
     }
 
     function onPosition(info as Position.Info) as Void {
@@ -70,7 +56,7 @@ class NavMapApp extends Application.AppBase {
 
     // Called every second. Says hello until NavBridge answers ("idle", or the current route and turn).
     function tickPhone() as Void {
-        if (!hasPhoneLink() || model.phoneAnswered || !System.getDeviceSettings().phoneConnected) {
+        if (model.phoneAnswered || !System.getDeviceSettings().phoneConnected) {
             return;
         }
         var now = System.getTimer();
@@ -94,6 +80,14 @@ class NavMapApp extends Application.AppBase {
         return msg;
     }
 
+    // The Connect IQ simulator (SDK 9.1 and 9.2) segfaults on any transmit over its phone link
+    // (Garmin bug CIQQA-4579), so the simulator build (tools/build-watch.sh fr165 --sim,
+    // watch/sim.jungle) only receives: it never says hello, and the phone side has to start.
+    (:noTransmit)
+    private function send(msg as Dictionary<String, String or Number>) as Void {
+    }
+
+    (:transmit)
     private function send(msg as Dictionary<String, String or Number>) as Void {
         try {
             Communications.transmit(msg as Dictionary<Communications.TransmitKeyType, Communications.TransmitType>, null, new PhoneListener());

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Builds the NavMap watch app. Usage: tools/build-watch.sh [device] [--sim]   (default fr165)
-# --sim writes dist/NavMap-sim.prg for the Connect IQ simulator. It has no phone link, because the
-# simulator crashes when an app talks to the phone through it: map and GPS work, turns and the route don't.
+# --sim writes dist/NavMap-sim.prg for the Connect IQ simulator. It receives phone messages but never
+# transmits, because the simulator segfaults on any transmit (Garmin bug CIQQA-4579).
 # The Maps API key is read from ~/.config/navmap/secrets.properties and never committed.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"

@@ -36,7 +36,13 @@ Needs JDK 17 and the Android SDK (platform 36). The release signing key lives in
 Run `tools/build-phone.sh`. It runs the unit tests and writes `dist/NavBridge.apk`. The Maps key from `secrets.properties` is baked in for the route line, so don't publish that APK.
 
 ### Testing the watch without a phone
-`tools/sim-phone.py serve --ride` stands in for NavBridge against the Connect IQ simulator (adb Connection → Start). It prints what the watch sends and plays a demo ride with turn arrows and a route line. Its message encoding matches Garmin's Android SDK, but it hasn't worked end to end yet: with it, the simulator crashed as soon as the watch app talked to the phone, both under QEMU on the ARM build server and natively on an Apple Silicon Mac (SDK 9.2.0). The script needs only Python 3. Start it before choosing adb Connection → Start; adb itself isn't needed.
+`tools/sim-phone.py` stands in for NavBridge against the Connect IQ simulator. It prints what the watch sends and plays a demo ride with turn arrows, a route line, the ETA and the arrival. It needs only Python 3, not adb.
 
-To try the map in the simulator without the phone, build with `tools/build-watch.sh fr165 --sim`. It writes `dist/NavMap-sim.prg`, which leaves the phone link out: the map and GPS work, turns and the route line don't. The 9.x simulator asks you to sign in to Garmin Connect before it loads map images.
+The simulator (SDK 9.1 and 9.2, on Linux, macOS and Windows) segfaults whenever a watch app transmits over its phone link: Garmin bug [CIQQA-4579](https://forums.garmin.com/developer/connect-iq/i/bug-reports/simulator-segfaults-on-communications-transmit-over-the-tethered-adb-connection-sdk-9-1-0-and-9-2-0-linux). So use the simulator build, which receives phone messages but never transmits:
+
+1. `tools/build-watch.sh fr165 --sim` writes `dist/NavMap-sim.prg`.
+2. Run `tools/sim-phone.py serve`, then choose adb Connection → Start in the simulator.
+3. Load `NavMap-sim.prg`, then run `tools/sim-phone.py ride` (or `send '<json>'`). `serve --ride` waits for a hello, which this build never sends.
+
+The 9.x simulator asks you to sign in to Garmin Connect before it loads map images.
 
