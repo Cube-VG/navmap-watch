@@ -6,9 +6,12 @@ import Toybox.Position;
 import Toybox.System;
 import Toybox.WatchUi;
 
-// A plain watch app (no activity session): nothing is recorded, and leaving NavMap leaves the watch as it was.
+// NavMap does one thing: while Google Maps navigates on the phone, it shows the map with the next turn,
+// and closes when the navigation ends. A plain watch app (no activity session): nothing is recorded,
+// and leaving NavMap leaves the watch as it was.
 class NavMapApp extends Application.AppBase {
     var model as NavModel;
+    var link as NavLink;
     var exitRequested as Boolean = false;
     private var _helloAt as Number = -100000;
     private var _hellos as Number = 0;
@@ -16,6 +19,7 @@ class NavMapApp extends Application.AppBase {
     function initialize() {
         AppBase.initialize();
         model = new NavModel();
+        link = new NavLink(model);
     }
 
     function onStart(state as Dictionary?) as Void {
@@ -31,8 +35,7 @@ class NavMapApp extends Application.AppBase {
     }
 
     function getInitialView() as [WatchUi.Views] or [WatchUi.Views, WatchUi.InputDelegates] {
-        var v = new MapView(model);
-        return [v, new MapDelegate(v)];
+        return [new MapView(model), new MapDelegate()];
     }
 
     function onPosition(info as Position.Info) as Void {
@@ -40,11 +43,11 @@ class NavMapApp extends Application.AppBase {
         WatchUi.requestUpdate();
     }
 
+    // Connect IQ phone messages: the second way NavBridge reaches the watch, besides NavLink.
     function onPhone(msg as Communications.PhoneAppMessage) as Void {
         var data = msg.data;
         if (data instanceof Dictionary && "where".equals(data["t"] as Object?)) {
             model.phoneAnswered = true;
-            model.msgCount++;
             send(withPosition({"t" => "pos"}));
             return;
         }
@@ -54,7 +57,7 @@ class NavMapApp extends Application.AppBase {
         WatchUi.requestUpdate();
     }
 
-    // Called every second. Says hello until NavBridge answers ("idle", or the current route and turn).
+    // Called every second. Says hello over Connect IQ until NavBridge answers either way.
     function tickPhone() as Void {
         if (model.phoneAnswered || !System.getDeviceSettings().phoneConnected) {
             return;
@@ -65,8 +68,6 @@ class NavMapApp extends Application.AppBase {
         }
         _helloAt = now;
         _hellos++;
-        model.hellos = _hellos;
-        System.println("hello " + _hellos);
         send(withPosition({"t" => "hello", "v" => 2}));
     }
 
@@ -82,7 +83,7 @@ class NavMapApp extends Application.AppBase {
 
     // The Connect IQ simulator (SDK 9.1 and 9.2) segfaults on any transmit over its phone link
     // (Garmin bug CIQQA-4579), so the simulator build (tools/build-watch.sh fr165 --sim,
-    // watch/sim.jungle) only receives: it never says hello, and the phone side has to start.
+    // watch/sim.jungle) never transmits. NavLink works there as on the watch.
     (:noTransmit)
     private function send(msg as Dictionary<String, String or Number>) as Void {
     }
@@ -106,7 +107,7 @@ class PhoneListener extends Communications.ConnectionListener {
     }
 
     function onError() as Void {
-        // Phone app not installed or not connected; the map still works on its own.
+        // Phone app not installed or not connected; NavLink keeps asking on its own.
     }
 }
 

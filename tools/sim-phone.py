@@ -1,32 +1,40 @@
 #!/usr/bin/env python3
 """Plays the NavBridge phone app for NavMap running in the Connect IQ simulator.
 
-A phone app talks to the simulator over TCP: the phone side listens on port 7381 and
-the simulator connects to it (normally through `adb forward tcp:7381 tcp:7381`). This
-script listens on 127.0.0.1:7381 instead, prints every message the watch app transmits
-and sends NavMap protocol messages back, in the same Monkey C serialization the Android
-SDK uses.
+NavMap reaches NavBridge two ways, and this script answers both:
 
-  tools/sim-phone.py serve [--ride]   listen; with --ride, answer the watch's hello with a demo ride
+- /nav on 127.0.0.1:18165, which NavMap asks every few seconds (NavBridge serves the same on the
+  phone). The simulator runs the watch's web requests on this computer, so this needs nothing else.
+- Connect IQ phone messages: the phone side listens on port 7381 and the simulator connects to it
+  (adb Connection > Start). This script prints every message the watch app transmits and sends
+  NavMap protocol messages back, in the same Monkey C serialization the Android SDK uses.
+
+  tools/sim-phone.py serve [--ride]   listen; with --ride, start a demo ride when NavMap first asks
   tools/sim-phone.py send '<json>'    send one message through the running server
                                       ("a":"RIGHT" etc. expands to a drawn arrow)
   tools/sim-phone.py ride | stop      start or stop the demo ride through the running server
 """
 import argparse
 import datetime
+import http.server
 import json
 import math
+import os
 import socket
 import struct
 import sys
 import threading
 import time
+import urllib.parse
 import zlib
 
 STRING_SENTINEL = 0xABCDABCD
 DATA_SENTINEL = 0xDA7ADA7A
 SIM_PORT = 7381
 CONTROL_PORT = 7382
+NAV_PORT = 18165
+SECRETS = os.path.expanduser("~/.config/navmap/secrets.properties")
+END_SHOWN_S = 60  # NavBridge answers "end" this long after navigation ends, then "idle"
 
 
 # ---- Monkey C serialization (see com.garmin.monkeybrains.serialization) ----
@@ -238,6 +246,19 @@ def arrow_hash(bits):
 
 # ---- the fake phone ------------------------------------------------------------------
 
+def read_token():
+    """NAVBRIDGE_TOKEN from secrets.properties: /nav then wants it as k, like NavBridge."""
+    try:
+        with open(SECRETS, encoding="utf-8") as f:
+            for line in f:
+                name, _, value = line.partition("=")
+                if name.strip() == "NAVBRIDGE_TOKEN":
+                    return value.strip()
+    except OSError:
+        pass
+    return None
+
+
 def stamp():
     return datetime.datetime.now().strftime("%H:%M:%S")
 
@@ -286,13 +307,21 @@ class Phone:
         self.ride_thread = None
         self.ride_stop = threading.Event()
         self.resend_all = threading.Event()
+        # What /nav answers: the latest turn, its arrow, the route and when navigation ended.
+        self.nav = None
+        self.arrow = None
+        self.route = []
+        self.route_version = 0
+        self.ended = None  # (time, arrived)
+        self.last_answer = None
+        self.token = read_token()
 
     # -- link --
     def send(self, obj):
+        self.remember(obj)
         with self.lock:
             conn = self.conn
             if conn is None:
-                log("!! simulator not connected, dropped", short(obj))
                 return False
             try:
                 conn.sendall(encode(obj))
@@ -315,6 +344,90 @@ class Phone:
                 self.start_ride()
             else:
                 self.send({"t": "idle"})
+
+    # -- /nav --
+    def remember(self, obj):
+        if not isinstance(obj, dict):
+            return
+        with self.lock:
+            t = obj.get("t")
+            if t == "nav":
+                self.nav = {k: v for k, v in obj.items() if k not in ("a", "s")}
+                if isinstance(obj.get("a"), list):
+                    self.arrow = obj["a"]
+                self.ended = None
+            elif t == "route" and isinstance(obj.get("p"), list):
+                self.route = obj["p"]
+                self.route_version += 1
+            elif t == "end":
+                self.nav = None
+                self.ended = (time.monotonic(), bool(obj.get("ar")))
+                if self.route:
+                    self.route = []
+                    self.route_version += 1
+            elif t == "idle":
+                self.nav = None
+
+    def answer_nav(self, query):
+        """The /nav answer for one request, as NavBridge 0.4 gives it."""
+        def num(name):
+            try:
+                return int(query.get(name, [""])[0])
+            except ValueError:
+                return None
+        la, lo = num("la"), num("lo")
+        if la is not None and lo is not None:
+            self.watch_pos = (la / 1e5, lo / 1e5)
+        if self.ride_on_hello and not self.riding() and self.nav is None and self.ended is None:
+            self.start_ride()
+        with self.lock:
+            if self.nav is not None:
+                reply = dict(self.nav, rv=self.route_version)
+                if self.arrow is not None and num("ah") != self.nav.get("ah"):
+                    reply["a"] = self.arrow
+                if num("rv") != self.route_version:
+                    reply["p"] = self.route
+            elif self.ended is not None and time.monotonic() - self.ended[0] < END_SHOWN_S:
+                reply = {"t": "end", "ar": self.ended[1]}
+            else:
+                reply = {"t": "idle"}
+        # Every 2 s while navigating, so only log what changed.
+        kind = (reply["t"], reply.get("i"), "a" in reply, "p" in reply)
+        if kind != self.last_answer:
+            self.last_answer = kind
+            log("/nav ->", json.dumps(short(reply), ensure_ascii=False), "" if query.get("k") else "(no key)")
+        return reply
+
+    def serve_nav(self, port):
+        phone = self
+
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def do_GET(self):
+                url = urllib.parse.urlsplit(self.path)
+                if url.path != "/nav":
+                    self.send_error(404)
+                    return
+                query = urllib.parse.parse_qs(url.query)
+                status, reply = 200, None
+                if phone.token and query.get("k", [""])[0] != phone.token:
+                    status, reply = 403, {"t": "denied"}
+                    log("/nav -> 403, the watch's NAVBRIDGE_TOKEN differs from secrets.properties")
+                else:
+                    reply = phone.answer_nav(query)
+                body = json.dumps(reply).encode()
+                self.send_response(status)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(body)))
+                self.send_header("Cache-Control", "no-store")
+                self.end_headers()
+                self.wfile.write(body)
+
+            def log_message(self, *args):
+                pass
+
+        srv = http.server.ThreadingHTTPServer(("127.0.0.1", port), Handler)
+        log(f"Answering /nav on http://127.0.0.1:{port}/nav", "" if self.token else "(no NAVBRIDGE_TOKEN in secrets.properties, so any k)")
+        srv.serve_forever()
 
     def serve_simulator(self, port):
         srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -382,7 +495,7 @@ class Phone:
             bits = arrow_bits(msg["a"].upper())
             msg["a"] = bits
             msg.setdefault("ah", arrow_hash(bits))
-        return "sent" if self.send(msg) else "not connected"
+        return "sent" if self.send(msg) else "kept for /nav (simulator's phone link not connected)"
 
     # -- demo ride --
     def riding(self):
@@ -456,10 +569,11 @@ def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest="cmd", required=True)
     s = sub.add_parser("serve")
-    s.add_argument("--ride", action="store_true", help="answer hello by starting the demo ride")
+    s.add_argument("--ride", action="store_true", help="start the demo ride when NavMap first asks or says hello")
     s.add_argument("--speed", type=float, default=12.0, help="demo ride speed in m/s")
     s.add_argument("--interval", type=float, default=2.0, help="seconds between nav updates")
     s.add_argument("--port", type=int, default=SIM_PORT)
+    s.add_argument("--nav-port", type=int, default=NAV_PORT)
     s.add_argument("--control-port", type=int, default=CONTROL_PORT)
     snd = sub.add_parser("send")
     snd.add_argument("json")
@@ -471,6 +585,7 @@ def main():
     if args.cmd == "serve":
         phone = Phone(args.ride, args.speed, args.interval)
         threading.Thread(target=phone.serve_control, args=(args.control_port,), daemon=True).start()
+        threading.Thread(target=phone.serve_nav, args=(args.nav_port,), daemon=True).start()
         try:
             phone.serve_simulator(args.port)
         except KeyboardInterrupt:

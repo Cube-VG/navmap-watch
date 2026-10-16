@@ -5,13 +5,14 @@ A real Google map on the Garmin Forerunner 165 that follows your GPS and stays o
 **Status:** test builds of the watch app and the NavBridge phone app. Setup: [docs/SETUP.md](docs/SETUP.md).
 
 ## What the watch app does
-- Light, high-contrast Google map (readable in sunlight) centred on your position, sliding as you move
-- Zooms out automatically with speed
-- Runs as a plain watch app (no activity session); when the screen dims it shows only the next turn or the time
+One thing: while Google Maps navigates on your phone, NavMap shows it on the watch, and when the navigation ends, NavMap closes.
+- Light, high-contrast Google map (readable in sunlight) centred on your position, sliding as you move, with the next turn (Google's own arrow), the distance, the street, the ETA and the route line. It zooms out automatically with speed
+- Buzzes and lights the screen at each new turn and 400, 150 and 50 m before it, and keeps the screen lit for the last 120 m before a turn (at most 40 s, because the screen's burn-in protection allows no more). When the screen dims it shows only the next turn and the distance, with under 4% of the pixels lit
+- Says "Arrived" or "Navigation ended" and closes 5 s later
+- Only Back does something (it asks before exiting). Taps, swipes and the other buttons do nothing, so nothing pops up over the map
 - Maps come in a 14-colour palette, about a quarter of the Bluetooth and memory cost of full colour
-- Up/Down zoom instantly (the current map is scaled until the sharp one arrives), Start shows a debug panel, Back asks before exiting
-- Test: road lines it draws itself. The phone sends the OpenStreetMap roads of a 2.4 km square (10-15 KB, about as much as one Google picture of 650 m), so zooming and moving need no download. Hold Up switches between road lines and Google pictures. Format and steps: `tools/roads.py`
-- Talks to the NavBridge phone app: says hello until it answers, then shows turns, distance, ETA and the route line
+- Runs as a plain watch app (no activity session), so nothing is recorded
+- Gets the turns by asking NavBridge every 2 s (every 5 s when not navigating) at `http://127.0.0.1:18165/nav`. Garmin Connect makes that request on the phone, the same way it fetches the map pictures, so the turns don't depend on Connect IQ phone messages: Garmin Connect for Android accepts the watch's messages but no longer delivers them to phone apps (Garmin bug [CIQQA-4631](https://forums.garmin.com/developer/connect-iq/i/bug-reports/gcm-5-27-3-android-accepts-communications-transmit-messages-from-watch-app-but-never-delivers-them-to-the-companion-app)). Garmin Connect allows plain HTTP only to 127.0.0.1, and NavBridge answers only requests that carry the key both apps are built with
 
 ## What the phone app (NavBridge) does
 - Reads Google Maps' turn-by-turn notification. No Google Maps changes, no root
@@ -26,7 +27,7 @@ The notification parser is tested against 174 Google Maps notifications in 17 lo
 ## Build
 Needs the Connect IQ SDK, a developer key and your own Google Maps Static API key.
 
-1. Put `MAPS_API_KEY=...` in `~/.config/navmap/secrets.properties`
+1. Put `MAPS_API_KEY=...` and `NAVBRIDGE_TOKEN=...` (32 hex characters, for example from `openssl rand -hex 16`) in `~/.config/navmap/secrets.properties`. NavBridge is built with the same file
 2. Put your developer key at `~/.config/navmap/developer_key.der`
 3. Run `tools/build-watch.sh fr165` (or `fr165m`)
 
@@ -38,14 +39,11 @@ Needs JDK 17 and the Android SDK (platform 36). The release signing key lives in
 Run `tools/build-phone.sh`. It runs the unit tests and writes `dist/NavBridge.apk`. The Maps key from `secrets.properties` is baked in for the route line, so don't publish that APK.
 
 ### Testing the watch without a phone
-`tools/sim-phone.py` stands in for NavBridge against the Connect IQ simulator. It prints what the watch sends and plays a demo ride with turn arrows, a route line, the ETA and the arrival. It needs only Python 3, not adb.
+`tools/sim-phone.py` stands in for NavBridge against the Connect IQ simulator. It answers `/nav` on 127.0.0.1:18165 the way NavBridge does (with the key from `secrets.properties`) and plays a demo ride with turn arrows, a route line, the ETA and the arrival. It needs only Python 3, not adb.
 
-The simulator (SDK 9.1 and 9.2, on Linux, macOS and Windows) segfaults whenever a watch app transmits over its phone link: Garmin bug [CIQQA-4579](https://forums.garmin.com/developer/connect-iq/i/bug-reports/simulator-segfaults-on-communications-transmit-over-the-tethered-adb-connection-sdk-9-1-0-and-9-2-0-linux). So use the simulator build, which receives phone messages but never transmits:
-
-1. `tools/build-watch.sh fr165 --sim` writes `dist/NavMap-sim.prg`.
-2. Run `tools/sim-phone.py serve`, then choose adb Connection → Start in the simulator.
-3. Load `NavMap-sim.prg`, then run `tools/sim-phone.py ride` (or `send '<json>'`). `serve --ride` waits for a hello, which this build never sends.
-4. `tools/roads.py send <lat> <lon>` sends the road lines around that spot (the simulator's Activity Data run moves away from the set position at about 9 m/s, so send them for where it is now).
+1. `tools/build-watch.sh fr165 --sim` writes `dist/NavMap-sim.prg`. This build never transmits, because the simulator (SDK 9.1 and 9.2, on Linux, macOS and Windows) segfaults whenever a watch app transmits over its phone link: Garmin bug [CIQQA-4579](https://forums.garmin.com/developer/connect-iq/i/bug-reports/simulator-segfaults-on-communications-transmit-over-the-tethered-adb-connection-sdk-9-1-0-and-9-2-0-linux).
+2. In the simulator, untick **Settings → Use Device HTTPS Requirements**. Garmin Connect allows plain HTTP to 127.0.0.1, but the simulator doesn't make that exception, and NavMap gets -1001 for every `/nav` request.
+3. Run `tools/sim-phone.py serve --ride`, then load `NavMap-sim.prg`. The ride starts when NavMap first asks; `tools/sim-phone.py ride` starts another and `stop` ends it. **Settings → Display Mode → Always-On** shows the dimmed screen.
+4. Connect IQ phone messages work too: choose adb Connection → Start in the simulator, then `tools/sim-phone.py send '<json>'`.
 
 The 9.x simulator asks you to sign in to Garmin Connect before it loads map images.
-

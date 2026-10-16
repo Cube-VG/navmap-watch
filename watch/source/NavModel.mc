@@ -1,6 +1,5 @@
 import Toybox.Attention;
 import Toybox.Lang;
-import Toybox.Math;
 import Toybox.Position;
 import Toybox.System;
 
@@ -12,7 +11,6 @@ class NavModel {
     var heading as Float = 0.0;   // radians, 0 = north, clockwise
     var speed as Float = 0.0;     // m/s
     var hasFix as Boolean = false;
-    var posAt as Number = 0;      // System.getTimer() of the last accepted fix
 
     // Navigation (from NavBridge on the phone)
     var navActive as Boolean = false;
@@ -23,14 +21,19 @@ class NavModel {
     var arrowRects as Array<Number>? = null;   // [x, y, w, h, ...] at 1.5x, built once per arrow
     var arrowHash as Number = 0;
     var route as Array<Number>? = null;        // flat [lat*1e5, lon*1e5, ...]
+    var routeVersion as Number = 0;            // NavBridge's number for the route above; 0 = none
     var endAt as Number? = null;               // System.getTimer() when "end" arrived
     var endText as String = "";
-    var msgCount as Number = 0;
     var phoneAnswered as Boolean = false;
-    var hellos as Number = 0;
-    var roads as RoadMap = new RoadMap();   // road lines from NavBridge, drawn by the watch itself
 
     private const ALERT_METERS = [400, 150, 50];
+    // From this distance the screen is kept lit until the turn, for at most HOLD_MS: AMOLED burn-in
+    // protection refuses to keep it on for much more than a minute.
+    private const HOLD_METERS = 120;
+    private const HOLD_MS = 40000;
+    private var _holdStarted as Boolean = false;   // for the current turn
+    private var _holdUntil as Number = 0;
+    private var _litAt as Number = 0;
     private var _lowQuality as Number = -2;   // last GPS quality logged as too low, so the log isn't flooded
 
     function initialize() {
@@ -66,7 +69,6 @@ class NavModel {
             System.println("gps fix " + lat + "," + lon);
         }
         hasFix = true;
-        posAt = System.getTimer();
         if (info.speed != null) {
             speed = info.speed as Float;
         }
@@ -76,12 +78,12 @@ class NavModel {
         }
     }
 
+    // The same messages come from the /nav answer and from Connect IQ phone messages.
     // Returns true when a new maneuver arrived or an alert distance was crossed.
     function onPhoneMessage(data as Object?) as Boolean {
         if (!(data instanceof Dictionary)) {
             return false;
         }
-        msgCount++;
         phoneAnswered = true;
         var t = data["t"] as Object?;
         if (t != null && "nav".equals(t)) {
@@ -90,6 +92,7 @@ class NavModel {
             var newHash = data["ah"] instanceof Number ? data["ah"] as Number : arrowHash;
             if (!navActive || !newInstr.equals(instr) || newHash != arrowHash) {
                 alert = true;
+                _holdStarted = false;   // a new turn gets its own lit time
             }
             var newMeters = data["dm"] instanceof Number ? data["dm"] as Number : -1;
             if (distMeters > 0 && newMeters >= 0) {
@@ -111,24 +114,34 @@ class NavModel {
                 arrowRects = buildArrow(data["a"] as Array);
             }
             arrowHash = newHash;
+            // The /nav answer carries the route only when it differs from routeVersion.
+            if (data["rv"] instanceof Number && data["p"] instanceof Array) {
+                setRoute(data["p"] as Array<Number>);
+                routeVersion = data["rv"] as Number;
+            }
             return alert;
         } else if (t != null && "route".equals(t)) {
             if (data["p"] instanceof Array) {
-                route = data["p"] as Array<Number>;
+                setRoute(data["p"] as Array<Number>);
             }
         } else if (t != null && "end".equals(t)) {
-            // The phone already waited a few seconds for a reroute before sending this.
+            // Only a navigation this NavMap was showing ends it; opened later, NavMap just waits.
+            if (!navActive) {
+                return false;
+            }
             navActive = false;
             route = null;
             endAt = System.getTimer();
             endText = data["ar"] == true ? "Arrived" : "Navigation ended";
             return true;
-        } else if (t != null && "roads".equals(t)) {
-            roads.onRoads(data);
         } else if (t != null && "idle".equals(t)) {
             navActive = false;
         }
         return false;
+    }
+
+    private function setRoute(p as Array<Number>) as Void {
+        route = p.size() >= 4 ? p : null;
     }
 
     // Arrow rows: 48 rows, 2 ints each. Int 0 holds x=0..31 (bit 31 = x0), int 1 holds x=32..47 (bit 15 = x32).
@@ -163,17 +176,39 @@ class NavModel {
         return rects;
     }
 
+    // New turn, or 400 / 150 / 50 m before it: buzz and light the screen.
     function alertUser() as Void {
         if (Attention has :vibrate) {
             Attention.vibrate([new Attention.VibeProfile(80, 350), new Attention.VibeProfile(0, 150), new Attention.VibeProfile(80, 350)]);
         }
-        if (Attention has :backlight) {
-            try {
-                // Wakes the screen for the turn.
-                Attention.backlight(true);
-            } catch (e) {
-                // AMOLED burn-in protection limits how long the backlight may be forced on.
-            }
+        light();
+    }
+
+    // Called every second: close to a turn, keeps the screen lit so the map is there when you look.
+    function keepAwake() as Void {
+        if (!navActive || distMeters < 0 || distMeters > HOLD_METERS) {
+            return;
+        }
+        var now = System.getTimer();
+        if (!_holdStarted) {
+            _holdStarted = true;
+            _holdUntil = now + HOLD_MS;
+        }
+        if (now < _holdUntil && now - _litAt >= 5000) {
+            light();
+        }
+    }
+
+    private function light() as Void {
+        if (!(Attention has :backlight)) {
+            return;
+        }
+        _litAt = System.getTimer();
+        try {
+            Attention.backlight(true);
+        } catch (e) {
+            // Burn-in protection: the screen was lit too long. Let it dim until the next turn.
+            _holdUntil = 0;
         }
     }
 
