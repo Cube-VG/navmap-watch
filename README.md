@@ -7,6 +7,7 @@ A real Google map on the Garmin Forerunner 165 that follows your GPS and stays o
 ## What the watch app does
 One thing: while Google Maps navigates on your phone, NavMap shows it on the watch, and when the navigation ends, NavMap closes.
 - Light, high-contrast Google map (readable in sunlight) centred on your position, sliding as you move, with the next turn (Google's own arrow), the distance, the street, the ETA and the route line. It zooms out automatically with speed
+- Finds your position with every satellite system the watch has (GPS, GLONASS, Galileo and BeiDou on the FR165), not only GPS, Connect IQ's default: Garmin says that's faster. It needs open sky, so indoors it can wait for GPS for good
 - Buzzes and lights the screen at each new turn and 400, 150 and 50 m before it, and keeps the screen lit for the last 120 m before a turn (at most 40 s, because the screen's burn-in protection allows no more). When the screen dims it shows only the next turn and the distance, with under 4% of the pixels lit
 - Says "Arrived" or "Navigation ended" and closes 5 s later
 - Only Back does something (it asks before exiting). Taps, swipes and the other buttons do nothing, so nothing pops up over the map

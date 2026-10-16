@@ -553,6 +553,8 @@ object NavSession : CiqBridge.Listener {
         watchPosition = position
         main.removeCallbacks(askWhere)
         requestRoute()
+        // The simulated ride's route line starts where the watch is, so it can only go once the watch has a fix.
+        Simulator.onWatchReady()
         if (roadsWanted) Roads.onPosition(position)
     }
 

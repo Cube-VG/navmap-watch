@@ -23,8 +23,29 @@ class NavMapApp extends Application.AppBase {
     }
 
     function onStart(state as Dictionary?) as Void {
-        Position.enableLocationEvents(Position.LOCATION_CONTINUOUS, method(:onPosition));
+        startGps();
         Communications.registerForPhoneAppMessages(method(:onPhone));
+    }
+
+    // Every satellite system the watch has (on the FR165: GPS, GLONASS, Galileo and BeiDou), not just GPS,
+    // which is what Connect IQ uses by default. Garmin's manual: faster position acquisition than GPS only,
+    // for a little more battery.
+    private function startGps() as Void {
+        if (Position has :hasConfigurationSupport && Position has :CONFIGURATION_GPS_GLONASS_GALILEO_BEIDOU_L1
+                && Position.hasConfigurationSupport(Position.CONFIGURATION_GPS_GLONASS_GALILEO_BEIDOU_L1)) {
+            try {
+                Position.enableLocationEvents({
+                    :acquisitionType => Position.LOCATION_CONTINUOUS,
+                    :configuration => Position.CONFIGURATION_GPS_GLONASS_GALILEO_BEIDOU_L1
+                }, method(:onPosition));
+                System.println("gps: all satellite systems");
+                return;
+            } catch (e) {
+                // Refused after all: GPS alone, as before.
+            }
+        }
+        Position.enableLocationEvents(Position.LOCATION_CONTINUOUS, method(:onPosition));
+        System.println("gps: GPS only");
     }
 
     function onStop(state as Dictionary?) as Void {
