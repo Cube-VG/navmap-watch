@@ -10,6 +10,7 @@ A real Google map on the Garmin Forerunner 165 that follows your GPS and stays o
 - Runs as a plain watch app (no activity session); when the screen dims it shows only the next turn or the time
 - Maps come in a 14-colour palette, about a quarter of the Bluetooth and memory cost of full colour
 - Up/Down zoom instantly (the current map is scaled until the sharp one arrives), Start shows a debug panel, Back asks before exiting
+- Test: road lines it draws itself. The phone sends the OpenStreetMap roads of a 2.4 km square (10-15 KB, about as much as one Google picture of 650 m), so zooming and moving need no download. Hold Up switches between road lines and Google pictures. Format and steps: `tools/roads.py`
 - Talks to the NavBridge phone app: says hello until it answers, then shows turns, distance, ETA and the route line
 
 ## What the phone app (NavBridge) does
@@ -43,6 +44,7 @@ The simulator (SDK 9.1 and 9.2, on Linux, macOS and Windows) segfaults whenever 
 1. `tools/build-watch.sh fr165 --sim` writes `dist/NavMap-sim.prg`.
 2. Run `tools/sim-phone.py serve`, then choose adb Connection → Start in the simulator.
 3. Load `NavMap-sim.prg`, then run `tools/sim-phone.py ride` (or `send '<json>'`). `serve --ride` waits for a hello, which this build never sends.
+4. `tools/roads.py send <lat> <lon>` sends the road lines around that spot (the simulator's Activity Data run moves away from the set position at about 9 m/s, so send them for where it is now).
 
 The 9.x simulator asks you to sign in to Garmin Connect before it loads map images.
 

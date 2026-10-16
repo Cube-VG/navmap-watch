@@ -90,18 +90,45 @@ class MapView extends WatchUi.View {
     private var _zoomShownAt as Number = -100000;
     var zoomOffset as Number = 0;
 
+    // Road lines (from NavBridge) or Google pictures. Holding Up switches, for comparing the two.
+    private var _picturesOnly as Boolean = false;
+    private var _modeShownAt as Number = -100000;
+    private var _roadsShown as Boolean = false;
+
     // Diagnostics
     var showDiag as Boolean = false;
-    private var _updMs as Number = 0;
     private var _lowPowerFrames as Number = 0;
+
+    // Measurements for the debug panel and the log: why it feels slow, in numbers.
+    private var _drawMs as Number = 0;       // redraw time: last, worst, total and count for the average
+    private var _drawMax as Number = 0;
+    private var _drawSum as Number = 0;
+    private var _drawN as Number = 0;
+    private var _keyAt as Number = 0;        // button handled at; cleared once the screen shows it
+    private var _keyMs as Number = -1;
+    private var _keyMax as Number = 0;
+    private var _tickAt as Number = 0;
+    private var _stallMax as Number = 0;     // longest the 1 s timer came late: the watch was busy
+    private var _picMs as Number = -1;       // Google picture arrival: last, worst, total, count
+    private var _picMax as Number = 0;
+    private var _picSum as Number = 0;
+    private var _picN as Number = 0;
+    private var _posAgeMax as Number = 0;    // oldest GPS position drawn
+    private var _gapSince as Number = -1;    // screen not fully covered by map since
+    private var _gapMax as Number = 0;
+    private var _mapShown as Boolean = false;
+    private var _startAt as Number = 0;
+    private var _logAt as Number = 0;
 
     function initialize(model as NavModel) {
         View.initialize();
         _m = model;
         _timer = new Timer.Timer();
+        _startAt = System.getTimer();
     }
 
     function onShow() as Void {
+        _tickAt = 0;
         _timer.start(method(:onTick), 1000, true);
     }
 
@@ -121,6 +148,18 @@ class MapView extends WatchUi.View {
         if (endAt != null && System.getTimer() - endAt > 60000) {
             WatchUi.popView(WatchUi.SLIDE_IMMEDIATE);
             return;
+        }
+        var now = System.getTimer();
+        if (_tickAt != 0) {
+            var late = now - _tickAt - 1000;
+            if (late > _stallMax) {
+                _stallMax = late;
+            }
+        }
+        _tickAt = now;
+        if (now - _logAt >= 30000) {
+            _logAt = now;
+            logSummary();
         }
         app.tickPhone();
         maybeFetch();
@@ -192,6 +231,10 @@ class MapView extends WatchUi.View {
         var lat = _m.lat;
         var lon = _m.lon;
         if (lat == null || lon == null || now < _retryAt) {
+            return;
+        }
+        // Road lines cover the screen: no picture needed.
+        if (!_picturesOnly && _m.roads.covers(lat, lon, desiredZoom())) {
             return;
         }
         if (!System.getDeviceSettings().phoneConnected) {
@@ -273,6 +316,12 @@ class MapView extends WatchUi.View {
         System.println("map " + code + " z" + req.zoom + " " + secs.format("%.1f") + "s");
         if (code == 200 && data != null) {
             _fetchSecs = _fetchSecs * 0.5 + secs * 0.5;
+            _picMs = System.getTimer() - _reqStart;
+            _picSum += _picMs;
+            _picN++;
+            if (_picMs > _picMax) {
+                _picMax = _picMs;
+            }
             try {
                 var bmp = data as WatchUi.BitmapResource or Graphics.BitmapReference;
                 // Pin the image so the graphics pool can't purge it; keep the reference if that fails.
@@ -336,6 +385,7 @@ class MapView extends WatchUi.View {
         // Dimmed (always-on) screen: AMOLED burn-in rules allow only a few lit pixels, so no map.
         if (isLowPower()) {
             _lowPowerFrames++;
+            _tickAt = 0;   // the timer may slow down while dimmed; that isn't the app being busy
             drawLowPower(dc);
             return;
         }
@@ -344,10 +394,20 @@ class MapView extends WatchUi.View {
         var lon = _m.lon;
         var img = _img;
         var z = desiredZoom();
-        if (img != null && lat != null && lon != null) {
+        var covered = false;
+        // Road lines when they cover the screen, or when there's no picture that does.
+        var useRoads = !_picturesOnly && lat != null && lon != null && _m.roads.hasData() &&
+            (img == null || _m.roads.covers(lat, lon, z) || !pictureCovers(lat, lon, z));
+        _roadsShown = useRoads;
+        if (useRoads && lat != null && lon != null) {
             dc.setColor(MAP_GROUND, MAP_GROUND);
             dc.clear();
-            drawMap(dc, img, lat, lon, z);
+            covered = _m.roads.draw(dc, lat, lon, z);
+            drawRoute(dc, lat, lon, z);
+        } else if (img != null && lat != null && lon != null) {
+            dc.setColor(MAP_GROUND, MAP_GROUND);
+            dc.clear();
+            covered = drawMap(dc, img, lat, lon, z);
             drawRoute(dc, lat, lon, z);
         } else {
             dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
@@ -363,14 +423,90 @@ class MapView extends WatchUi.View {
         }
         drawFooter(dc, z);
         if (showDiag) {
-            drawDiag(dc);
+            drawDiag(dc, z);
         }
-        _updMs = System.getTimer() - t0;
+        measure(t0, z, covered, lat != null);
+    }
+
+    // Called at the end of each redraw: redraw time, button-to-screen time, GPS age, map coverage.
+    private function measure(t0 as Number, z as Number, covered as Boolean, hasPos as Boolean) as Void {
+        var now = System.getTimer();
+        _drawMs = now - t0;
+        _drawSum += _drawMs;
+        _drawN++;
+        if (_drawMs > _drawMax) {
+            _drawMax = _drawMs;
+        }
+        if (_keyAt != 0) {
+            _keyMs = now - _keyAt;
+            _keyAt = 0;
+            if (_keyMs > _keyMax) {
+                _keyMax = _keyMs;
+            }
+            System.println("key " + _keyMs + "ms z" + z + (_roadsShown ? " roads" : " pic"));
+        }
+        if (!hasPos) {
+            return;
+        }
+        if (_m.posAt != 0 && now - _m.posAt > _posAgeMax) {
+            _posAgeMax = now - _m.posAt;
+        }
+        // Count gaps only after the first map, so start-up loading isn't counted as falling behind.
+        if (covered) {
+            _mapShown = true;
+            _gapSince = -1;
+        } else if (_mapShown) {
+            if (_gapSince < 0) {
+                _gapSince = now;
+            } else if (now - _gapSince > _gapMax) {
+                _gapMax = now - _gapSince;
+            }
+        }
+    }
+
+    // One line every 30 s, so a ride can be read back from the watch's log file.
+    private function logSummary() as Void {
+        var avg = _drawN > 0 ? _drawSum / _drawN : 0;
+        System.println("t" + ((System.getTimer() - _startAt) / 1000) + " draw " + avg + "/" + _drawMax +
+            " key " + _keyMax + " stall " + _stallMax + " pos " + _posAgeMax + " gap " + _gapMax +
+            " pic " + _picN + "/" + _picMax + " " + _m.roads.status() + " " + (_roadsShown ? "roads" : "pic") +
+            " mem " + (System.getSystemStats().usedMemory / 1024) + "k");
+    }
+
+    // A button was handled; measure() takes the time once the screen shows the result.
+    function keyPressed() as Void {
+        if (_keyAt == 0) {
+            _keyAt = System.getTimer();
+        }
+    }
+
+    function togglePictures() as Void {
+        _picturesOnly = !_picturesOnly;
+        _modeShownAt = System.getTimer();
+        System.println("mode " + (_picturesOnly ? "pictures" : "roads"));
+        _retryAt = 0;
+        maybeFetch();
+        WatchUi.requestUpdate();
+    }
+
+    // Would the current picture fill the screen at this position and zoom?
+    private function pictureCovers(lat as Double, lon as Double, z as Number) as Boolean {
+        if (_img == null) {
+            return false;
+        }
+        var off = offsetPx(lat, lon, _imgLat, _imgLon, _imgZoom);
+        var dz = z - _imgZoom;
+        if (dz > 2 || dz < -2) {
+            dz = 0;
+        }
+        var s = dz >= 0 ? (1 << dz).toFloat() : 1.0 / (1 << -dz);
+        return (_imgHalfW - off[0].abs()) * s >= HALF && (_imgHalfH - off[1].abs()) * s >= HALF;
     }
 
     // Draws the map so our position is at the centre. While a new zoom level downloads, the current
     // image is shown scaled so Up/Down respond immediately.
-    private function drawMap(dc as Graphics.Dc, img as WatchUi.BitmapResource or Graphics.BitmapReference, lat as Double, lon as Double, z as Number) as Void {
+    private function drawMap(dc as Graphics.Dc, img as WatchUi.BitmapResource or Graphics.BitmapReference, lat as Double, lon as Double, z as Number) as Boolean {
+        var covered = pictureCovers(lat, lon, z);
         var off = offsetPx(lat, lon, _imgLat, _imgLon, _imgZoom);
         var dz = z - _imgZoom;
         try {
@@ -387,7 +523,9 @@ class MapView extends WatchUi.View {
         } catch (e) {
             // The graphics pool dropped the image: fetch a fresh one.
             _img = null;
+            covered = false;
         }
+        return covered;
     }
 
     private function drawRoute(dc as Graphics.Dc, lat as Double, lon as Double, z as Number) as Void {
@@ -498,16 +636,21 @@ class MapView extends WatchUi.View {
     }
 
     private function drawFooter(dc as Graphics.Dc, z as Number) as Void {
-        if (_m.navActive && _m.eta.length() > 0) {
+        var now = System.getTimer();
+        if (now - _modeShownAt < 2500) {
+            drawCenteredPill(dc, 318, _picturesOnly ? "Google pictures" : "Road lines");
+        } else if (_m.navActive && _m.eta.length() > 0) {
             drawCenteredPill(dc, 318, _m.eta);
-        } else if (System.getTimer() - _zoomShownAt < 2500) {
+        } else if (now - _zoomShownAt < 2500) {
             drawCenteredPill(dc, 318, "Zoom " + z);
         }
+        // High enough that "© OpenStreetMap" (about 200 px wide) fits inside the round edge.
         dc.setColor(0x3a4350, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(HALF, 360, Graphics.FONT_XTINY, "Google", Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
+        dc.drawText(HALF, 348, Graphics.FONT_XTINY, _roadsShown ? "© OpenStreetMap" : "Google",
+            Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
         if (_inFlight) {
             dc.setColor(0x1a73e8, Graphics.COLOR_TRANSPARENT);
-            dc.fillCircle(HALF, 340, 4);
+            dc.fillCircle(HALF, 372, 4);
         }
     }
 
@@ -538,20 +681,24 @@ class MapView extends WatchUi.View {
         dc.drawText(HALF, y, Graphics.FONT_TINY, text, Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
     }
 
-    private function drawDiag(dc as Graphics.Dc) as Void {
+    // Start button. Times in ms unless marked s; "max" is the worst since NavMap opened.
+    private function drawDiag(dc as Graphics.Dc, z as Number) as Void {
         var stats = System.getSystemStats();
         var lines = [
-            "fetch " + _fetchSecs.format("%.1f") + "s n" + _fetches + " err " + _lastErr + " to" + _timeouts,
-            "img " + (_imgHalfW * 2) + " z" + _imgZoom + " sz" + SIZES[_sizeIdx],
-            "spd " + (_m.speed * 3.6).format("%.0f") + " gps " + (_m.hasFix ? "ok" : "--"),
-            "draw " + _updMs + "ms lp" + _lowPowerFrames + " mem " + (stats.usedMemory / 1024) + "k",
+            "pic " + (_picMs < 0 ? "-" : (_picMs / 1000.0).format("%.1f")) + "s avg " +
+                (_picN > 0 ? (_picSum / _picN / 1000.0).format("%.1f") : "-") + " max " + (_picMax / 1000.0).format("%.1f") + " n" + _picN,
+            _m.roads.status(),
+            "draw " + _drawMs + " avg " + (_drawN > 0 ? _drawSum / _drawN : 0) + " max " + _drawMax,
+            "key " + (_keyMs < 0 ? "-" : _keyMs.toString()) + " max " + _keyMax + " stall " + _stallMax,
+            "gps age max " + (_posAgeMax / 1000.0).format("%.1f") + "s gap " + (_gapMax / 1000.0).format("%.1f") + "s",
+            "z" + z + (_roadsShown ? " roads" : " pic") + " mem " + (stats.usedMemory / 1024) + "k err " + _lastErr,
             "phone " + (_m.phoneAnswered ? "ok" : "hello " + _m.hellos) + " msgs " + _m.msgCount
         ];
         dc.setColor(Graphics.COLOR_BLACK, Graphics.COLOR_BLACK);
-        dc.fillRectangle(45, 140, 300, 5 * 22 + 8);
+        dc.fillRectangle(35, 128, 320, lines.size() * 22 + 8);
         dc.setColor(Graphics.COLOR_YELLOW, Graphics.COLOR_TRANSPARENT);
         for (var i = 0; i < lines.size(); i++) {
-            dc.drawText(HALF, 152 + i * 22, Graphics.FONT_XTINY, lines[i], Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
+            dc.drawText(HALF, 140 + i * 22, Graphics.FONT_XTINY, lines[i], Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
         }
     }
 }
@@ -566,17 +713,27 @@ class MapDelegate extends WatchUi.BehaviorDelegate {
 
     // Up = zoom in, Down = zoom out (swipes do the same)
     function onPreviousPage() as Boolean {
+        _v.keyPressed();
         _v.zoomBy(1);
         return true;
     }
 
     function onNextPage() as Boolean {
+        _v.keyPressed();
         _v.zoomBy(-1);
+        return true;
+    }
+
+    // Hold Up = switch between road lines and Google pictures
+    function onMenu() as Boolean {
+        _v.keyPressed();
+        _v.togglePictures();
         return true;
     }
 
     // Start = diagnostics overlay
     function onSelect() as Boolean {
+        _v.keyPressed();
         _v.showDiag = !_v.showDiag;
         WatchUi.requestUpdate();
         return true;

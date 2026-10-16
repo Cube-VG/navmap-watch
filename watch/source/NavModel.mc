@@ -12,6 +12,7 @@ class NavModel {
     var heading as Float = 0.0;   // radians, 0 = north, clockwise
     var speed as Float = 0.0;     // m/s
     var hasFix as Boolean = false;
+    var posAt as Number = 0;      // System.getTimer() of the last accepted fix
 
     // Navigation (from NavBridge on the phone)
     var navActive as Boolean = false;
@@ -27,6 +28,7 @@ class NavModel {
     var msgCount as Number = 0;
     var phoneAnswered as Boolean = false;
     var hellos as Number = 0;
+    var roads as RoadMap = new RoadMap();   // road lines from NavBridge, drawn by the watch itself
 
     private const ALERT_METERS = [400, 150, 50];
     private var _lowQuality as Number = -2;   // last GPS quality logged as too low, so the log isn't flooded
@@ -64,6 +66,7 @@ class NavModel {
             System.println("gps fix " + lat + "," + lon);
         }
         hasFix = true;
+        posAt = System.getTimer();
         if (info.speed != null) {
             speed = info.speed as Float;
         }
@@ -120,6 +123,8 @@ class NavModel {
             endAt = System.getTimer();
             endText = data["ar"] == true ? "Arrived" : "Navigation ended";
             return true;
+        } else if (t != null && "roads".equals(t)) {
+            roads.onRoads(data);
         } else if (t != null && "idle".equals(t)) {
             navActive = false;
         }
