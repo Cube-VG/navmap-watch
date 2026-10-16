@@ -10,7 +10,7 @@ One thing: while Google Maps navigates on your phone, NavMap shows it on the wat
 - Buzzes and lights the screen at each new turn and 400, 150 and 50 m before it, and keeps the screen lit for the last 120 m before a turn (at most 40 s, because the screen's burn-in protection allows no more). When the screen dims it shows only the next turn and the distance, with under 4% of the pixels lit
 - Says "Arrived" or "Navigation ended" and closes 5 s later
 - Only Back does something (it asks before exiting). Taps, swipes and the other buttons do nothing, so nothing pops up over the map
-- Maps come in a 14-colour palette, about a quarter of the Bluetooth and memory cost of full colour
+- Maps come in three greys at 2 bits per pixel, 40-45% fewer Bluetooth bytes than v0.5's 15 colours (see "Bluetooth bytes" below)
 - Runs as a plain watch app (no activity session), so nothing is recorded
 - Gets the turns by asking NavBridge every 2 s (every 5 s when not navigating) at `http://127.0.0.1:18165/nav`. Garmin Connect makes that request on the phone, the same way it fetches the map pictures, so the turns don't depend on Connect IQ phone messages: Garmin Connect for Android accepts the watch's messages but no longer delivers them to phone apps (Garmin bug [CIQQA-4631](https://forums.garmin.com/developer/connect-iq/i/bug-reports/gcm-5-27-3-android-accepts-communications-transmit-messages-from-watch-app-but-never-delivers-them-to-the-companion-app)). Garmin Connect allows plain HTTP only to 127.0.0.1, and NavBridge answers only requests that carry the key both apps are built with
 
@@ -44,5 +44,22 @@ Run `tools/build-phone.sh`. It runs the unit tests and writes `dist/NavBridge.ap
 2. In the simulator, untick **Settings → Use Device HTTPS Requirements**. Garmin Connect allows plain HTTP to 127.0.0.1, but the simulator doesn't make that exception, and NavMap gets -1001 for every `/nav` request.
 3. Run `tools/sim-phone.py serve --ride`, then load `NavMap-sim.prg`. The ride starts when NavMap first asks; `tools/sim-phone.py ride` starts another and `stop` ends it. **Settings → Display Mode → Always-On** shows the dimmed screen.
 4. Connect IQ phone messages work too: choose adb Connection → Start in the simulator, then `tools/sim-phone.py send '<json>'`.
+
+### Bluetooth bytes
+Everything NavMap receives goes over Bluetooth, which is slow, so it is packed tight. How Garmin Connect (Android 5.30) carries it was read from the app itself:
+
+- **JSON answers** are re-serialized into Monkey C's format: every number costs 5 bytes, text 1 byte per ASCII character. Then Garmin's LZW (9-bit codes) may shrink it.
+- **Map pictures** go through Garmin's cloud image service, or the phone if that fails. Every pixel becomes the nearest palette colour, packed at 1, 2, 4 or 8 bits (palette + 1 transparent: 4 colours fit 2 bits), then Garmin's LZW with 10-bit codes.
+
+So NavMap 0.6 asks for (`c=1`) and reads a compact answer: the turn as one line of text, the arrow as runs of rows, the route as a Google encoded polyline thinned to 2 m. `tools/navcodec.py` is the spec and reference encoder (run it to self-test). `tools/link_bytes.py msg` and `tools/link_bytes.py map [lat lon]` measure the bytes with a copy of Garmin's LZW:
+
+| | v0.5 | v0.6 |
+|---|---|---|
+| Route, 600 points | 6,035 B | 555 B (152 points after thinning) |
+| Turn arrow | 515 B | 154-186 B |
+| Turn answer every 2 s | 176 B | 103 B |
+| Map picture, suburb / Kansas City / Times Square | 11.8 / 16.9 / 21.5 KB | 6.7 / 10.3 / 12.4 KB |
+
+The watch decodes the route a slice per second: Connect IQ stops an app that runs too long at once.
 
 The 9.x simulator asks you to sign in to Garmin Connect before it loads map images.

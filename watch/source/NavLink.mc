@@ -35,7 +35,7 @@ class NavLink {
         if (now < _nextAt || !System.getDeviceSettings().phoneConnected) {
             return;
         }
-        var params = {"k" => NAVBRIDGE_TOKEN, "ah" => _m.arrowHash.toString(), "rv" => _m.routeVersion.toString()};
+        var params = {"k" => NAVBRIDGE_TOKEN, "ah" => _m.arrowHash.toString(), "rv" => _m.routeVersion.toString(), "c" => "1"};
         var lat = _m.lat;
         var lon = _m.lon;
         if (lat != null && lon != null) {

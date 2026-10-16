@@ -34,7 +34,16 @@ class NavModel {
     private var _holdStarted as Boolean = false;   // for the current turn
     private var _holdUntil as Number = 0;
     private var _litAt as Number = 0;
-    private var _lowQuality as Number = -2;   // last GPS quality logged as too low, so the log isn't flooded
+    private var _lowQuality as Number = -2;
+    private const ROUTE_STEP = 600;               // route characters decoded per step
+    private var _pBytes as Array<Number>? = null; // route text being decoded, and where decodeStep() is
+    private var _pOut as Array<Number>? = null;
+    private var _pAt as Number = 0;
+    private var _pK as Number = 0;
+    private var _pV as Number = 0;
+    private var _pShift as Number = 0;
+    private var _pLat as Number = 0;
+    private var _pLon as Number = 0;   // last GPS quality logged as too low, so the log isn't flooded
 
     function initialize() {
         var info = Position.getInfo();
@@ -86,40 +95,19 @@ class NavModel {
         }
         phoneAnswered = true;
         var t = data["t"] as Object?;
-        if (t != null && "nav".equals(t)) {
-            var alert = false;
-            var newInstr = str(data["i"] as Object?);
-            var newHash = data["ah"] instanceof Number ? data["ah"] as Number : arrowHash;
-            if (!navActive || !newInstr.equals(instr) || newHash != arrowHash) {
-                alert = true;
-                _holdStarted = false;   // a new turn gets its own lit time
+        var line = data["n"] as Object?;
+        if (line instanceof String) {
+            // Compact answer (asked for with c=1): "dm|ah|rv|d|e|i", see tools/navcodec.py.
+            var f = splitLine(line, 5);
+            if (f == null) {
+                return false;
             }
-            var newMeters = data["dm"] instanceof Number ? data["dm"] as Number : -1;
-            if (distMeters > 0 && newMeters >= 0) {
-                for (var i = 0; i < ALERT_METERS.size(); i++) {
-                    var m = ALERT_METERS[i];
-                    if (distMeters > m && newMeters <= m) {
-                        alert = true;
-                    }
-                }
-            }
-            navActive = true;
-            endAt = null;
-            instr = newInstr;
-            distText = str(data["d"] as Object?);
-            distMeters = newMeters;
-            eta = str(data["e"] as Object?);
-            // No "a" means keep the current arrow; "a":[] clears it.
-            if (data["a"] instanceof Array) {
-                arrowRects = buildArrow(data["a"] as Array);
-            }
-            arrowHash = newHash;
-            // The /nav answer carries the route only when it differs from routeVersion.
-            if (data["rv"] instanceof Number && data["p"] instanceof Array) {
-                setRoute(data["p"] as Array<Number>);
-                routeVersion = data["rv"] as Number;
-            }
-            return alert;
+            var ah = f[1].toNumber();
+            return onNav(f[0].toNumber(), ah != null ? ah : arrowHash, f[2].toNumber(), f[3], f[4], f[5], data);
+        } else if (t != null && "nav".equals(t)) {
+            return onNav(data["dm"] instanceof Number ? data["dm"] as Number : null,
+                data["ah"] instanceof Number ? data["ah"] as Number : arrowHash,
+                data["rv"] instanceof Number ? data["rv"] as Number : null, str(data["d"] as Object?), str(data["e"] as Object?), str(data["i"] as Object?), data);
         } else if (t != null && "route".equals(t)) {
             if (data["p"] instanceof Array) {
                 setRoute(data["p"] as Array<Number>);
@@ -131,6 +119,7 @@ class NavModel {
             }
             navActive = false;
             route = null;
+            _pBytes = null;   // and drop a route still being decoded
             endAt = System.getTimer();
             endText = data["ar"] == true ? "Arrived" : "Navigation ended";
             return true;
@@ -140,7 +129,146 @@ class NavModel {
         return false;
     }
 
+    private function onNav(dm as Number?, newHash as Number, rv as Number?, d as String, e as String,
+            newInstr as String, data as Dictionary) as Boolean {
+        var alert = false;
+        if (!navActive || !newInstr.equals(instr) || newHash != arrowHash) {
+            alert = true;
+            _holdStarted = false;   // a new turn gets its own lit time
+        }
+        var newMeters = dm != null ? dm : -1;
+        if (distMeters > 0 && newMeters >= 0) {
+            for (var i = 0; i < ALERT_METERS.size(); i++) {
+                var m = ALERT_METERS[i];
+                if (distMeters > m && newMeters <= m) {
+                    alert = true;
+                }
+            }
+        }
+        navActive = true;
+        endAt = null;
+        instr = newInstr;
+        distText = d;
+        distMeters = newMeters;
+        eta = e;
+        // No arrow means keep the current one; "" or [] clears it.
+        var a = data["A"] as Object?;
+        if (a instanceof String) {
+            arrowRects = buildArrowRuns(a);
+        } else if (data["a"] instanceof Array) {
+            arrowRects = buildArrow(data["a"] as Array);
+        }
+        arrowHash = newHash;
+        // The answer carries the route only when it differs from routeVersion.
+        var p = data["P"] as Object?;
+        if (rv != null && p instanceof String) {
+            startRoute(p);
+            routeVersion = rv;
+        } else if (rv != null && data["p"] instanceof Array) {
+            setRoute(data["p"] as Array<Number>);
+            routeVersion = rv;
+        }
+        return alert;
+    }
+
+    // "a|b|c": the first n fields and the rest (which may itself hold '|').
+    private function splitLine(s as String, n as Number) as Array<String>? {
+        var out = [] as Array<String>;
+        for (var k = 0; k < n; k++) {
+            var at = s.find("|");
+            if (at == null) {
+                return null;
+            }
+            out.add(s.substring(0, at) as String);
+            s = s.substring(at + 1, s.length()) as String;
+        }
+        out.add(s);
+        return out;
+    }
+
+    // "P": a Google encoded polyline in 1e-5 degrees. Decoding is a few steps per character, and the watch
+    // stops an app that runs too long at once, so a long route is read ROUTE_STEP characters at a time:
+    // one slice now, the rest one per second from decodeStep(). The old line stays until the new is whole.
+    private function startRoute(p as String) as Void {
+        var b = p.toUtf8Array();
+        _pBytes = b;
+        _pAt = 0;
+        _pOut = new [b.size()] as Array<Number>;   // a number takes at least one character
+        _pK = 0;
+        _pV = 0;
+        _pShift = 0;
+        _pLat = 0;
+        _pLon = 0;
+        decodeStep();
+    }
+
+    function decodeStep() as Void {
+        var b = _pBytes;
+        var out = _pOut;
+        if (b == null || out == null) {
+            return;
+        }
+        var end = _pAt + ROUTE_STEP < b.size() ? _pAt + ROUTE_STEP : b.size();
+        var k = _pK;
+        var v = _pV;
+        var shift = _pShift;
+        for (var i = _pAt; i < end; i++) {
+            var c = b[i] - 63;
+            v |= (c & 31) << shift;
+            shift += 5;
+            if (c < 32) {   // no continuation bit: this number is whole
+                var delta = (v & 1) != 0 ? ~(v >> 1) : v >> 1;
+                if (k % 2 == 0) {
+                    _pLat += delta;
+                    out[k] = _pLat;
+                } else {
+                    _pLon += delta;
+                    out[k] = _pLon;
+                }
+                k++;
+                v = 0;
+                shift = 0;
+            }
+        }
+        _pAt = end;
+        _pK = k;
+        _pV = v;
+        _pShift = shift;
+        if (end < b.size()) {
+            return;
+        }
+        k -= k % 2;
+        route = k >= 4 ? out.slice(0, k) : null;
+        System.println("route " + b.size() + " chars, " + k / 2 + " points" +
+            (k >= 4 ? ", ends " + out[0] + "," + out[1] + " " + out[k - 2] + "," + out[k - 1] : ""));
+        _pBytes = null;
+        _pOut = null;
+    }
+
+    // "A": blocks of identical rows, each: rows, runs, then x0 x1 per run, all +63 (tools/navcodec.py).
+    // Already runs, so this is just scaling to 1.5x; a block of rows is one rectangle per run.
+    private function buildArrowRuns(s as String) as Array<Number>? {
+        var b = s.toUtf8Array();
+        var rects = [] as Array<Number>;
+        var row = 0;
+        var i = 0;
+        while (i + 1 < b.size()) {
+            var y0 = (row * 3) / 2;
+            row += b[i] - 63;
+            var y1 = (row * 3) / 2;
+            var runs = b[i + 1] - 63;
+            i += 2;
+            for (var r = 0; r < runs && i + 1 < b.size(); r++) {
+                var x0 = ((b[i] - 63) * 3) / 2;
+                rects.addAll([x0, y0, ((b[i + 1] - 63) * 3) / 2 - x0, y1 - y0]);
+                i += 2;
+            }
+        }
+        return rects.size() > 0 ? rects : null;
+    }
+
     private function setRoute(p as Array<Number>) as Void {
+        _pBytes = null;
         route = p.size() >= 4 ? p : null;
     }
 

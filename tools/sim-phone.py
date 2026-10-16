@@ -28,6 +28,8 @@ import time
 import urllib.parse
 import zlib
 
+import navcodec
+
 STRING_SENTINEL = 0xABCDABCD
 DATA_SENTINEL = 0xDA7ADA7A
 SIM_PORT = 7381
@@ -311,6 +313,7 @@ class Phone:
         self.nav = None
         self.arrow = None
         self.route = []
+        self.route_text = None   # (route_version, polyline) so a route is encoded once
         self.route_version = 0
         self.ended = None  # (time, arrived)
         self.last_answer = None
@@ -381,7 +384,18 @@ class Phone:
         if self.ride_on_hello and not self.riding() and self.nav is None and self.ended is None:
             self.start_ride()
         with self.lock:
-            if self.nav is not None:
+            if self.nav is not None and num("c") == 1:
+                # Watch 0.6+: the compact form (tools/navcodec.py), about a tenth of the bytes.
+                n = self.nav
+                reply = {"n": navcodec.nav_line(n.get("dm", -1), n.get("ah", 0), self.route_version,
+                                                n.get("d", ""), n.get("e", ""), n.get("i", ""))}
+                if self.arrow is not None and num("ah") != n.get("ah"):
+                    reply["A"] = navcodec.arrow_encode(self.arrow)
+                if num("rv") != self.route_version:
+                    if self.route_text is None or self.route_text[0] != self.route_version:
+                        self.route_text = (self.route_version, navcodec.route_encode(navcodec.simplify(self.route)))
+                    reply["P"] = self.route_text[1]
+            elif self.nav is not None:
                 reply = dict(self.nav, rv=self.route_version)
                 if self.arrow is not None and num("ah") != self.nav.get("ah"):
                     reply["a"] = self.arrow
@@ -392,7 +406,8 @@ class Phone:
             else:
                 reply = {"t": "idle"}
         # Every 2 s while navigating, so only log what changed.
-        kind = (reply["t"], reply.get("i"), "a" in reply, "p" in reply)
+        kind = (reply.get("t"), reply.get("i") or reply.get("n", "").split("|")[-1],
+                "a" in reply or "A" in reply, "p" in reply or "P" in reply)
         if kind != self.last_answer:
             self.last_answer = kind
             log("/nav ->", json.dumps(short(reply), ensure_ascii=False), "" if query.get("k") else "(no key)")
