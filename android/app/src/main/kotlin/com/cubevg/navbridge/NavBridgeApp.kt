@@ -8,9 +8,10 @@ class NavBridgeApp : Application() {
         super.onCreate()
         DynamicColors.applyToActivitiesIfAvailable(this)
         Alerts.createChannel(this)
-        // Garmin Connect hands watch messages to IQGarminBindingService, which looks up ConnectIQ.getInstance().
-        // It has to exist from the moment the process starts, even when Garmin Connect is what started it.
+        // Garmin Connect's broadcasts only reach a receiver the SDK registers while it runs, and NavMap polls
+        // NavServer whenever it's open: both start with the process, which the notification listener keeps alive.
         CiqBridge.init(this)
         NavSession.init(this)
+        NavServer.start()
     }
 }

@@ -47,8 +47,83 @@ class WatchProtocolTest {
             WatchProtocol.parse(mapOf("t" to "hello", "v" to 2, "la" to 5150722, "lo" to -12760L)),
         )
         assertEquals(WatchProtocol.FromWatch.Hello(1, null), WatchProtocol.parse(mapOf("t" to "hello")))
+        assertTrue((WatchProtocol.parse(mapOf("t" to "hello", "v" to 2, "r" to 1)) as WatchProtocol.FromWatch.Hello).roads)
+        assertTrue((WatchProtocol.parse(mapOf("t" to "hello", "r" to 1L)) as WatchProtocol.FromWatch.Hello).roads)
+        assertFalse((WatchProtocol.parse(mapOf("t" to "hello", "r" to 0)) as WatchProtocol.FromWatch.Hello).roads)
         assertEquals(WatchProtocol.FromWatch.Position(null), WatchProtocol.parse(mapOf("t" to "pos", "la" to 0, "lo" to 0)))
         assertEquals(WatchProtocol.FromWatch.Bye, WatchProtocol.parse(mapOf("t" to "bye")))
         assertTrue(WatchProtocol.parse("hello") is WatchProtocol.FromWatch.Unknown)
+    }
+
+    private val arrow = IntArray(96) { it * 1_000_003 - 7 }
+    private val route = listOf(1297000, 7759000, 1297100, 7759100)
+
+    private fun poll(ah: Int?, rv: Int?) = WatchProtocol.Poll("k", ah, rv, null)
+
+    @Test
+    fun navReplySendsOnlyWhatTheWatchLacks() {
+        val m = WatchProtocol.navReply(info, arrow, 1234, route, 77, poll(1234, 77))
+        assertEquals(
+            mapOf("t" to "nav", "i" to "Turn left onto Elm St", "d" to "350 m", "dm" to 350, "e" to "Arrive 10:01", "ah" to 1234, "rv" to 77),
+            m,
+        )
+        assertFalse(m.containsKey("s"))
+
+        val fresh = WatchProtocol.navReply(info, arrow, 1234, route, 77, poll(null, null))
+        assertEquals(arrow.toList(), fresh["a"])
+        assertEquals(route, fresh["p"])
+
+        val newArrow = WatchProtocol.navReply(info, arrow, 1234, route, 77, poll(99, 77))
+        assertEquals(arrow.toList(), newArrow["a"])
+        assertFalse(newArrow.containsKey("p"))
+    }
+
+    @Test
+    fun navReplyClearsWhatsGone() {
+        // No arrow (hash 0) and a cleared route (new version, no points).
+        val m = WatchProtocol.navReply(info.copy(distance = null), null, 0, null, 5, poll(1234, 77))
+        assertEquals(emptyList<Int>(), m["a"])
+        assertEquals(emptyList<Int>(), m["p"])
+        assertEquals("", m["d"])
+        assertEquals(-1, m["dm"])
+        // A watch that has nothing either gets nothing extra.
+        val none = WatchProtocol.navReply(info, null, 0, null, 0, poll(0, 0))
+        assertFalse(none.containsKey("a"))
+        assertFalse(none.containsKey("p"))
+    }
+
+    @Test
+    fun endForAMinuteThenIdle() {
+        assertEquals(mapOf("t" to "end", "ar" to true), WatchProtocol.notNavigatingReply(0, arrived = true))
+        assertEquals(mapOf("t" to "end", "ar" to false), WatchProtocol.notNavigatingReply(59_999, arrived = false))
+        assertEquals(mapOf("t" to "idle"), WatchProtocol.notNavigatingReply(60_000, arrived = true))
+        assertEquals(mapOf("t" to "idle"), WatchProtocol.notNavigatingReply(null, arrived = true))
+        assertEquals(mapOf("t" to "idle"), WatchProtocol.notNavigatingReply(-5, arrived = true))
+    }
+
+    @Test
+    fun readsPolls() {
+        assertEquals(
+            WatchProtocol.Poll("0123abcd", -123, 5, LatLng(12.97, 77.59)),
+            WatchProtocol.poll("k=0123abcd&ah=-123&rv=5&la=1297000&lo=7759000"),
+        )
+        // The first poll after NavMap starts may have nothing; numbers written unsigned or as floats still read.
+        assertEquals(WatchProtocol.Poll(null, null, null, null), WatchProtocol.poll(null))
+        assertEquals(WatchProtocol.Poll(null, null, null, null), WatchProtocol.poll(""))
+        assertEquals(-123, WatchProtocol.poll("ah=4294967173").arrowHash)
+        assertEquals(LatLng(12.97, 77.59), WatchProtocol.poll("la=1297000.0&lo=7759000.0").position)
+        // No fix (0,0), half a position, or garbage: no position.
+        assertEquals(null, WatchProtocol.poll("la=0&lo=0").position)
+        assertEquals(null, WatchProtocol.poll("la=1297000").position)
+        assertEquals(null, WatchProtocol.poll("la=NaN&lo=7759000").position)
+        assertEquals(null, WatchProtocol.poll("la=99999999&lo=7759000").position)
+        assertEquals(null, WatchProtocol.poll("ah=x&rv=").arrowHash)
+    }
+
+    @Test
+    fun readsQueryStrings() {
+        assertEquals(mapOf("a" to "1", "b" to "x y", "c" to "", "d" to "é&"), WatchProtocol.query("a=1&b=x+y&c&d=%C3%A9%26&&a=2"))
+        // A broken escape drops only that parameter.
+        assertEquals(mapOf("ok" to "1"), WatchProtocol.query("bad=%zz&ok=1"))
     }
 }

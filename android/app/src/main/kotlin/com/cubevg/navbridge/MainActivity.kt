@@ -191,6 +191,7 @@ class MainActivity : AppCompatActivity() {
                 latest.distance?.let { append(it.text).append(" · ") }
                 append(latest.instruction)
                 if (latest.trip.isNotEmpty()) append("\n").append(latest.trip)
+                append("\nUpdates fetched by the watch: ").append(NavSession.polls)
                 append("\nMessages delivered to the watch: ").append(NavSession.sent)
             }
             NavSession.active -> "Navigation ending"
@@ -204,7 +205,7 @@ class MainActivity : AppCompatActivity() {
         watchStatus.text = buildString {
             append(
                 when (CiqBridge.state) {
-                    CiqBridge.State.READY -> "Garmin Connect: connected" + if (CiqBridge.binderMode) "" else " (broadcast mode)"
+                    CiqBridge.State.READY -> "Garmin Connect: connected"
                     CiqBridge.State.STARTING -> "Garmin Connect: connecting…"
                     CiqBridge.State.NO_GARMIN_CONNECT ->
                         if (gcInstalled) "Garmin Connect: not answering. Open it once and sign in." else "Garmin Connect isn't installed"
@@ -221,7 +222,8 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             if (CiqBridge.state == CiqBridge.State.READY && CiqBridge.devices.isEmpty()) append("\nNo watch paired in Garmin Connect")
-            if (NavSession.appOpen) append("\nNavMap is open")
+            append("\n").append(NavServer.status)
+            if (NavSession.polling || NavSession.appOpen) append("\nNavMap is open")
             if (Roads.status.isNotEmpty()) append("\nRoads © OpenStreetMap contributors: ").append(Roads.status)
         }
     }

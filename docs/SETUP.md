@@ -1,6 +1,6 @@
 # Setting up NavMap
 
-NavMap has two parts: the **NavMap watch app** on the Forerunner 165 and the **NavBridge phone app** on Android. NavBridge reads Google Maps' navigation notification and sends each turn to the watch. Garmin Connect must be installed and paired with the watch.
+NavMap has two parts: the **NavMap watch app** on the Forerunner 165 and the **NavBridge phone app** on Android. NavBridge reads Google Maps' navigation notification, and NavMap fetches each turn from it through Garmin Connect. Garmin Connect must be installed and paired with the watch.
 
 ## 1. Install the watch app
 1. Plug the watch into the computer. On a Mac, open it with [OpenMTP](https://openmtp.ganeshrvel.com/).
@@ -44,6 +44,6 @@ For the longest bright screen, on the watch hold **Up → System → Display →
   3. Check that the **Log** has a line for the Google Maps notification.
 - **"Press the button on the watch":** Garmin always asks before opening an app on the watch, so one press is the minimum.
 - **No route line:** the route line needs the Share → **Navigate with NavMap** start. The Google Cloud key also needs the **Routes API** enabled.
-- **Watch says "NavBridge not answering":** open NavBridge on the phone and check that it's running and up to date.
+- **Watch says "NavBridge not answering":** open NavBridge on the phone and check that it's running and up to date. Its Watch card should say "Answering NavMap on 127.0.0.1:18165", and "NavMap is open" while the watch fetches turns. "refused: wrong key" means the watch and phone apps were built with different tokens.
 - **Watch says "Phone not connected":** the watch has lost Bluetooth to the phone; open Garmin Connect.
 - **Reporting a bug:** tap **Copy** under Log and paste it into the chat, with a photo of the watch.

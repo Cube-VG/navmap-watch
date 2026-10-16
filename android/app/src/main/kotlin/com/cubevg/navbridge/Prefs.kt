@@ -28,4 +28,11 @@ object Prefs {
     fun setRoutesKey(context: Context, key: String) {
         prefs(context).edit().putString("routes_key", key.trim()).apply()
     }
+
+    /** NavBridge 0.3's binder registration has been removed from Garmin Connect (see [CiqBridge]). */
+    fun binderForgotten(context: Context): Boolean = prefs(context).getBoolean("binder_forgotten", false)
+
+    fun setBinderForgotten(context: Context) {
+        prefs(context).edit().putBoolean("binder_forgotten", true).apply()
+    }
 }

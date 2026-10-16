@@ -19,10 +19,14 @@ android {
         applicationId = "com.cubevg.navbridge"
         minSdk = 26
         targetSdk = 36
-        versionCode = (setting("NAVBRIDGE_VERSION_CODE") ?: "3").toInt()
-        versionName = setting("NAVBRIDGE_VERSION_NAME") ?: "0.3"
+        versionCode = (setting("NAVBRIDGE_VERSION_CODE") ?: "4").toInt()
+        versionName = setting("NAVBRIDGE_VERSION_NAME") ?: "0.4"
         // Routes API key for the blue route line. Builds without one still relay turns.
         buildConfigField("String", "MAPS_API_KEY", "\"${setting("MAPS_API_KEY") ?: ""}\"")
+        // The key NavMap sends with every /nav request; the watch app is built with the same one.
+        val token = setting("NAVBRIDGE_TOKEN") ?: ""
+        require(token.all { it.isLetterOrDigit() }) { "NAVBRIDGE_TOKEN: letters and digits only" }
+        buildConfigField("String", "NAVBRIDGE_TOKEN", "\"$token\"")
         // Must match the id in watch/manifest.xml.
         buildConfigField("String", "WATCH_APP_ID", "\"ab20da3b6a6544eb8cf6feede0824f3f\"")
     }

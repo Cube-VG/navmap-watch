@@ -11,8 +11,10 @@ import com.garmin.android.connectiq.IQDevice
 /**
  * The single ConnectIQ connection to Garmin Connect. All callbacks are moved to the main thread.
  *
- * Watch messages arrive through Garmin's binder service when Garmin Connect supports it, which also starts
- * NavBridge if it isn't running. Older Garmin Connect versions fall back to broadcasts per device.
+ * Watch messages, device status and the answers to "open" and "send" arrive as broadcasts, registered per device.
+ * Garmin's binder service is never used: registering for it stops those broadcasts, and Garmin Connect never
+ * delivers through it (Garmin bug CIQQA-4631). NavMap's turns don't depend on any of this: it fetches them over
+ * HTTP ([NavServer]).
  */
 object CiqBridge {
     enum class State { STARTING, READY, NO_GARMIN_CONNECT, UPDATE_GARMIN_CONNECT, ERROR }
@@ -27,13 +29,11 @@ object CiqBridge {
     private lateinit var context: Context
     private lateinit var ciq: ConnectIQ
     private val watchApp = IQApp(BuildConfig.WATCH_APP_ID)
-    private val legacyRegistered = mutableSetOf<Long>()
+    private val appEventsRegistered = mutableSetOf<Long>()
     private val deviceStatus = mutableMapOf<Long, IQDevice.IQDeviceStatus>()
 
     var listener: Listener? = null
     var state = State.STARTING
-        private set
-    var binderMode = false
         private set
     var devices: List<IQDevice> = emptyList()
         private set
@@ -76,8 +76,7 @@ object CiqBridge {
         override fun onSdkShutDown() {
             main.post {
                 DebugLog.log("Garmin Connect connection closed, reconnecting")
-                binderMode = false
-                legacyRegistered.clear()
+                appEventsRegistered.clear()
                 state = State.STARTING
                 main.postDelayed(::start, 3_000)
             }
@@ -85,16 +84,20 @@ object CiqBridge {
     }
 
     private fun onReady() {
-        state = State.READY
-        binderMode = try {
-            ciq.registerAppToUseBinderService(watchApp.applicationId)
-            ciq.registerForAppEvents(appListener)
-            true
-        } catch (e: Exception) {
-            DebugLog.log("Garmin Connect has no binder service, using broadcasts ($e)")
-            false
+        if (!Prefs.binderForgotten(context)) {
+            // NavBridge 0.3 registered NavMap for the binder service, and Garmin Connect remembers that. Undo it once.
+            // The SDK shuts itself down afterwards; onSdkShutDown connects again.
+            try {
+                ciq.unregisterAppFromUsingBinderService(watchApp.applicationId, context)
+                Prefs.setBinderForgotten(context)
+                DebugLog.log("Garmin Connect: binder registration removed")
+                return
+            } catch (e: Exception) {
+                DebugLog.log("Couldn't remove the binder registration: $e")
+            }
         }
-        DebugLog.log("Garmin Connect ready" + if (binderMode) " (binder)" else "")
+        state = State.READY
+        DebugLog.log("Garmin Connect ready")
         refresh()
     }
 
@@ -118,7 +121,7 @@ object CiqBridge {
             try {
                 // Reports the current state straight away, then every change.
                 ciq.registerForDeviceEvents(device) { d, status -> main.post { onDeviceStatus(d, status) } }
-                if (!binderMode && legacyRegistered.add(id)) ciq.registerForAppEvents(device, watchApp, appListener)
+                if (appEventsRegistered.add(id)) ciq.registerForAppEvents(device, watchApp, appListener)
             } catch (e: Exception) {
                 DebugLog.log("Couldn't watch ${device.friendlyName}: $e")
             }

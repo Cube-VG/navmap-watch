@@ -14,11 +14,13 @@ import com.cubevg.navmap.core.WatchProtocol
 import com.garmin.android.connectiq.ConnectIQ.IQMessageStatus
 import com.garmin.android.connectiq.ConnectIQ.IQOpenApplicationStatus
 import com.garmin.android.connectiq.IQDevice
+import kotlin.random.Random
 
 /**
  * One navigation, relayed to the watch. When Google Maps starts navigating, NavMap is opened with the watch's
- * "Open NavMap?" prompt; once it says hello, the watch always gets the newest turn, one message at a time.
- * Whenever NavMap is open, navigating or not, it also gets the road lines around it ([Roads]).
+ * "Open NavMap?" prompt. NavMap then polls for the newest turn over HTTP ([NavServer], answered by [onPoll]); if it
+ * also says hello over Connect IQ, each turn is pushed to it as well, one message at a time. A NavMap that asks for
+ * them in its hello also gets the road lines around it ([Roads]).
  * Main thread only.
  */
 object NavSession : CiqBridge.Listener {
@@ -32,6 +34,8 @@ object NavSession : CiqBridge.Listener {
     private const val WHERE_RETRY_MS = 8_000L
     private const val WHERE_EVERY_MS = 15_000L
     private const val WHERE_MISSES = 4
+    private const val POLL_GONE_MS = 20_000L
+    private const val POLL_FRESH_MS = 8_000L
 
     /** The watch can never take a message that failed like this, so it isn't retried. */
     private val REFUSED = setOf(
@@ -47,9 +51,20 @@ object NavSession : CiqBridge.Listener {
     var active = false
         private set
 
-    /** NavMap answered on the watch during this navigation. */
+    /** NavMap answered over Connect IQ during this navigation, so turns are pushed to it too. */
     var watchReady = false
         private set
+
+    /** NavMap is polling /nav: it's open, whatever Connect IQ messaging does. */
+    var polling = false
+        private set
+
+    /** Polls answered during this navigation. */
+    var polls = 0
+        private set
+
+    /** NavMap is open and gets this navigation, by either path. */
+    val watchShowing get() = watchReady || polling
     var watch: IQDevice? = null
         private set
 
@@ -77,12 +92,17 @@ object NavSession : CiqBridge.Listener {
     private var whereDirty = false
     private var idleDirty = false
     private var wheresUnanswered = 0
+    private var roadsWanted = false
+    private var shown = false
+    private var polledAt = 0L
+    private var endedAt = 0L
 
     // Route line, from a place shared to NavBridge or from the simulator.
     var destination: Destination? = null
         private set
     private var destinationAt = 0L
     private var route: List<Int>? = null
+    private var routeVersion = 0
     private var routeDirty = false
     private var routing = false
     private var rerouteWanted = false
@@ -126,6 +146,7 @@ object NavSession : CiqBridge.Listener {
     private val endNow = Runnable {
         DebugLog.log("Navigation ended")
         endArrived = latest?.kind == NavKind.ARRIVED
+        endedAt = SystemClock.elapsedRealtime()
         latest = null
         navDirty = false
         if (watchReady) {
@@ -144,15 +165,22 @@ object NavSession : CiqBridge.Listener {
         watchReady = false
         seq = 0
         sent = 0
+        polls = 0
+        shown = false
         failures = 0
         openTries = 0
         deliveredArrowHash = -1
         idleDirty = false
         if (destination != null && SystemClock.elapsedRealtime() - destinationAt > DESTINATION_FRESH_MS) clearDestination()
         DebugLog.log("Navigation started" + (destination?.let { " to ${it.name ?: "shared place"}" } ?: ""))
-        openOnWatch()
         main.removeCallbacks(helloTimeout)
-        main.postDelayed(helloTimeout, HELLO_TIMEOUT_MS)
+        if (polling && SystemClock.elapsedRealtime() - polledAt < POLL_FRESH_MS) {
+            // NavMap is open already and fetches the turns itself.
+            onShowing()
+        } else {
+            openOnWatch()
+            main.postDelayed(helloTimeout, HELLO_TIMEOUT_MS)
+        }
     }
 
     private fun finish() {
@@ -181,7 +209,7 @@ object NavSession : CiqBridge.Listener {
         openTries++
         setStatus("Asking ${device.friendlyName} to open NavMap")
         CiqBridge.openApp(device) { result ->
-            if (!active || watchReady) return@openApp
+            if (!active || watchShowing) return@openApp
             DebugLog.log("Open NavMap: $result")
             when (result) {
                 IQOpenApplicationStatus.APP_IS_ALREADY_RUNNING -> onWatchReady(device)
@@ -195,10 +223,10 @@ object NavSession : CiqBridge.Listener {
         }
     }
 
-    private val openAgain = Runnable { if (active && !watchReady) openOnWatch() }
+    private val openAgain = Runnable { if (active && !watchShowing) openOnWatch() }
 
     private val helloTimeout = Runnable {
-        if (active && !watchReady) {
+        if (active && !watchShowing) {
             setStatus("The watch hasn't opened NavMap")
             Alerts.openOnWatch(context)
         }
@@ -207,7 +235,7 @@ object NavSession : CiqBridge.Listener {
     /** From the reminder notification or the setup screen. */
     fun retryOpen() {
         Alerts.clear(context)
-        if (active && !watchReady) {
+        if (active && !watchShowing) {
             openTries = 0
             openOnWatch()
         } else if (!active) {
@@ -216,7 +244,7 @@ object NavSession : CiqBridge.Listener {
     }
 
     fun onWatchConnected(device: IQDevice) {
-        if (active && !watchReady) {
+        if (active && !watchShowing) {
             openTries = 0
             openOnWatch()
         } else if (device == watch) {
@@ -227,12 +255,17 @@ object NavSession : CiqBridge.Listener {
     override fun onWatchMessage(device: IQDevice, message: WatchProtocol.FromWatch) {
         when (message) {
             is WatchProtocol.FromWatch.Hello -> {
-                DebugLog.log("Hello from NavMap v${message.version} on ${device.friendlyName}")
+                DebugLog.log("Hello from NavMap v${message.version} on ${device.friendlyName}" + if (message.roads) ", wants roads" else "")
+                roadsWanted = message.roads
                 // NavMap has just started, so it has no roads yet.
-                Roads.restart()
+                if (roadsWanted) Roads.restart()
                 onAppOpen(device)
                 val position = message.position
-                if (position != null) onWatchPosition(position) else Locator.lastKnown(context)?.let(Roads::seed)
+                if (position != null) {
+                    onWatchPosition(position)
+                } else if (roadsWanted) {
+                    Locator.lastKnown(context)?.let(Roads::seed)
+                }
                 if (active) {
                     onWatchReady(device)
                 } else {
@@ -250,7 +283,10 @@ object NavSession : CiqBridge.Listener {
                 if (device == watch) {
                     watchReady = false
                     onAppClosed()
-                    if (active) setStatus("NavMap was closed on the watch")
+                    if (active) {
+                        shown = false
+                        setStatus("NavMap was closed on the watch")
+                    }
                 }
             }
             is WatchProtocol.FromWatch.Unknown -> DebugLog.log("Unknown message from watch: ${message.raw}")
@@ -258,9 +294,6 @@ object NavSession : CiqBridge.Listener {
     }
 
     private fun onWatchReady(device: IQDevice) {
-        main.removeCallbacks(helloTimeout)
-        main.removeCallbacks(openAgain)
-        Alerts.clear(context)
         watch = device
         watchReady = true
         idleDirty = false
@@ -269,15 +302,59 @@ object NavSession : CiqBridge.Listener {
         deliveredArrowHash = -1
         navDirty = latest != null
         routeDirty = route != null
-        setStatus("Showing turns on ${device.friendlyName}")
+        onShowing()
+        pump()
+    }
+
+    /** NavMap is open for this navigation, by either path: stop asking and drop the reminder. */
+    private fun onShowing() {
+        shown = true
+        main.removeCallbacks(helloTimeout)
+        main.removeCallbacks(openAgain)
+        Alerts.clear(context)
+        setStatus("Showing turns on ${watch?.friendlyName ?: "the watch"}")
         Simulator.onWatchReady()
         requestRoute()
-        pump()
+    }
+
+    // ---- NavMap polling /nav over HTTP ----
+
+    /**
+     * NavMap asked for the current turn ([NavServer]), so it's open: this counts as a hello, and its position
+     * replaces "where". Returns the reply, from what's known right now.
+     */
+    fun onPoll(poll: WatchProtocol.Poll): Map<String, Any> {
+        val now = SystemClock.elapsedRealtime()
+        polledAt = now
+        polls++
+        main.removeCallbacks(pollsStopped)
+        main.postDelayed(pollsStopped, POLL_GONE_MS)
+        if (!polling) {
+            polling = true
+            DebugLog.log("NavMap is asking for turns")
+        }
+        if (active && latest != null && !shown) onShowing()
+        poll.position?.let(::onWatchPosition)
+        val info = latest
+        return if (info != null) {
+            WatchProtocol.navReply(info, arrow, arrowHash, route, routeVersion, poll)
+        } else {
+            WatchProtocol.notNavigatingReply(if (endedAt > 0) now - endedAt else null, endArrived)
+        }
+    }
+
+    private val pollsStopped = Runnable {
+        polling = false
+        DebugLog.log("NavMap stopped asking for turns")
+        if (active && !watchReady) {
+            shown = false
+            setStatus("NavMap was closed on the watch")
+        }
     }
 
     // ---- NavMap open, navigating or not ----
 
-    /** NavMap said hello or answered "where": it's open, so it's asked where it is every 15 s and gets roads. */
+    /** NavMap said hello or answered "where": it's open, so it's asked where it is every 15 s unless it polls. */
     private fun onAppOpen(device: IQDevice) {
         wheresUnanswered = 0
         watch = device
@@ -290,6 +367,7 @@ object NavSession : CiqBridge.Listener {
     private fun onAppClosed() {
         appOpen = false
         idleDirty = false
+        roadsWanted = false
         main.removeCallbacks(pollWhere)
         Roads.stop()
     }
@@ -298,14 +376,18 @@ object NavSession : CiqBridge.Listener {
     private val pollWhere = object : Runnable {
         override fun run() {
             if (!appOpen) return
-            if (wheresUnanswered >= WHERE_MISSES && !active) {
+            if (polling) {
+                // Its polls bring the position and show that it's open.
+                wheresUnanswered = 0
+            } else if (wheresUnanswered >= WHERE_MISSES && !active) {
                 // Closed without a bye. While Maps is navigating, turns keep going regardless.
                 DebugLog.log("NavMap stopped answering")
                 onAppClosed()
                 return
+            } else {
+                whereDirty = true
+                pump()
             }
-            whereDirty = true
-            pump()
             main.postDelayed(this, WHERE_EVERY_MS)
         }
     }
@@ -323,7 +405,7 @@ object NavSession : CiqBridge.Listener {
         val message: Map<String, Any>
         val sentArrowHash = arrowHash
         val sentRoute = route
-        val roads = if (appOpen) Roads.next() else null
+        val roads = if (appOpen && roadsWanted) Roads.next() else null
         when {
             watchReady && endPending -> {
                 kind = Kind.END
@@ -417,8 +499,7 @@ object NavSession : CiqBridge.Listener {
         destination = place
         destinationAt = SystemClock.elapsedRealtime()
         phoneOrigin = origin
-        route = null
-        routeDirty = false
+        setRouteLine(null)
         routeSummary = ""
         rerouteWanted = false
         DebugLog.log("Destination: ${place.name ?: place}")
@@ -432,15 +513,23 @@ object NavSession : CiqBridge.Listener {
 
     /** For the simulator: a route made up on the phone. */
     fun setRoute(points: List<Int>) {
-        route = points
-        routeDirty = true
+        setRouteLine(points)
         pump()
+    }
+
+    /** A new line, or none: it gets a new version, so a polling NavMap fetches it. */
+    private fun setRouteLine(points: List<Int>?) {
+        if (points == null && route == null) return
+        route = points
+        routeDirty = points != null
+        // Random, so a restarted NavBridge never reuses the version of a line the watch still has.
+        val old = routeVersion
+        do routeVersion = Random.nextInt(1, 1 shl 30) while (routeVersion == old)
     }
 
     private fun clearDestination() {
         destination = null
-        route = null
-        routeDirty = false
+        setRouteLine(null)
         routeSummary = ""
         phoneOrigin = null
         rerouteWanted = false
@@ -461,13 +550,13 @@ object NavSession : CiqBridge.Listener {
         watchPosition = position
         main.removeCallbacks(askWhere)
         requestRoute()
-        Roads.onPosition(position)
+        if (roadsWanted) Roads.onPosition(position)
     }
 
     // Repeats until the watch has a GPS fix to report.
     private val askWhere = object : Runnable {
         override fun run() {
-            if (destination != null && watchPosition == null && watchReady) {
+            if (destination != null && watchPosition == null && watchReady && !polling) {
                 whereDirty = true
                 pump()
                 main.postDelayed(this, WHERE_RETRY_MS)
@@ -485,8 +574,8 @@ object NavSession : CiqBridge.Listener {
         }
         val origin = phoneOrigin ?: watchPosition
         if (origin == null) {
-            // Without the phone's location, NavMap reports where the watch is.
-            if (watchReady) main.post(askWhere)
+            // Without the phone's location, NavMap reports where the watch is: with its next poll, or asked.
+            if (watchReady && !polling) main.post(askWhere)
             return
         }
         routing = true
@@ -498,8 +587,7 @@ object NavSession : CiqBridge.Listener {
             if (destination !== place) return@computeRoute
             lastRouteAt = SystemClock.elapsedRealtime()
             result.onSuccess { r ->
-                route = Polyline.forWatch(r.points)
-                routeDirty = true
+                setRouteLine(Polyline.forWatch(r.points))
                 routeSummary = r.summary()
                 DebugLog.log("Route: ${r.summary()}, ${route!!.size / 2} points for the watch")
                 pump()

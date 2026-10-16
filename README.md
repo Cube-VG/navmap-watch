@@ -17,10 +17,9 @@ One thing: while Google Maps navigates on your phone, NavMap shows it on the wat
 ## What the phone app (NavBridge) does
 - Reads Google Maps' turn-by-turn notification. No Google Maps changes, no root
 - Opens NavMap on the watch when navigation starts (Garmin asks for one button press)
-- Sends each turn: Google's own arrow, the distance, the street and the ETA
+- Answers NavMap's requests on 127.0.0.1:18165 with the current turn: Google's own arrow, the distance, the street and the ETA, plus the route line when it changes. Where Garmin Connect still delivers Connect IQ messages, turns are pushed that way too
 - Share a place from Google Maps to **Navigate with NavMap** to also get the blue route line. It's computed with the Routes API (motorbike, car, bicycle or walking) and redrawn after a reroute
 - **Simulate navigation** demo ride for testing without riding
-- Test: whenever NavMap is open, sends it the road lines around the watch, and a new 2.4 km square before you leave the current one. Map data © OpenStreetMap contributors, from [OpenFreeMap](https://openfreemap.org) tiles (no key). Tiles are cached on the phone (up to 64 MB); new ground costs about 0.2 MB per 2.4 km tile
 
 The notification parser is tested against 174 Google Maps notifications in 17 locales (real captures and hand-written ones) from [PebbleNTN](https://github.com/optio/PebbleNTN) (MIT).
 
@@ -36,7 +35,7 @@ Needs the Connect IQ SDK, a developer key and your own Google Maps Static API ke
 ### Phone app
 Needs JDK 17 and the Android SDK (platform 36). The release signing key lives in `~/.config/navmap/navbridge-release.jks`, with its password in `navbridge-signing.properties` next to it. Without them the APK is debug-signed.
 
-Run `tools/build-phone.sh`. It runs the unit tests and writes `dist/NavBridge.apk`. The Maps key from `secrets.properties` is baked in for the route line, so don't publish that APK.
+Run `tools/build-phone.sh`. It runs the unit tests and writes `dist/NavBridge.apk`. The Maps key and the token from `secrets.properties` are baked in, so don't publish that APK.
 
 ### Testing the watch without a phone
 `tools/sim-phone.py` stands in for NavBridge against the Connect IQ simulator. It answers `/nav` on 127.0.0.1:18165 the way NavBridge does (with the key from `secrets.properties`) and plays a demo ride with turn arrows, a route line, the ETA and the arrival. It needs only Python 3, not adb.

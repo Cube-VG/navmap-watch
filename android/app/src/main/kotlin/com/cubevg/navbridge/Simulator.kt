@@ -67,7 +67,7 @@ object Simulator {
     }
 
     fun onWatchReady() {
-        if (running) sendRoute()
+        if (running && !routeSent) sendRoute()
     }
 
     private val loop = object : Runnable {
@@ -77,7 +77,7 @@ object Simulator {
                 step == -1 -> {
                     // Like Maps before the first turn: no distance yet. Wait here until NavMap is open.
                     post("Head north on Demo Road", eta(), Turn.STRAIGHT)
-                    if (NavSession.watchReady || ++waited > WAIT_FOR_WATCH_S) {
+                    if (NavSession.watchShowing || ++waited > WAIT_FOR_WATCH_S) {
                         step = 0
                         left = steps[0].meters.toDouble()
                     }
