@@ -600,8 +600,9 @@ class MapView extends WatchUi.View {
     }
 
     // The segment of the route we're on: the index in r of its first point, with how far along it we are in _sT.
-    // It's searched for a few segments on from last time, because a route can pass the same place twice, and
-    // over the whole line when the line is new or we're no longer near where we were on it. c is cos(latitude),
+    // It's searched for a few segments on from last time, because a route can pass the same place twice, then
+    // over the rest of the line, and over the whole line when the line is new or we're near none of what's
+    // ahead (we went back). c is cos(latitude),
     // which makes 1e-5 degrees of longitude the same length as 1e-5 degrees of latitude.
     private function routeProgress(r as Array<Number>, lat5 as Number, lon5 as Number, c as Float) as Number {
         if (r != _cutRoute) {
@@ -612,6 +613,12 @@ class MapView extends WatchUi.View {
         if (_cutAt >= 0) {
             nearestSegment(r, _cutAt, _cutAt + 2 * CUT_AHEAD, lat5, lon5, c);
             found = _sD2 <= CUT_FAR * CUT_FAR;
+            if (!found) {
+                // A GPS jump (a flyover, tall buildings) or a long dimmed spell: look on along the rest of the
+                // line before going back to road already driven, which a search of the whole line can pick.
+                nearestSegment(r, _cutAt, r.size(), lat5, lon5, c);
+                found = _sD2 <= CUT_FAR * CUT_FAR;
+            }
         }
         if (!found) {
             nearestSegment(r, 0, r.size(), lat5, lon5, c);
