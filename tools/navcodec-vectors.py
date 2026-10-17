@@ -50,7 +50,7 @@ def arrows():
 
 
 def _ride(seed, lat, lon, n=600):
-    """Like tools/link_bytes.py: small steps with turns, like a city ride."""
+    """A made-up city ride: small steps with turns."""
     rng = random.Random(seed)
     la, lo, head, flat = lat, lon, 0.0, []
     for i in range(n):

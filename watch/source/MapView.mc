@@ -7,12 +7,12 @@ import Toybox.Timer;
 import Toybox.WatchUi;
 
 // Day style for reading in sunlight. Google draws only roads, water and road names; the land comes out
-// transparent and the watch fills it with MAP_GROUND. Garmin Connect maps every pixel to the nearest
-// palette colour and adds one for transparent, so two colours plus transparent still go at 2 bits per
-// pixel, and road edges on transparent land are clean steps instead of blended greys, which pack smaller.
+// transparent and the watch fills it with MAP_GROUND. The picture is reduced to MAP_PALETTE before it's
+// sent, and fewer colours make a smaller picture; road edges on transparent land are also clean steps
+// instead of blended greys, which pack smaller. On 14 maps in 7 cities each was smaller than v0.8's three
+// greys, 7% fewer Bluetooth bytes in all, and about half of v0.5's 15 colours.
 // Minor roads and water share a blue-grey, main roads and names are dark slate with a thin blue-grey
-// outline. Area names, POIs and transit are off. Measured with tools/link_bytes.py on 14 maps in 7 cities:
-// each smaller than v0.8's, 7% fewer Bluetooth bytes in all.
+// outline. Area names, POIs and transit are off.
 const MAP_STYLE =
     "style=element:geometry%7Cvisibility:off" +
     "&style=feature:poi%7Cvisibility:off" +
@@ -37,6 +37,8 @@ const ROUTE_BLUE = 0x1a73e8;   // Google Maps route blue, strong on a light map
 const ROUTE_EDGE = 0x0b4fb3;   // its darker edge, which keeps the line clear of the dark roads
 const RUN_START = -99999;      // marks the start of a run of points in drawRoute
 const REQUEST_TIMEOUT_MS = 30000;
+const CREDITS_MS = 6000;       // how long the map's own credit strip stays up (drawCredits)
+const STRIP = 48;              // the bottom rows of a map picture, where Google puts its logo and data credit
 
 // One map download. Each request gets its own callback object, so a reply that arrives after it
 // timed out is recognised and dropped instead of being drawn in the wrong place.
@@ -113,6 +115,10 @@ class MapView extends WatchUi.View {
     private var _sT as Float = 0.0;
     private var _sD2 as Float = -1.0;
 
+    // Until when the credit strip shows (System.getTimer()), and whether it has shown on its own yet
+    private var _creditsUntil as Number = 0;
+    private var _creditsShown as Boolean = false;
+
     function initialize(model as NavModel) {
         View.initialize();
         _m = model;
@@ -187,6 +193,14 @@ class MapView extends WatchUi.View {
         }
         var lat = _m.lat;
         var lon = _m.lon;
+        var key = Keys.mapsKey();
+        if (key == null) {
+            // NavBridge hasn't handed over the key, or took it back when the user withdrew consent: no map at
+            // all, not even the last one.
+            _img = null;
+            _full = null;
+            return;
+        }
         if (lat == null || lon == null || now < _retryAt || !System.getDeviceSettings().phoneConnected) {
             return;
         }
@@ -233,7 +247,7 @@ class MapView extends WatchUi.View {
         var url = "https://maps.googleapis.com/maps/api/staticmap?center=" +
             cLat.format("%.6f") + "," + cLon.format("%.6f") +
             "&zoom=" + z + "&size=" + size + "x" + size + "&scale=2&maptype=roadmap&" + MAP_STYLE +
-            "&key=" + MAPS_API_KEY;
+            "&key=" + key;
         var opts = {
             :maxWidth => size * 2,
             :maxHeight => size * 2,
@@ -294,6 +308,11 @@ class MapView extends WatchUi.View {
                 _imgZoom = req.zoom;
                 _backoff = 0;
                 _retryAt = 0;
+                // The first map shows its credit strip once by itself; after that, START shows it.
+                if (!_creditsShown) {
+                    _creditsShown = true;
+                    _creditsUntil = System.getTimer() + CREDITS_MS;
+                }
             } catch (e) {
                 stepDown();
                 retryLater();
@@ -354,13 +373,12 @@ class MapView extends WatchUi.View {
             perfMark(t0, 0);
             drawRoute(dc, lat, lon, z);
             perfMark(t0, 1);
-            dc.setColor(0x3a4350, Graphics.COLOR_TRANSPARENT);
-            dc.drawText(HALF, 352, Graphics.FONT_XTINY, "Google", Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
+            drawAttribution(dc);
         } else {
             dc.setColor(Graphics.COLOR_BLACK, Graphics.COLOR_BLACK);
             dc.clear();
             dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
-            dc.drawText(HALF, HALF + 50, Graphics.FONT_SMALL, lat == null ? "Waiting for GPS" : "Loading map",
+            dc.drawText(HALF, HALF + 50, Graphics.FONT_SMALL, lat == null ? "Waiting for GPS" : Keys.mapsKey() == null ? "No map key yet" : "Loading map",
                 Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
         }
         drawMarker(dc);
@@ -376,7 +394,19 @@ class MapView extends WatchUi.View {
             // Higher than the ETA: the screen is wider there, and "NavBridge not answering" is long.
             drawPill(dc, 292, waitingText(), Graphics.FONT_XTINY);
         }
+        img = _img;   // drawMap drops an image the graphics pool purged
+        if (img != null && System.getTimer() < _creditsUntil) {
+            drawCredits(dc, img);
+        }
         perfShow(dc, t0);
+    }
+
+    // START or a tap shows the credit strip (MapDelegate).
+    function showCredits() as Void {
+        if (_img != null) {
+            _creditsUntil = System.getTimer() + CREDITS_MS;
+            WatchUi.requestUpdate();
+        }
     }
 
     // ---- frame timing (tools/build-watch.sh --perf) ----------------------------------------------------
@@ -425,6 +455,12 @@ class MapView extends WatchUi.View {
     private function waitingText() as String {
         if (!System.getDeviceSettings().phoneConnected) {
             return "Phone not connected";
+        }
+        if (_m.consentNeeded) {
+            return "Open NavBridge to agree";
+        }
+        if (getApp().link.refused) {
+            return "Open NavBridge to pair";
         }
         if (getApp().link.fails >= 3) {
             return "NavBridge not answering";
@@ -535,6 +571,43 @@ class MapView extends WatchUi.View {
             bb = ref.get() as Graphics.BufferedBitmap?;
         }
         return bb;
+    }
+
+    // Google's logo and data credit are printed along the bottom of each map picture, which falls outside the
+    // round screen. In their place goes the text form Google allows where its logo doesn't fit: "Google Maps",
+    // unchanged and on one line, 12-16 sp (FONT_XTINY here is Roboto at about 13 sp), in Google's grey on a light
+    // pill so it stays readable over dark roads. The data credit, which names other providers in some countries,
+    // is shown by drawCredits.
+    private function drawAttribution(dc as Graphics.Dc) as Void {
+        var font = Graphics.FONT_XTINY;
+        var w = dc.getTextWidthInPixels("Google Maps", font) + 20;
+        var h = dc.getFontHeight(font);
+        dc.setColor(MAP_GROUND, Graphics.COLOR_TRANSPARENT);
+        dc.fillRoundedRectangle(HALF - w / 2, 352 - h / 2, w, h, h / 2);
+        dc.setColor(0x5e5e5e, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(HALF, 352, font, "Google Maps", Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
+    }
+
+    // The map picture's own credit strip, Google's logo and "Map data ©…" with any other providers, unscaled and
+    // cut into two rows so it fits the round screen. It shows by itself with the first map and then whenever START
+    // is pressed: Google's suggestion where a screen is too small for the full credit is a "Data sources" control.
+    private function drawCredits(dc as Graphics.Dc, img as WatchUi.BitmapResource or Graphics.BitmapReference) as Void {
+        var w = _imgHalfW;                 // each row is half the picture
+        var top = 2 * _imgHalfH - STRIP;   // the strip's first row in the picture
+        var x = HALF - w / 2;
+        var y = HALF - STRIP - 4;
+        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
+        dc.fillRoundedRectangle(x - 10, y - 10, w + 20, 2 * STRIP + 28, 14);
+        try {
+            dc.setClip(x, y, w, STRIP);
+            dc.drawBitmap(x, y - top, img);
+            dc.setClip(x, y + STRIP + 8, w, STRIP);
+            dc.drawBitmap(x - w, y + STRIP + 8 - top, img);
+        } catch (e) {
+            _img = null;
+            _full = null;
+        }
+        dc.clearClip();
     }
 
     // Google-style line: a darker blue edge under the blue, smoothed, with round bends. The screen points are
@@ -792,10 +865,14 @@ class MapView extends WatchUi.View {
     }
 }
 
-// Only Back does something. Every other button, tap and swipe is swallowed, so nothing pops up over the map.
+// START or a tap shows the map's credits, and Back asks before leaving. Every other button and swipe is
+// swallowed, so nothing else pops up over the map.
 class MapDelegate extends WatchUi.BehaviorDelegate {
-    function initialize() {
+    private var _view as MapView;
+
+    function initialize(view as MapView) {
         BehaviorDelegate.initialize();
+        _view = view;
     }
 
     function onPreviousPage() as Boolean {
@@ -811,10 +888,12 @@ class MapDelegate extends WatchUi.BehaviorDelegate {
     }
 
     function onSelect() as Boolean {
+        _view.showCredits();
         return true;
     }
 
     function onTap(evt as WatchUi.ClickEvent) as Boolean {
+        _view.showCredits();
         return true;
     }
 

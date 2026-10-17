@@ -9,10 +9,13 @@ NavMap reaches NavBridge two ways, and this script answers both:
   (adb Connection > Start). This script prints every message the watch app transmits and sends
   NavMap protocol messages back, in the same Monkey C serialization the Android SDK uses.
 
-  tools/sim-phone.py serve [--ride]   listen; with --ride, start a demo ride when NavMap first asks
+  tools/sim-phone.py serve [--ride] [--no-consent]
+                                      listen; with --ride, start a demo ride when NavMap first asks; with
+                                      --no-consent, start like a NavBridge whose user hasn't tapped Agree yet
   tools/sim-phone.py send '<json>'    send one message through the running server
                                       ("a":"RIGHT" etc. expands to a drawn arrow)
   tools/sim-phone.py ride | stop      start or stop the demo ride through the running server
+  tools/sim-phone.py agree | withdraw the user agrees in NavBridge, or withdraws consent again
 """
 import argparse
 import datetime
@@ -248,17 +251,22 @@ def arrow_hash(bits):
 
 # ---- the fake phone ------------------------------------------------------------------
 
-def read_token():
-    """NAVBRIDGE_TOKEN from secrets.properties: /nav then wants it as k, like NavBridge."""
+def read_secret(wanted):
+    """A value from secrets.properties, or None."""
     try:
         with open(SECRETS, encoding="utf-8") as f:
             for line in f:
                 name, _, value = line.partition("=")
-                if name.strip() == "NAVBRIDGE_TOKEN":
-                    return value.strip()
+                if name.strip() == wanted:
+                    return value.strip() or None
     except OSError:
         pass
     return None
+
+
+def well_formed(token):
+    """The tokens NavBridge pairs with (WatchPairing.wellFormed): 16 to 64 letters and digits."""
+    return 16 <= len(token) <= 64 and token.isascii() and token.isalnum()
 
 
 def stamp():
@@ -267,7 +275,8 @@ def stamp():
 
 def short(obj):
     if isinstance(obj, dict):
-        return {k: (f"[{len(v)} ints]" if k in ("a", "p") and isinstance(v, list) and len(v) > 8 else v)
+        return {k: (f"[{len(v)} ints]" if k in ("a", "p") and isinstance(v, list) and len(v) > 8
+                    else "(the Google Maps key)" if k == "mk" else v)
                 for k, v in obj.items()}
     return obj
 
@@ -298,8 +307,12 @@ class Phone:
     ]
     DEFAULT_START = (38.85591, -94.79964)  # used when the watch didn't send its position
 
-    def __init__(self, ride_on_hello, speed, interval):
+    def __init__(self, ride_on_hello, speed, interval, consent=True):
         self.ride_on_hello = ride_on_hello
+        # Whether the user has tapped Agree in NavBridge. Until then every /nav gets {"t":"consent"}, like
+        # NavEndpoint.answer: no pairing, no key, and the position in the request is ignored.
+        self.consent = consent
+        self.sends_position = None
         self.speed = speed
         self.interval = interval
         self.conn = None
@@ -317,7 +330,12 @@ class Phone:
         self.route_version = 0
         self.ended = None  # (time, arrived)
         self.last_answer = None
-        self.token = read_token()
+        # Like NavBridge with pairing open: the first watch that asks is kept, then only that one gets answers.
+        self.token = None
+        self.refused = False
+        self.watch_has_key = False
+        # The Google Maps key, handed to a NavMap that hasn't got it, like NavBridge does (NavEndpoint.withMapsKey).
+        self.maps_key = read_secret("MAPS_API_KEY")
 
     # -- link --
     def send(self, obj):
@@ -424,24 +442,42 @@ class Phone:
                     return
                 query = urllib.parse.parse_qs(url.query)
                 status, reply = 200, None
-                if phone.token and query.get("k", [""])[0] != phone.token:
+                given = query.get("k", [""])[0]
+                position = "la" in query and "lo" in query
+                if position != phone.sends_position:
+                    phone.sends_position = position
+                    log("NavMap " + ("sends" if position else "doesn't send") + " its position with /nav")
+                if not phone.consent:
+                    phone.respond(self, 200, {"t": "consent"})
+                    return
+                with phone.lock:
+                    if phone.token is None and well_formed(given):
+                        phone.token = given
+                        log("Paired with NavMap")
+                    paired = phone.token is not None and given == phone.token
+                if not paired:
                     status, reply = 403, {"t": "denied"}
-                    log("/nav -> 403, the watch's NAVBRIDGE_TOKEN differs from secrets.properties")
+                    if not phone.refused:
+                        phone.refused = True
+                        log("/nav -> 403, not the paired watch (said once)")
                 else:
                     reply = phone.answer_nav(query)
-                body = json.dumps(reply).encode()
-                self.send_response(status)
-                self.send_header("Content-Type", "application/json")
-                self.send_header("Content-Length", str(len(body)))
-                self.send_header("Cache-Control", "no-store")
-                self.end_headers()
-                self.wfile.write(body)
+                    tail = query.get("kf", [None])[0]
+                    if tail is not None and phone.maps_key and tail != phone.maps_key[-6:]:
+                        reply = dict(reply, mk=phone.maps_key)
+                        log("/nav -> also the Google Maps key, which the watch hasn't got", f"(kf={tail})")
+                    has_key = tail is not None and bool(phone.maps_key) and tail == phone.maps_key[-6:]
+                    if has_key != phone.watch_has_key:
+                        phone.watch_has_key = has_key
+                        if has_key:
+                            log("NavMap has the Google Maps key now (its kf matches)")
+                phone.respond(self, status, reply)
 
             def log_message(self, *args):
                 pass
 
         srv = http.server.ThreadingHTTPServer(("127.0.0.1", port), Handler)
-        log(f"Answering /nav on http://127.0.0.1:{port}/nav", "" if self.token else "(no NAVBRIDGE_TOKEN in secrets.properties, so any k)")
+        log(f"Answering /nav on http://127.0.0.1:{port}/nav", "" if self.maps_key else "(no MAPS_API_KEY in secrets.properties, so no map pictures)")
         srv.serve_forever()
 
     def serve_simulator(self, port):
@@ -480,6 +516,16 @@ class Phone:
             conn.close()
             log("Simulator disconnected")
 
+    @staticmethod
+    def respond(handler, status, reply):
+        body = json.dumps(reply).encode()
+        handler.send_response(status)
+        handler.send_header("Content-Type", "application/json")
+        handler.send_header("Content-Length", str(len(body)))
+        handler.send_header("Cache-Control", "no-store")
+        handler.end_headers()
+        handler.wfile.write(body)
+
     def serve_control(self, port):
         srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -506,6 +552,16 @@ class Phone:
         if cmd == "stop":
             self.ride_stop.set()
             return "ride stopping"
+        if cmd in ("agree", "withdraw"):
+            self.consent = cmd == "agree"
+            if not self.consent:
+                # Like NavBridge: forget the trip and the watch's position. The pairing stays.
+                self.ride_stop.set()
+                with self.lock:
+                    self.watch_pos = None
+                    self.watch_has_key = False
+            log("The user " + ("agreed" if self.consent else "withdrew consent") + " in NavBridge")
+            return "consent " + ("given" if self.consent else "withdrawn")
         if isinstance(msg, dict) and isinstance(msg.get("a"), str):
             bits = arrow_bits(msg["a"].upper())
             msg["a"] = bits
@@ -587,18 +643,19 @@ def main():
     s.add_argument("--ride", action="store_true", help="start the demo ride when NavMap first asks or says hello")
     s.add_argument("--speed", type=float, default=12.0, help="demo ride speed in m/s")
     s.add_argument("--interval", type=float, default=2.0, help="seconds between nav updates")
+    s.add_argument("--no-consent", action="store_true", help="start before the user's Agree in NavBridge")
     s.add_argument("--port", type=int, default=SIM_PORT)
     s.add_argument("--nav-port", type=int, default=NAV_PORT)
     s.add_argument("--control-port", type=int, default=CONTROL_PORT)
     snd = sub.add_parser("send")
     snd.add_argument("json")
     snd.add_argument("--control-port", type=int, default=CONTROL_PORT)
-    for name in ("ride", "stop"):
+    for name in ("ride", "stop", "agree", "withdraw"):
         sub.add_parser(name).add_argument("--control-port", type=int, default=CONTROL_PORT)
     args = p.parse_args()
 
     if args.cmd == "serve":
-        phone = Phone(args.ride, args.speed, args.interval)
+        phone = Phone(args.ride, args.speed, args.interval, consent=not args.no_consent)
         threading.Thread(target=phone.serve_control, args=(args.control_port,), daemon=True).start()
         threading.Thread(target=phone.serve_nav, args=(args.nav_port,), daemon=True).start()
         try:

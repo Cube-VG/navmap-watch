@@ -209,6 +209,8 @@ object NavSession : CiqBridge.Listener {
         }
         watch = device
         openTries++
+        // A NavMap that has never paired can pair now: it was NavBridge that asked for it.
+        NavServer.pairing.openWindow()
         setStatus("Asking ${device.friendlyName} to open NavMap")
         CiqBridge.openApp(device) { result ->
             if (!active || watchShowing) return@openApp
@@ -530,6 +532,18 @@ object NavSession : CiqBridge.Listener {
         do routeVersion = Random.nextInt(1, 1 shl 30) while (routeVersion == old)
     }
 
+    /**
+     * The user withdrew their consent: every position NavBridge has goes, with the route line made from one. NavMap is
+     * told with its next poll, and forgets its key and route line too (see NavEndpoint).
+     */
+    fun forgetLocation() {
+        watchPosition = null
+        clearDestination()
+        roadsWanted = false
+        Roads.stop()
+        pump()
+    }
+
     private fun clearDestination() {
         destination = null
         setRouteLine(null)
@@ -550,6 +564,8 @@ object NavSession : CiqBridge.Listener {
     }
 
     private fun onWatchPosition(position: LatLng) {
+        // Only with the user's consent, which NavMap 0.10+ also waits for before it sends a position at all.
+        if (!Prefs.consented(context)) return
         watchPosition = position
         main.removeCallbacks(askWhere)
         requestRoute()
@@ -572,7 +588,11 @@ object NavSession : CiqBridge.Listener {
     private fun requestRoute() {
         val place = destination ?: return
         if (routing || (route != null && !rerouteWanted)) return
-        val key = Prefs.routesKey(context)
+        if (!Prefs.consented(context)) {
+            routeSummary = "No route line until you agree to the terms (Privacy and terms)"
+            return
+        }
+        val key = Prefs.mapsKey(context)
         if (key.isEmpty()) {
             routeSummary = "No Routes API key, so no route line"
             return

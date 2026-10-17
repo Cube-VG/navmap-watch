@@ -58,7 +58,8 @@ class NavMapApp extends Application.AppBase {
     }
 
     function getInitialView() as [WatchUi.Views] or [WatchUi.Views, WatchUi.InputDelegates] {
-        return [new MapView(model), new MapDelegate()];
+        var view = new MapView(model);
+        return [view, new MapDelegate(view)];
     }
 
     function onPosition(info as Position.Info) as Void {
@@ -116,7 +117,8 @@ class NavMapApp extends Application.AppBase {
     private function withPosition(msg as Dictionary<String, String or Number>) as Dictionary<String, String or Number> {
         var lat = model.lat;
         var lon = model.lon;
-        if (lat != null && lon != null) {
+        // As in NavLink: only once the user has agreed in NavBridge, which is when it hands over the key.
+        if (lat != null && lon != null && Keys.mapsKey() != null) {
             msg["la"] = Math.round(lat * 100000.0d).toNumber();
             msg["lo"] = Math.round(lon * 100000.0d).toNumber();
         }

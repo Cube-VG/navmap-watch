@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """NavMap's compact /nav encodings (watch 0.6+), reference for NavBridge. Run it to self-test.
 
-Garmin Connect re-serializes JSON for the watch: each number costs 5 bytes, text 1 byte per ASCII
-character (tools/link_bytes.py). So everything bulky travels as text, with the characters
-'?'..'~' (63..126) standing for 0..63, which the watch reads back by subtracting 63.
+On the Bluetooth link to the watch a number costs several times as many bytes as a short text, so
+everything bulky travels as text, with the characters '?'..'~' (63..126) standing for 0..63, which the
+watch reads back by subtracting 63.
 
 The watch asks for these by adding c=1 to its poll; without it NavBridge answers as 0.4 did.
 
