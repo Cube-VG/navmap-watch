@@ -56,7 +56,7 @@ Under **I travel by**, pick Motorbike, Car, Bicycle or Walking. It sets the rout
 
 Press **START** on the watch to see the map's credits: Google's logo and the map data providers, as printed on the map picture. "Google Maps" stays under the map.
 
-The watch vibrates and lights up at each new turn and at 400, 150 and 50 m, and stays lit for the last 120 m before a turn. In between, the screen dims to the next turn's arrow and distance; raise your wrist or press a button to see the map. When you arrive it shows "Arrived" and closes.
+The watch buzzes twice before each turn, timed by your speed: one long buzz about 25 seconds before, and three short ones about 6 seconds before, when the turn banner turns blue. It lights up with each buzz and stays lit for the last 120 m before a turn. In between, the screen dims to the next turn's arrow and distance; raise your wrist or press a button to see the map. When you arrive it shows "Arrived" and closes.
 
 The map can't stay on all the time: Garmin lets a Connect IQ app hold the screen bright for only about a minute, and the dimmed screen may light only a tenth of its pixels, too few for a map. Garmin's own apps don't have these limits.
 

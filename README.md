@@ -33,9 +33,9 @@ For the blue route line as well, start from Google Maps' **Share** button: open 
 
 ## What the watch shows
 
-- A light, high-contrast map centred on you, readable in sunlight. It slides as you move and zooms out when you go faster.
+- A light, high-contrast map centred on you, readable in sunlight: warm paper ground, blue-grey water and small roads, dark main roads. It slides as you move and zooms out when you go faster.
 - The next turn with Google's arrow, the distance to it, the street and your arrival time, plus the blue route line when you started with Share.
-- At each new turn, and 400, 150 and 50 m before it, the watch buzzes and lights up. It stays lit for the last 120 m.
+- Before each turn the watch buzzes twice, timed by your speed: one long buzz about 25 seconds before, and three short ones about 6 seconds before, when the turn banner turns blue. It lights up with each buzz and stays lit for the last 120 m.
 - When the screen dims it shows just the next turn and the distance. Garmin lets an app keep the screen bright for only about a minute at a time.
 - When you arrive, it says "Arrived" and closes. It records no activity.
 - "Google Maps" under the map. Press **START** for the map's full credits: Google's logo and its map data providers.

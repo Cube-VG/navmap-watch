@@ -6,27 +6,28 @@ import Toybox.System;
 import Toybox.Timer;
 import Toybox.WatchUi;
 
-// Day style for reading in sunlight, drawn in three greys only: near-white ground, mid-grey minor roads
-// and water, dark main roads and labels. No POIs or transit.
+// Day style for reading in sunlight. Google draws only roads, water and road names; the land comes out
+// transparent and the watch fills it with MAP_GROUND. The picture is reduced to MAP_PALETTE before it's
+// sent, and fewer colours make a smaller picture; road edges on transparent land are also clean steps
+// instead of blended greys, which pack smaller. On 14 maps in 7 cities each was smaller than v0.8's three
+// greys, 7% fewer Bluetooth bytes in all, and about half of v0.5's 15 colours.
+// Minor roads and water share a blue-grey, main roads and names are dark slate with a thin blue-grey
+// outline. Area names, POIs and transit are off.
 const MAP_STYLE =
-    "style=element:geometry%7Ccolor:0xf7f7f5" +
-    "&style=element:labels.text.fill%7Ccolor:0x4b5563" +
-    "&style=element:labels.text.stroke%7Ccolor:0xf7f7f5%7Cweight:4" +
+    "style=element:geometry%7Cvisibility:off" +
     "&style=feature:poi%7Cvisibility:off" +
     "&style=feature:transit%7Cvisibility:off" +
-    "&style=feature:administrative%7Celement:geometry%7Cvisibility:off" +
+    "&style=feature:administrative%7Cvisibility:off" +
     "&style=feature:road%7Celement:labels.icons%7Cvisibility:off" +
-    "&style=feature:landscape%7Celement:geometry%7Ccolor:0xf7f7f5" +
-    "&style=feature:road%7Celement:geometry%7Ccolor:0x9ca3af" +
-    "&style=feature:road.arterial%7Celement:geometry%7Ccolor:0x4b5563" +
-    "&style=feature:road.highway%7Celement:geometry%7Ccolor:0x4b5563" +
-    "&style=feature:water%7Celement:geometry%7Ccolor:0x9ca3af";
+    "&style=element:labels.text.fill%7Ccolor:0x3d4654" +
+    "&style=element:labels.text.stroke%7Ccolor:0x9fb3c9%7Cweight:2" +
+    "&style=feature:road%7Celement:geometry%7Cvisibility:on%7Ccolor:0x9fb3c9" +
+    "&style=feature:road.arterial%7Celement:geometry%7Ccolor:0x3d4654" +
+    "&style=feature:road.highway%7Celement:geometry%7Ccolor:0x3d4654" +
+    "&style=feature:water%7Celement:geometry%7Cvisibility:on%7Ccolor:0x9fb3c9";
 
-// The picture is reduced to this palette before it's sent, and fewer colours make a smaller picture:
-// 40-45% fewer Bluetooth bytes per map than with NavMap 0.5's palette. Anti-aliased edges land on the
-// mid grey, so they still look smooth.
-const MAP_PALETTE = [0xf7f7f5, 0x9ca3af, 0x4b5563];
-const MAP_GROUND = 0xf7f7f5;
+const MAP_PALETTE = [0x9fb3c9, 0x3d4654];
+const MAP_GROUND = 0xf6f3ec;   // warm paper, drawn by the watch under the transparent land
 
 const SCREEN = 390;
 const HALF = 195;
@@ -525,7 +526,9 @@ class MapView extends WatchUi.View {
     }
 
     private function drawBanner(dc as Graphics.Dc) as Void {
-        dc.setColor(0x0b3d2e, 0x0b3d2e);
+        // Dark green, and route blue from "turn now" on, so a glance says this is the turn.
+        var bg = _m.turnNow ? ROUTE_BLUE : 0x0b3d2e;
+        dc.setColor(bg, bg);
         dc.fillRectangle(0, 0, SCREEN, 128);
         // Google's own maneuver arrow (48x48 bitmap) drawn at 1.5x.
         dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);

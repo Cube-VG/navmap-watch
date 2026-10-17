@@ -32,7 +32,12 @@ class NavModel {
     var phoneAnswered as Boolean = false;
     var consentNeeded as Boolean = false;     // NavBridge answered {"t":"consent"}: the user hasn't agreed there
 
-    private const ALERT_METERS = [400, 150, 50];
+    // Two buzzes per turn, timed by seconds to the turn at the current speed, not fixed metres: one long
+    // buzz about SOON_S before ("turn coming"), three short strong ones about NOW_S before ("turn now").
+    // A turn first seen too close for both gets only "turn now". No buzz within 5 s of the last one.
+    private const SOON_S = 25;
+    private const NOW_S = 6;
+    var turnNow as Boolean = false;              // "turn now" reached: the banner turns blue
     // From this distance the screen is kept lit until the turn, for at most HOLD_MS: AMOLED burn-in
     // protection refuses to keep it on for much more than a minute.
     private const HOLD_METERS = 120;
@@ -40,7 +45,9 @@ class NavModel {
     private var _holdStarted as Boolean = false;   // for the current turn
     private var _holdUntil as Number = 0;
     private var _litAt as Number = 0;
-    private var _fired as Number = 0;              // bits of ALERT_METERS already buzzed for this turn
+    private var _fired as Number = 0;              // this turn: 1 = "coming" reached, 2 = "now" reached
+    private var _buzz as Number = 1;               // the pattern alertUser() plays: 1 coming, 2 now
+    private var _buzzAt as Number = -5000;
     private var _odo as Float = 0.0;               // metres travelled, from GPS speed
     private var _odoAt as Number = 0;              // System.getTimer() of the fix that last added to _odo
     private var _baseOdo as Float = 0.0;           // _odo when Google's distance last changed
@@ -105,7 +112,7 @@ class NavModel {
     }
 
     // The same messages come from the /nav answer and from Connect IQ phone messages.
-    // Returns true when a new maneuver arrived or an alert distance was crossed.
+    // Returns true when it is time to buzz: see updateLive().
     function onPhoneMessage(data as Object?) as Boolean {
         if (!(data instanceof Dictionary)) {
             return false;
@@ -156,7 +163,8 @@ class NavModel {
             _pBytes = null;   // and drop a route still being decoded
             endAt = System.getTimer();
             endText = data["ar"] == true ? "Arrived" : "Navigation ended";
-            return true;
+            light();       // no buzz: "turn now" already announced the arrival
+            return false;
         } else if (t != null && "idle".equals(t)) {
             navActive = false;
         }
@@ -165,13 +173,11 @@ class NavModel {
 
     private function onNav(dm as Number?, newHash as Number, rv as Number?, d as String, e as String,
             newInstr as String, data as Dictionary) as Boolean {
-        var alert = false;
         var newMeters = dm != null ? dm : -1;
         if (!navActive || !newInstr.equals(instr) || newHash != arrowHash) {
-            alert = true;
-            _holdStarted = false;   // a new turn gets its own lit time
+            _holdStarted = false;   // a new turn gets its own lit time and buzzes
             _fired = 0;
-            liveMeters = -1;        // so the alert distances already passed don't buzz again
+            turnNow = false;
             distMeters = -2;        // and the countdown restarts below
         }
         // Count down from Google's figure only when it changes: it repeats the same one for a while.
@@ -185,9 +191,7 @@ class NavModel {
         instr = newInstr;
         distText = d;
         distMeters = newMeters;
-        if (updateLive()) {
-            alert = true;
-        }
+        var alert = updateLive();
         eta = e;
         // No arrow means keep the current one; "" or [] clears it.
         var a = data["A"] as Object?;
@@ -214,10 +218,9 @@ class NavModel {
         return _odo + (hasFix && speed > 1.0 && ms < 2000 ? speed * ms / 1000.0 : 0.0);
     }
 
-    // Called every second and with each answer: works out liveMeters and liveText. Returns true when an
-    // alert distance (400 / 150 / 50 m) was just crossed.
+    // Called every second and with each answer: works out liveMeters and liveText. Returns true when it
+    // is time to buzz.
     function updateLive() as Boolean {
-        var old = liveMeters;
         if (distMeters < 0) {
             liveMeters = -1;
             liveText = distText;
@@ -228,17 +231,32 @@ class NavModel {
         var live = distMeters > gone ? distMeters - gone : 0;
         liveMeters = live;
         liveText = liveDistText(live);
-        var alert = false;
-        for (var i = 0; i < ALERT_METERS.size(); i++) {
-            var bit = 1 << i;
-            if ((_fired & bit) == 0 && live <= ALERT_METERS[i]) {
-                _fired |= bit;
-                if (old >= 0) {     // a turn that starts inside a distance doesn't buzz for it
-                    alert = true;
-                }
-            }
+        // Seconds to the turn. Standing still never gets there (only the last 15 m do); without a fix, assume 4 m/s.
+        var v = hasFix ? speed : 4.0;
+        var secs = v > 1.0 ? live / v : 999.0;
+        var stage = 0;
+        if (_fired < 2 && (secs <= NOW_S || live <= 15)) {
+            stage = 2;
+            turnNow = true;
+        } else if (_fired < 1 && secs <= SOON_S && secs > NOW_S + 5) {
+            stage = 1;
         }
-        return alert;
+        if (stage == 0) {
+            return false;
+        }
+        _fired = stage;
+        return buzz(stage);
+    }
+
+    // True if pattern p may play now: not within 5 s of the last buzz.
+    private function buzz(p as Number) as Boolean {
+        var now = System.getTimer();
+        if (now - _buzzAt < 5000) {
+            return false;
+        }
+        _buzzAt = now;
+        _buzz = p;
+        return true;
     }
 
     // Google's text with the counted-down number: "350 m" becomes "320 m". Only whole numbers of metres,
@@ -404,10 +422,16 @@ class NavModel {
         return rects;
     }
 
-    // New turn, or 400 / 150 / 50 m before it: buzz and light the screen.
+    // "Turn coming" (one long buzz) or "turn now" (three short strong ones): buzz and light the screen.
     function alertUser() as Void {
         if (Attention has :vibrate) {
-            Attention.vibrate([new Attention.VibeProfile(80, 350), new Attention.VibeProfile(0, 150), new Attention.VibeProfile(80, 350)]);
+            var p = [new Attention.VibeProfile(60, 500)];
+            if (_buzz == 2) {
+                var on = new Attention.VibeProfile(100, 150);
+                var off = new Attention.VibeProfile(0, 100);
+                p = [on, off, on, off, on];
+            }
+            Attention.vibrate(p);
         }
         light();
     }
