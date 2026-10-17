@@ -37,6 +37,31 @@ object Prefs {
 
     private val MAPS_KEY = Regex("AIza[0-9A-Za-z_-]{35}")
 
+    /**
+     * When the user agreed to Google's terms and to NavBridge using their location (System.currentTimeMillis), or 0.
+     * Google requires express, prior and revocable consent before an app obtains or keeps anyone's location, so until
+     * then NavBridge reads no position and NavMap gets no key (see NavEndpoint). Asked again if [CONSENT_VERSION] goes
+     * up, which it should whenever what NavBridge does with the location changes.
+     */
+    fun consentedAt(context: Context): Long =
+        if (prefs(context).getInt("consent_version", 0) >= CONSENT_VERSION) prefs(context).getLong("consent_at", 0) else 0
+
+    fun consented(context: Context) = consentedAt(context) > 0
+
+    fun setConsented(context: Context, agreed: Boolean) {
+        prefs(context).edit().apply {
+            if (agreed) {
+                putInt("consent_version", CONSENT_VERSION)
+                putLong("consent_at", System.currentTimeMillis())
+            } else {
+                remove("consent_version")
+                remove("consent_at")
+            }
+        }.apply()
+    }
+
+    private const val CONSENT_VERSION = 1
+
     /** The paired watch's token (see WatchPairing), or null. */
     fun watchToken(context: Context): String? = prefs(context).getString("watch_token", null)
 

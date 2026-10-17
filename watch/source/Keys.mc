@@ -62,4 +62,10 @@ module Keys {
             Application.Storage.setValue("mk", k);
         }
     }
+    // NavBridge has no consent from the user (any more): without the key there are no map pictures, and NavLink
+    // stops sending the position.
+    function clearMapsKey() as Void {
+        _mapsKey = null;
+        Application.Storage.deleteValue("mk");
+    }
 }

@@ -19,7 +19,8 @@ import kotlin.math.roundToInt
  *
  * Watch to phone:
  *  - hello: {"t":"hello","v":2[,"la":lat·1e5,"lo":lng·1e5][,"r":1]} when NavMap opens, repeated until the phone
- *           answers. "r":1 asks for roads; without it none are sent.
+ *           answers. "r":1 asks for roads; without it none are sent. NavMap 0.10+ only sends la/lo while it has
+ *           the Google Maps key, which it gets once the user has agreed in NavBridge (see the consent reply below).
  *  - pos:   {"t":"pos"[,"la","lo"]}, the answer to "where".
  *  - bye:   {"t":"bye"} when NavMap closes.
  *
@@ -30,6 +31,9 @@ import kotlin.math.roundToInt
  *    the watch has. NavMap 0.9+ adds kf, the last 6 characters of the Google Maps key it has ("none" for none); any
  *    answer then carries "mk", the key itself, while that differs (see [NavEndpoint.withMapsKey]). Any poll means
  *    NavMap is open.
+ *  - Until the user has agreed in NavBridge to Google's terms and to the use of their location, every poll is
+ *    answered {"t":"consent"} (200), before the token is even checked: no pairing, no "mk", and nothing from the
+ *    poll is used. NavMap 0.10+ then forgets its key and route line, and says to open NavBridge.
  *  - The reply is always one JSON object (Garmin Connect rejects a top-level array):
  *    {"t":"nav","i","d","dm","e","ah","rv"[,"a":[96 ints]][,"p":[lat·1e5, lng·1e5, …]]} while navigating, with "a"
  *    only when the watch's arrow hash differs and "p" only when its route version does. Route version 0 is no

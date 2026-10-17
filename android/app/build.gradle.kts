@@ -20,8 +20,8 @@ android {
         applicationId = "com.cubevg.navbridge"
         minSdk = 26
         targetSdk = 36
-        versionCode = (setting("NAVBRIDGE_VERSION_CODE") ?: "7").toInt()
-        versionName = setting("NAVBRIDGE_VERSION_NAME") ?: "0.7"
+        versionCode = (setting("NAVBRIDGE_VERSION_CODE") ?: "8").toInt()
+        versionName = setting("NAVBRIDGE_VERSION_NAME") ?: "0.8"
         // Must match the id in watch/manifest.xml.
         buildConfigField("String", "WATCH_APP_ID", "\"ab20da3b6a6544eb8cf6feede0824f3f\"")
     }

@@ -38,6 +38,7 @@ For the blue route line as well, start from Google Maps' **Share** button: open 
 - At each new turn, and 400, 150 and 50 m before it, the watch buzzes and lights up. It stays lit for the last 120 m.
 - When the screen dims it shows just the next turn and the distance. Garmin lets an app keep the screen bright for only about a minute at a time.
 - When you arrive, it says "Arrived" and closes. It records no activity.
+- "Google Maps" under the map. Press **START** for the map's full credits: Google's logo and its map data providers.
 
 GPS needs open sky: indoors, the watch may wait for it forever.
 
@@ -60,7 +61,9 @@ Paste the setup line again: it checks every part and fixes what it can. Then see
 
 ## Privacy
 
-The watch sends its position to Google, through Garmin Connect, to get the map pictures. When you start with **Navigate with NavMap**, NavBridge sends your start and destination to Google for the route line. Both use your own key. NavBridge reads only Google Maps' navigation notification. Nothing is sent to NavMap's makers.
+NavBridge asks first, on its first screen, and nothing uses your location until you tap **Agree**. Then the watch sends its position to Google to get the map pictures, which Garmin Connect fetches for it, possibly through Garmin's servers. When you start with **Navigate with NavMap**, NavBridge sends your start and destination to Google for the route line. Both use your own key. NavBridge reads only Google Maps' navigation notification, keeps no record of where you've been, and combines your location with no other provider's data. Nothing is sent to NavMap's makers.
+
+To withdraw, open NavBridge and tap **Withdraw consent** under **Privacy and terms**. NavBridge forgets your location, and the watch forgets your key and route line, until you agree again.
 
 ## Terms
 

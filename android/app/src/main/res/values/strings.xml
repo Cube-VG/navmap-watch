@@ -20,6 +20,7 @@
     <string name="maps_key_hint">Google Maps key (setup.sh fills this in)</string>
     <string name="save_key">Save key</string>
     <string name="last_notification">Last Google Maps notification</string>
+    <string name="privacy">Privacy and terms</string>
     <string name="log">Log</string>
     <string name="copy">Copy</string>
 </resources>

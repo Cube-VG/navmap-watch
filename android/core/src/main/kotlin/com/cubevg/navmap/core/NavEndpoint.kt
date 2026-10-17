@@ -1,18 +1,23 @@
 package com.cubevg.navmap.core
 
 /**
- * NavMap's GET /nav over HTTP (see [WatchProtocol]): checks the path, then the watch's token with [accepts] (see
- * [WatchPairing]), then hands the poll to [onPoll], which returns the reply, or null if it couldn't answer in time.
+ * NavMap's GET /nav over HTTP (see [WatchProtocol]): checks the path, then that the user has agreed to Google's terms
+ * and to the use of their location ([consented]), then the watch's token with [accepts] (see [WatchPairing]), then
+ * hands the poll to [onPoll], which returns the reply, or null if it couldn't answer in time.
  */
 object NavEndpoint {
     fun answer(
         method: String,
         target: String,
+        consented: Boolean,
         accepts: (String?) -> Boolean,
         mapsKey: String,
         onPoll: (WatchProtocol.Poll) -> Map<String, Any>?,
     ): Pair<Int, Map<String, Any>> {
         if (method != "GET" || target.substringBefore('?') != WatchProtocol.HTTP_PATH) return 404 to mapOf("t" to "none")
+        // Before anything else, pairing included: until the user agrees, nothing from the poll is read, and the watch
+        // gets neither the key nor turns. NavMap then says to open NavBridge.
+        if (!consented) return 200 to mapOf("t" to "consent")
         val poll = WatchProtocol.poll(target.substringAfter('?', ""))
         if (!accepts(poll.key)) return 403 to mapOf("t" to "denied")
         val reply = onPoll(poll) ?: return 503 to mapOf("t" to "busy")

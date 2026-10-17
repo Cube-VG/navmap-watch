@@ -17,9 +17,9 @@ import java.util.concurrent.atomic.AtomicInteger
 /**
  * Serves GET /nav on 127.0.0.1:18165, which NavMap polls with makeWebRequest. Garmin Connect makes those requests on
  * the phone, so turns reach the watch even when Connect IQ messaging doesn't (Garmin bug CIQQA-4631). Loopback
- * only, and only for the paired watch ([pairing]): the replies show where the rider is going and carry the Google
- * Maps key, and any app on the phone can connect. [NavSession] builds each reply on the main thread from what it
- * knows right then.
+ * only, only once the user has agreed ([Prefs.consentedAt]), and only for the paired watch ([pairing]): the replies
+ * show where the rider is going and carry the Google Maps key, and any app on the phone can connect. [NavSession]
+ * builds each reply on the main thread from what it knows right then.
  */
 object NavServer {
     private const val ANSWER_TIMEOUT_MS = 2_000L
@@ -56,7 +56,9 @@ object NavServer {
         get() = buildString {
             append(listening)
             refusals.get().let { if (it > 0) append(" ($it refused: not the paired watch)") }
-            if (::pairing.isInitialized) {
+            if (::appContext.isInitialized && !Prefs.consented(appContext)) {
+                append("\nNavMap gets no map or turns until you agree (Privacy and terms)")
+            } else if (::pairing.isInitialized) {
                 append(
                     when {
                         pairing.paired -> "\nPaired with NavMap"
@@ -81,7 +83,9 @@ object NavServer {
 
     /** Worker thread. */
     private fun answer(method: String, target: String): Pair<Int, Any> {
-        val (code, body) = NavEndpoint.answer(method, target, pairing::accepts, Prefs.mapsKey(appContext), ::onMain)
+        val consented = Prefs.consented(appContext)
+        if (!consented) watchHasKey = false // NavMap drops its key when told to ask for consent
+        val (code, body) = NavEndpoint.answer(method, target, consented, pairing::accepts, Prefs.mapsKey(appContext), ::onMain)
         if (code == 403 && refusals.getAndIncrement() == 0) {
             DebugLog.log("Refused a request for turns from a watch that isn't paired. Open NavBridge, or tap Pair again after changing watches.")
         }

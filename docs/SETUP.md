@@ -28,12 +28,15 @@ The key lets NavMap get map pictures and route lines from Google, billed to you.
 3. If Play Protect warns about an unknown developer, tap **More details → Install anyway**.
 
 ## 5. Set up NavBridge
-Open NavBridge. Paste your key into **Google Maps key** and tap **Save key**.
+Open NavBridge. It first shows **Before you start**: what NavBridge does with your location, and that Google's terms apply to the map and route line. Read it and tap **Agree**. Until you do, NavMap shows no map or turns.
+
+Paste your key into **Google Maps key** and tap **Save key**.
 
 Then work down the **Setup** list. Each step turns green when it's done.
 
 | Step | Why |
 |---|---|
+| **Google Maps terms and your location** | Your OK from **Before you start**, if you tapped **Not now** there: tap **Read**. You can withdraw it any time under **Privacy and terms**. |
 | **Notification access** | Lets NavBridge read Google Maps' turn-by-turn notification. |
 | **Switch greyed out?** | Android blocks this switch for apps installed from a file. Open **App info → ⋮ → Allow restricted settings**, then turn on notification access again. |
 | **Notifications** | For the reminder when the watch needs a button press. |
@@ -51,6 +54,8 @@ Under **I travel by**, pick Motorbike, Car, Bicycle or Walking. It sets the rout
 - **Turns only:** start navigation in Google Maps as usual. The watch asks to open NavMap. Press **START** once and the turns appear.
 - **Turns and the blue route line:** in Google Maps, open the destination, tap **Share** and pick **Navigate with NavMap**. NavBridge works out the route and starts Google Maps navigation for you.
 
+Press **START** on the watch to see the map's credits: Google's logo and the map data providers, as printed on the map picture. "Google Maps" stays under the map.
+
 The watch vibrates and lights up at each new turn and at 400, 150 and 50 m, and stays lit for the last 120 m before a turn. In between, the screen dims to the next turn's arrow and distance; raise your wrist or press a button to see the map. When you arrive it shows "Arrived" and closes.
 
 The map can't stay on all the time: Garmin lets a Connect IQ app hold the screen bright for only about a minute, and the dimmed screen may light only a tenth of its pixels, too few for a map. Garmin's own apps don't have these limits.
@@ -66,7 +71,8 @@ On a Mac or Linux computer, first run `bash setup.sh` again: it checks every par
   3. Check that the **Log** has a line for the Google Maps notification.
 - **"Press the button on the watch":** Garmin always asks before opening an app on the watch, so one press is the minimum.
 - **Watch says "Waiting for GPS":** the map, the route line and your arrow need the watch's own GPS, which needs open sky. Indoors it may never find you; outside it takes from a few seconds to a couple of minutes. The phone's location isn't used.
-- **Watch says "No map key yet":** NavBridge hasn't given the watch your key. Check that NavBridge shows "Google Maps key: …" with the last 4 characters of yours, then keep NavMap open for a few seconds.
+- **Watch says "Open NavBridge to agree":** you haven't agreed in NavBridge yet, or withdrew. Open NavBridge, read **Before you start** and tap **Agree**, or tap **Read** on the first Setup line.
+- **Watch says "No map key yet":** NavBridge hasn't given the watch your key. Check that the first Setup line is green and that NavBridge shows "Google Maps key: …" with the last 4 characters of yours, then keep NavMap open for a few seconds.
 - **Watch says "Loading map" and no map comes:** check in the Google Cloud console that **Maps Static API** is enabled for the key's project and that billing is linked. The watch gets the pictures through Garmin Connect, so that must be connected too.
 - **Watch says "Open NavBridge to pair":** NavBridge is paired with another watch, or NavMap was set up again. Open NavBridge, tap **Pair again**, then open NavMap on the watch within 10 minutes. The Watch card counts these refusals as "N refused: not the paired watch".
 - **Watch says "NavBridge not answering":** open NavBridge on the phone and check that it's running and up to date. Its Watch card should say "Answering NavMap on 127.0.0.1:18165", and "NavMap is open" while the watch fetches turns.

@@ -11,14 +11,16 @@ How the two apps work, how to build and test them, and how to publish a release.
 
 The notification parser is tested against 174 Google Maps notifications in 17 locales (real captures and hand-written ones) from [PebbleNTN](https://github.com/optio/PebbleNTN) (MIT).
 
-## Pairing and the Google Maps key
+## Pairing, the key, consent and the map credit
 
 Nothing secret is built into either app, so the published files work for everyone.
 
 - **Pairing.** The first time NavMap runs, it makes a 32-hex-character token (Application.Storage `tok`) and sends it as `k` with every `/nav` request. NavBridge keeps the first well-formed token it sees while pairing is open, and from then on answers only that token; any other gets 403, and the watch says "Open NavBridge to pair". Pairing is open for 10 minutes after NavBridge comes on screen, after setup.sh asks, and after NavBridge asks the watch to open NavMap. **Pair again** in NavBridge forgets the paired watch. See `WatchPairing.kt`.
 - **The key.** The user's key lives only in NavBridge (`Prefs.mapsKey`). NavMap 0.9+ sends `kf`, the last 6 characters of the key it has (`none` for none). While that differs from NavBridge's key, every answer carries `mk`, the key itself, and NavMap keeps it (Storage `mk`). See `NavEndpoint.withMapsKey` and `watch/source/Keys.mc`.
-- The `/nav` answers show where the rider is going and carry the key, and any app on the phone can connect to 127.0.0.1, hence the pairing. The map picture URLs carry the key too, and Garmin's image service downloads them.
+- The `/nav` answers show where the rider is going and carry the key, and any app on the phone can connect to 127.0.0.1, hence the pairing. The map picture URLs carry the key too, and Garmin Connect fetches them for the watch, possibly through Garmin's servers.
 - NavMap up to 0.8 had the token and the key built in. NavBridge still pairs with its token, but never sends it the key.
+- **Consent.** Google's terms require the user's express, prior, revocable consent before an app obtains or keeps their location (Maps Platform terms 4.4(c)(iii)), and a notice that the app includes Google Maps content under Google's terms (3.2.2(a)). NavBridge shows both on its first screen (`Consent.kt`) and keeps the answer in `Prefs.consentedAt`. Until the user agrees, it answers every `/nav` poll with `{"t":"consent"}`, before pairing: no key, no turns, and nothing from the poll is read. NavMap 0.10+ then drops its key and route line and shows "Open NavBridge to agree", and it sends its position only while it holds the key. **Withdraw consent** (under Privacy and terms) forgets every position NavBridge has (`NavSession.forgetLocation`).
+- **Credit.** Google's logo and data credit are printed along the bottom of each map picture, outside the round screen. NavMap writes "Google Maps" under the map instead (the text form Google allows where its logo doesn't fit), and shows the picture's own credit strip, cut into two unscaled rows, with the first map and whenever START is pressed. In countries where Google names other data providers, that strip is where they appear.
 
 The protocol is described in full in `android/core/src/main/kotlin/com/cubevg/navmap/core/WatchProtocol.kt`.
 
@@ -41,9 +43,9 @@ Each step checks first and does only what's missing, so it's safe to run again. 
    - `dumpsys deviceidle whitelist +<app>` and `cmd appops set <app> RUN_ANY_IN_BACKGROUND allow` for NavBridge and Garmin Connect
    - `cmd appops set com.cubevg.navbridge AUTO_REVOKE_PERMISSIONS_IF_UNUSED ignore` (Android 11+)
 
-   It gives NavBridge the key and the travel mode through `SetupProvider` (below). If the phone wouldn't let adb grant notification access, it opens that setting and waits.
+   It gives NavBridge the key and the travel mode through `SetupProvider` (below). If the phone wouldn't let adb grant notification access, it opens that setting and waits. Last, it opens NavBridge and waits for the user to tap **Agree** on its first screen (see Consent, above): adb can read that answer but not give it.
 5. **Watch.** It copies the `.prg` into `GARMIN/Apps` over MTP: GVfs (`gio`) on Linux, libmtp (`mtp-sendfile`, from Homebrew) on macOS. It reads the watch's part number from `GARMIN/GarminDevice.xml` (006-B4432 is the FR165, 006-B4433 the FR165 Music) and copies the matching build. Without either tool it tells you where to copy the file by hand.
-6. **Test.** It opens pairing, waits until NavMap has paired and has the key, plays the demo ride, and asks whether the turn shows on the watch.
+6. **Test.** It checks for the user's Agree, opens pairing, waits until NavMap has paired and has the key, plays the demo ride, and asks whether the turn shows on the watch.
 
 `bash setup.sh key|phone|watch|test` runs one step again. `bash setup.sh --from-source` adds three steps before the phone: Garmin sign-in with [connect-iq-sdk-manager](https://github.com/lindell/connect-iq-sdk-manager-cli) (it shows Garmin's licence, accepts it once you say yes, signs in, and downloads SDK 9.2.0 and the fr165/fr165m device files), a developer key made with openssl, and the build below with Java 17 and the Android SDK downloaded into the cache. The Android build needs an x86-64 computer or a Mac: Google ships aapt2 only for those.
 
@@ -89,18 +91,19 @@ setup.sh downloads the files from `https://github.com/Cube-VG/navmap-watch/relea
 2. In the simulator, untick **Settings → Use Device HTTPS Requirements**. Garmin Connect allows plain HTTP to 127.0.0.1, but the simulator doesn't make that exception, and NavMap gets -1001 for every `/nav` request. The simulator ticks it again each time it starts.
 3. Run `tools/sim-phone.py serve --ride`, then load `NavMap-sim.prg`. It logs "Paired with NavMap", then "also the Google Maps key… (kf=none)" and "NavMap has the Google Maps key now". The ride starts when NavMap first asks; `tools/sim-phone.py ride` starts another and `stop` ends it. **Settings → Display Mode → Always-On** shows the dimmed screen.
 4. Connect IQ phone messages work too: choose adb Connection → Start in the simulator, then `tools/sim-phone.py send '<json>'`.
+5. Consent: `tools/sim-phone.py serve --no-consent` answers `{"t":"consent"}` like a NavBridge the user hasn't agreed in, and logs whether NavMap sends its position. `tools/sim-phone.py agree` and `withdraw` change the answer while it runs.
 
 The simulator keeps NavMap's storage (the token and the key) in `GARMIN/APPS/DATA/NAVMAP-FR165.DAT` and `.IDX` in its temporary folder, across restarts. Delete both to start as a new watch would; they hold the key in plain text.
 
 The 9.x simulator asks you to sign in to Garmin Connect before it loads map images.
 
 ## Bluetooth bytes
-Everything NavMap receives goes over Bluetooth, which is slow, so it is packed tight. How Garmin Connect (Android 5.30) carries it was read from the app itself:
+Everything NavMap receives goes over Bluetooth, which is slow, so it is packed tight:
 
-- **JSON answers** are re-serialized into Monkey C's format: every number costs 5 bytes, text 1 byte per ASCII character. Then Garmin's LZW (9-bit codes) may shrink it.
-- **Map pictures** go through Garmin's cloud image service, or the phone if that fails. Every pixel becomes the nearest palette colour, packed at 1, 2, 4 or 8 bits (palette + 1 transparent: 4 colours fit 2 bits), then Garmin's LZW with 10-bit codes.
+- **JSON answers:** a number costs several times as many bytes as a short text, so anything bulky travels as text.
+- **Map pictures** are reduced to the palette NavMap asks for (`makeImageRequest`'s `:palette`), and fewer colours make a smaller picture. Three greys cut the bytes per map by 40-45% against NavMap 0.5's palette (table below).
 
-So NavMap 0.6 asks for (`c=1`) and reads a compact answer: the turn as one line of text, the arrow as runs of rows, the route as a Google encoded polyline thinned to 2 m. `tools/navcodec.py` is the spec and reference encoder (run it to self-test). NavBridge 0.5 answers this way (`NavCodec.kt`, tested against navcodec.py's own output from `tools/navcodec-vectors.py`); with NavBridge 0.4, NavMap 0.6 reads the old answer. A route still over 250 points after thinning is thinned harder, as before, because the watch redraws every point each second. `tools/link_bytes.py msg` and `tools/link_bytes.py map [lat lon]` measure the bytes with a copy of Garmin's LZW:
+So NavMap 0.6 asks for (`c=1`) and reads a compact answer: the turn as one line of text, the arrow as runs of rows, the route as a Google encoded polyline thinned to 2 m. `tools/navcodec.py` is the spec and reference encoder (run it to self-test). NavBridge 0.5 answers this way (`NavCodec.kt`, tested against navcodec.py's own output from `tools/navcodec-vectors.py`); with NavBridge 0.4, NavMap 0.6 reads the old answer. A route still over 250 points after thinning is thinned harder, as before, because the watch redraws every point each second. Bytes on the Bluetooth link:
 
 | | v0.5 | v0.6 |
 |---|---|---|

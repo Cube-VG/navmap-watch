@@ -19,6 +19,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.view.ViewCompat
@@ -28,10 +29,13 @@ import androidx.core.view.updatePadding
 import com.cubevg.navmap.core.NavKind
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.chip.ChipGroup
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
+import java.text.DateFormat
+import java.util.Date
 
-/** Setup checklist, watch status, the simulator and the log. */
+/** Setup checklist, watch status, the simulator, privacy and terms, and the log. */
 class MainActivity : AppCompatActivity() {
     private val main = Handler(Looper.getMainLooper())
     private val garminConnect = "com.garmin.android.apps.connectmobile"
@@ -45,8 +49,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var keyInput: TextInputEditText
     private lateinit var keySave: View
     private lateinit var lastNotification: TextView
+    private lateinit var privacyStatus: TextView
+    private lateinit var privacyButton: MaterialButton
     private lateinit var log: TextView
 
+    private lateinit var consent: Step
     private lateinit var access: Step
     private lateinit var restricted: Step
     private lateinit var notifications: Step
@@ -55,6 +62,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var location: Step
 
     private val askPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { render() }
+
+    // Asked by itself once each time NavBridge opens, until the user agrees; after "Not now", from the checklist.
+    private var consentAsked = false
+    private var consentDialog: AlertDialog? = null
 
     private val tick = object : Runnable {
         override fun run() {
@@ -82,7 +93,15 @@ class MainActivity : AppCompatActivity() {
         keyInput = findViewById(R.id.key_input)
         keySave = findViewById(R.id.key_save)
         lastNotification = findViewById(R.id.last_notification)
+        privacyStatus = findViewById(R.id.privacy_status)
+        privacyButton = findViewById(R.id.privacy_button)
         log = findViewById(R.id.log)
+
+        findViewById<TextView>(R.id.privacy_text).apply {
+            text = Consent.text()
+            Consent.linkify(this)
+        }
+        privacyButton.setOnClickListener { if (Prefs.consented(this)) confirmWithdraw() else askConsent() }
 
         simulate.setOnClickListener {
             if (Simulator.running) Simulator.stop() else Simulator.start()
@@ -119,6 +138,12 @@ class MainActivity : AppCompatActivity() {
         }
 
         val steps = findViewById<LinearLayout>(R.id.steps)
+        consent = Step(
+            steps,
+            "Google Maps terms and your location",
+            "Read and agree first. Until then NavMap shows no map or turns.",
+            "Read",
+        ) { askConsent() }
         access = Step(steps, "Notification access", "Lets NavBridge read Google Maps' turn-by-turn notification.") { openListenerSettings() }
         restricted = Step(
             steps,
@@ -152,6 +177,25 @@ class MainActivity : AppCompatActivity() {
         NavServer.pairing.openWindow()
         CiqBridge.refresh()
         main.post(tick)
+        if (!Prefs.consented(this) && !consentAsked) askConsent()
+    }
+
+    private fun askConsent() {
+        consentAsked = true
+        if (consentDialog?.isShowing == true) return
+        consentDialog = Consent.ask(this) { render() }
+    }
+
+    private fun confirmWithdraw() {
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Withdraw your consent?")
+            .setMessage("NavBridge forgets your location, and NavMap shows no map or turns until you agree again.")
+            .setPositiveButton("Withdraw") { _, _ ->
+                Consent.withdraw(this)
+                render()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
     override fun onPause() {
@@ -175,6 +219,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun render() {
+        val agreedAt = Prefs.consentedAt(this)
+        val agreed = agreedAt > 0
+        val on = if (agreed) DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(agreedAt)) else ""
+        consent.set(agreed, "Agreed on $on")
+        privacyStatus.text = if (agreed) "You agreed on $on." else "You haven’t agreed yet."
+        privacyButton.text = if (agreed) "Withdraw consent" else "Agree"
         val accessOn = NotificationManagerCompat.getEnabledListenerPackages(this).contains(packageName)
         access.set(accessOn, if (accessOn) "On" else null)
         restricted.view.isVisible = !accessOn
@@ -245,6 +295,7 @@ class MainActivity : AppCompatActivity() {
         val key = Prefs.mapsKey(this)
         keyLayout.hint = if (key.isEmpty()) getString(R.string.maps_key_hint) else "Google Maps key: …${key.takeLast(4)}"
         routeStatus.text = when {
+            !Prefs.consented(this) -> "No map, turns or route line on the watch until you agree, under Privacy and terms."
             key.isEmpty() -> "No Google Maps key yet, so no map pictures or route line. Turns still work. " +
                 "Run setup.sh again, or paste your key here."
             NavSession.routeSummary.isNotEmpty() -> NavSession.routeSummary

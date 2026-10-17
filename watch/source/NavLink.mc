@@ -40,7 +40,8 @@ class NavLink {
         var params = {"k" => Keys.token(), "kf" => Keys.mapsKeyTail(), "ah" => _m.arrowHash.toString(), "rv" => _m.routeVersion.toString(), "c" => "1"};
         var lat = _m.lat;
         var lon = _m.lon;
-        if (lat != null && lon != null) {
+        // The position goes to NavBridge only once the user has agreed there, which is when it hands over the key.
+        if (lat != null && lon != null && Keys.mapsKey() != null) {
             params["la"] = Math.round(lat * 100000.0d).toNumber().toString();
             params["lo"] = Math.round(lon * 100000.0d).toNumber().toString();
         }

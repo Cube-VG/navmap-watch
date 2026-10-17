@@ -904,8 +904,33 @@ step_phone() {
     local modes=(MOTORBIKE CAR BICYCLE WALK)
     setup_call mode "${modes[$((CHOICE - 1))]}" || die "NavBridge didn't take the travel mode: $(setup_error)"
     check_phone_settings
-    phone_sh am start -n "$PKG/.MainActivity" >/dev/null || true
+    wait_for_consent
     ok "NavBridge $(setup_value version) is installed and set up, with your key."
+}
+
+# Google's terms require the user's own OK before an app uses their location, so adb can't give it: NavBridge asks on
+# its first screen, and this waits for the tap. Without it, NavMap shows no map or turns.
+wait_for_consent() {
+    setup_call status || die "NavBridge isn't answering: $(setup_error)"
+    if [ "$(setup_value consent)" = true ]; then return; fi
+    phone_sh am start -n "$PKG/.MainActivity" >/dev/null || true
+    printf '\n%sOn the phone: NavBridge shows "Before you start". Read it, then tap Agree.%s\n' "$BOLD" "$PLAIN"
+    why "It says what NavBridge does with your location, and that Google's terms apply to the map and route line. Only you can agree to that."
+    local waited=0
+    while true; do
+        sleep 2
+        waited=$((waited + 2))
+        setup_call status || die "NavBridge isn't answering: $(setup_error)"
+        if [ "$(setup_value consent)" = true ]; then break; fi
+        if [ "$waited" -ge 180 ]; then
+            if ! ask_yes "Still waiting for Agree on the phone. Keep waiting?" \
+                "Tapped Not now? In NavBridge, the first line under Setup, \"Google Maps terms and your location\", has a Read button." Y; then
+                die "NavMap shows nothing until you agree in NavBridge. When you're ready, tap Agree there, then run bash setup.sh test."
+            fi
+            waited=0
+        fi
+    done
+    ok "You agreed in NavBridge."
 }
 
 install_navbridge() {
@@ -1102,6 +1127,8 @@ step_test() {
     why "The first time NavMap opens, it pairs with NavBridge and gets your Google Maps key from it."
     get_adb
     connect_phone
+    setup_call status || die "NavBridge isn't answering: $(setup_error). Run bash setup.sh phone to install it again."
+    wait_for_consent
     setup_call pair || die "NavBridge isn't answering: $(setup_error). Run bash setup.sh phone to install it again."
     printf '\n%sOn the watch: press START (top right), scroll to NavMap and press START again.%s\n' "$BOLD" "$PLAIN"
     say "Keep the phone near the watch. Waiting for NavMap to ask NavBridge for turns…"

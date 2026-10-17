@@ -28,7 +28,7 @@ import java.util.concurrent.TimeoutException
  *  - mode <MOTORBIKE|CAR|BICYCLE|WALK>: how the user travels
  *  - pair: forgets the paired watch and opens pairing for 10 minutes
  *  - simulate, stop: starts or stops the demo ride, which asks the watch to open NavMap
- *  - status: what's set up
+ *  - status: what's set up. "consent" is whether the user has agreed on NavBridge's screen; adb can't set it.
  * Each returns the status, which `content call` prints as `Result: Bundle[{key=true, paired=false, …}]`.
  */
 class SetupProvider : ContentProvider() {
@@ -61,6 +61,7 @@ class SetupProvider : ContentProvider() {
         val power = context.getSystemService(PowerManager::class.java)
         putString("version", BuildConfig.VERSION_NAME)
         putBoolean("key", Prefs.mapsKey(context).isNotEmpty())
+        putBoolean("consent", Prefs.consented(context)) // only the user can give it, on NavBridge's screen
         putString("mode", Prefs.travelMode(context).name)
         putBoolean("listener", NotificationManagerCompat.getEnabledListenerPackages(context).contains(context.packageName))
         putBoolean("battery", power.isIgnoringBatteryOptimizations(context.packageName))

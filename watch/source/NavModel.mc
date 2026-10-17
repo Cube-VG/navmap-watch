@@ -30,6 +30,7 @@ class NavModel {
     var endAt as Number? = null;               // System.getTimer() when "end" arrived
     var endText as String = "";
     var phoneAnswered as Boolean = false;
+    var consentNeeded as Boolean = false;     // NavBridge answered {"t":"consent"}: the user hasn't agreed there
 
     private const ALERT_METERS = [400, 150, 50];
     // From this distance the screen is kept lit until the turn, for at most HOLD_MS: AMOLED burn-in
@@ -110,12 +111,24 @@ class NavModel {
             return false;
         }
         phoneAnswered = true;
+        var t = data["t"] as Object?;
+        // The user hasn't agreed in NavBridge to the terms and to the use of their location, or took it back:
+        // forget the key (so no map) and the route line, and stop sending the position, until NavBridge
+        // answers normally again.
+        consentNeeded = t != null && "consent".equals(t);
+        if (consentNeeded) {
+            Keys.clearMapsKey();
+            navActive = false;
+            route = null;
+            routeVersion = 0;
+            _pBytes = null;
+            return false;
+        }
         // NavBridge's Google Maps key for the map pictures (see Keys), sent when the watch has none or an old one.
         var mk = data["mk"] as Object?;
         if (mk instanceof String && mk.length() > 0) {
             Keys.setMapsKey(mk);
         }
-        var t = data["t"] as Object?;
         var line = data["n"] as Object?;
         if (line instanceof String) {
             // Compact answer (asked for with c=1): "dm|ah|rv|d|e|i", see tools/navcodec.py.
