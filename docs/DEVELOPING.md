@@ -82,7 +82,7 @@ setup.sh downloads the files from `https://github.com/Cube-VG/navmap-watch/relea
 1. Build into `dist/release`: `bash setup.sh --from-source` does it, or by hand, `tools/build-watch.sh fr165 && cp dist/NavMap.prg dist/release/NavMap-fr165.prg`, the same for `fr165m`, and `tools/build-phone.sh && cp dist/NavBridge.apk dist/release/`.
 2. `cd dist/release && sha256sum NavBridge.apk NavMap-fr165.prg NavMap-fr165m.prg > SHA256SUMS`
 3. Check that no key slipped in. This must print 0 for each file: `grep -c -aE 'AIza[0-9A-Za-z_-]{35}' dist/release/*`
-4. `gh release create v<version> dist/release/NavBridge.apk dist/release/NavMap-fr165.prg dist/release/NavMap-fr165m.prg dist/release/SHA256SUMS`
+4. `gh release create v<NavMap version> --title "NavMap <version> and NavBridge <version>" dist/release/NavBridge.apk dist/release/NavMap-fr165.prg dist/release/NavMap-fr165m.prg dist/release/SHA256SUMS`
 
 ## Testing the watch without a phone
 `tools/sim-phone.py` stands in for NavBridge against the Connect IQ simulator. It answers `/nav` on 127.0.0.1:18165 the way NavBridge does: it pairs with the first token it sees, and hands over the key from `~/.config/navmap/secrets.properties`. It also plays a demo ride with turn arrows, a route line, the ETA and the arrival. It needs only Python 3, not adb.
