@@ -1,5 +1,2 @@
-# Simulator build: receives phone messages but never transmits, because the Connect IQ simulator
-# (SDK 9.1 and 9.2) segfaults on any transmit (Garmin bug CIQQA-4579). Build it with
-# tools/build-watch.sh fr165 --sim.
 project.manifest = manifest.xml
-base.excludeAnnotations = transmit
+base.excludeAnnotations = transmit;perfOn

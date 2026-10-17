@@ -13,6 +13,8 @@ class NavMapApp extends Application.AppBase {
     var model as NavModel;
     var link as NavLink;
     var exitRequested as Boolean = false;
+    private var _drawAt as Number = -100000;   // System.getTimer() when the last frame was asked for
+    private var _gpsAt as Number = -100000;    // and of the last GPS event
     private var _helloAt as Number = -100000;
     private var _hellos as Number = 0;
 
@@ -61,6 +63,24 @@ class NavMapApp extends Application.AppBase {
 
     function onPosition(info as Position.Info) as Void {
         model.onPosition(info);
+        _gpsAt = System.getTimer();
+        frame();
+    }
+
+    // Asks for a new frame. The GPS, the 1 s timer, each turn answer and each map picture each asked for one,
+    // and a frame redraws the whole turned map, so the watch drew it about three times a second (measured in
+    // the simulator) though the position changes once. Now the GPS sets the pace: each fix is drawn at once,
+    // and what comes in between shows with the next fix, within a second. Without GPS events the 1 s timer
+    // draws. now is for what can't wait, such as the moment a turn buzzes.
+    function redraw(now as Boolean) as Void {
+        var t = System.getTimer();
+        if (now || (t - _gpsAt > 1500 && t - _drawAt >= 900)) {
+            frame();
+        }
+    }
+
+    private function frame() as Void {
+        _drawAt = System.getTimer();
         WatchUi.requestUpdate();
     }
 
@@ -72,10 +92,11 @@ class NavMapApp extends Application.AppBase {
             send(withPosition({"t" => "pos"}));
             return;
         }
-        if (model.onPhoneMessage(data)) {
+        var urgent = model.onPhoneMessage(data);
+        if (urgent) {
             model.alertUser();
         }
-        WatchUi.requestUpdate();
+        redraw(urgent);
     }
 
     // Called every second. Says hello over Connect IQ until NavBridge answers either way.

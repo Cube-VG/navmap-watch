@@ -94,6 +94,15 @@ class MapView extends WatchUi.View {
     // part of it on screen is copied into this first: a square around the circle the screen shows.
     private const BUF = 392;
     private var _buf as Graphics.BufferedBitmapReference? = null;
+    // The whole map picture in screen colours, made once when it arrives, so a frame turns it straight onto
+    // the screen instead of first clearing that square and copying the 2-bit map into it (two full-screen
+    // passes a frame). Null when the graphics pool has no room for it: then the square is used as before.
+    private var _full as Graphics.BufferedBitmapReference? = null;
+    private var _fullFailed as Boolean = false;
+
+    // The next turn's words fitted to the banner, worked out again only when they change.
+    private var _instrFor as String = "";
+    private var _instrFit as String = "";
 
     // Where we are along the route line, so only the part ahead is drawn (see routeProgress).
     private const CUT_AHEAD = 40;     // segments searched on from last time
@@ -129,14 +138,14 @@ class MapView extends WatchUi.View {
         }
         app.tickPhone();
         app.link.tick();
-        if (_m.updateLive()) {
+        var urgent = _m.updateLive();
+        if (urgent) {
             _m.alertUser();
         }
         _m.keepAwake();
         _m.decodeStep();
-        _m.updateMapHeading();
         maybeFetch();
-        WatchUi.requestUpdate();
+        app.redraw(urgent);
     }
 
     private function desiredZoom() as Number {
@@ -270,8 +279,14 @@ class MapView extends WatchUi.View {
                 }
                 var w = bmp.getWidth();
                 var h = bmp.getHeight();
+                var first = _img == null;
                 _img = null;   // let the old map go before keeping the new one
+                _full = null;
+                _fullFailed = false;
                 _img = bmp;
+                if (first) {
+                    getApp().redraw(true);   // "Loading map" gives way to the map at once
+                }
                 _imgHalfW = w / 2;
                 _imgHalfH = h / 2;
                 _imgLat = req.lat;
@@ -294,7 +309,7 @@ class MapView extends WatchUi.View {
             }
             retryLater();
         }
-        WatchUi.requestUpdate();
+        getApp().redraw(false);
     }
 
     private function stepDown() as Void {
@@ -313,10 +328,11 @@ class MapView extends WatchUi.View {
     }
 
     function onUpdate(dc as Graphics.Dc) as Void {
-        dc.setColor(Graphics.COLOR_BLACK, Graphics.COLOR_BLACK);
-        dc.clear();
+        var t0 = perfStart();
         // Dimmed (always-on) screen: AMOLED burn-in rules allow only a few lit pixels, so no map.
         if (isLowPower()) {
+            dc.setColor(Graphics.COLOR_BLACK, Graphics.COLOR_BLACK);
+            dc.clear();
             drawLowPower(dc);
             return;
         }
@@ -326,16 +342,23 @@ class MapView extends WatchUi.View {
         var img = _img;
         if (img != null && lat != null && lon != null) {
             var z = desiredZoom();
+            // Turned here, with the position this frame shows, rather than up to a second earlier.
+            _m.updateMapHeading();
             _rot = (dc has :drawBitmap2) ? _m.mapHeading : 0.0;
             _rc = Math.cos(_rot).toFloat();
             _rs = Math.sin(_rot).toFloat();
+            // Ground under the transparent land, and wherever the picture doesn't reach.
             dc.setColor(MAP_GROUND, MAP_GROUND);
             dc.clear();
             drawMap(dc, img, lat, lon, z);
+            perfMark(t0, 0);
             drawRoute(dc, lat, lon, z);
+            perfMark(t0, 1);
             dc.setColor(0x3a4350, Graphics.COLOR_TRANSPARENT);
             dc.drawText(HALF, 352, Graphics.FONT_XTINY, "Google", Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
         } else {
+            dc.setColor(Graphics.COLOR_BLACK, Graphics.COLOR_BLACK);
+            dc.clear();
             dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
             dc.drawText(HALF, HALF + 50, Graphics.FONT_SMALL, lat == null ? "Waiting for GPS" : "Loading map",
                 Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
@@ -353,6 +376,49 @@ class MapView extends WatchUi.View {
             // Higher than the ETA: the screen is wider there, and "NavBridge not answering" is long.
             drawPill(dc, 292, waitingText(), Graphics.FONT_XTINY);
         }
+        perfShow(dc, t0);
+    }
+
+    // ---- frame timing (tools/build-watch.sh --perf) ----------------------------------------------------
+    // The --perf build shows how long frames take on the watch itself, averaged over 5 s: the map, the route
+    // line, the whole frame, and frames a second. Other builds leave all of it out.
+
+    (:perfOff) private function perfStart() as Number { return 0; }
+    (:perfOff) private function perfMark(t0 as Number, i as Number) as Void {}
+    (:perfOff) private function perfShow(dc as Graphics.Dc, t0 as Number) as Void {}
+
+    (:perfOn) private var _perfLap as Array<Number> = [0, 0];
+    (:perfOn) private var _perfSum as Array<Number> = [0, 0, 0];
+    (:perfOn) private var _perfN as Number = 0;
+    (:perfOn) private var _perfFrom as Number = 0;
+    (:perfOn) private var _perfText as String = "timing...";
+
+    (:perfOn) private function perfStart() as Number {
+        _perfLap[0] = 0;
+        _perfLap[1] = 0;
+        return System.getTimer();
+    }
+
+    (:perfOn) private function perfMark(t0 as Number, i as Number) as Void {
+        _perfLap[i] = System.getTimer() - t0;
+    }
+
+    (:perfOn) private function perfShow(dc as Graphics.Dc, t0 as Number) as Void {
+        var now = System.getTimer();
+        _perfSum[0] += _perfLap[0];
+        _perfSum[1] += _perfLap[1] > 0 ? _perfLap[1] - _perfLap[0] : 0;
+        _perfSum[2] += now - t0;
+        _perfN++;
+        if (now - _perfFrom >= 5000) {
+            var n = _perfN;
+            _perfText = "map " + _perfSum[0] / n + " line " + _perfSum[1] / n + " all " + _perfSum[2] / n +
+                " ms  " + (n * 1000.0 / (now - _perfFrom)).format("%.1f") + "/s";
+            System.println("perf " + _perfText);
+            _perfSum = [0, 0, 0];
+            _perfN = 0;
+            _perfFrom = now;
+        }
+        drawPill(dc, 150, _perfText, Graphics.FONT_XTINY);
     }
 
     // What NavMap is waiting for when there's no navigation to show.
@@ -379,8 +445,20 @@ class MapView extends WatchUi.View {
         var ix = (_imgHalfW + off[0]).toFloat();
         var iy = (_imgHalfH + off[1]).toFloat();
         try {
-            var bb = (dc has :drawBitmap2) ? turnBuffer() : null;
-            if (bb != null) {
+            var full = (dc has :drawBitmap2) ? fullMap(img) : null;
+            var bb = (dc has :drawBitmap2) && full == null ? turnBuffer() : null;
+            if (full != null) {
+                // Screen = (HALF, HALF) + k * R * (map pixel - q), q being the map pixel at the screen's centre.
+                var qx = ix + _rs * (MARK_Y - HALF) / k;
+                var qy = iy - _rc * (MARK_Y - HALF) / k;
+                var m00 = k * _rc;
+                var m01 = k * _rs;
+                var m10 = -k * _rs;
+                var m11 = k * _rc;
+                var t = new Graphics.AffineTransform();
+                t.setMatrix([m00, m01, HALF - m00 * qx - m01 * qy, m10, m11, HALF - m10 * qx - m11 * qy]);
+                dc.drawBitmap2(0, 0, full, {:transform => t});
+            } else if (bb != null) {
                 // The map point at the screen's centre, which is ahead of us: q = ours + R^-1 (0, HALF - MARK_Y) / k.
                 var qx = ix + _rs * (MARK_Y - HALF) / k;
                 var qy = iy - _rc * (MARK_Y - HALF) / k;
@@ -412,7 +490,39 @@ class MapView extends WatchUi.View {
         } catch (e) {
             // The graphics pool dropped the image: fetch a fresh one.
             _img = null;
+            _full = null;
         }
+    }
+
+    // The map picture in screen colours (see _full), made again if the graphics pool dropped it. Null if
+    // there's no room for it; then it isn't tried again for this picture.
+    private function fullMap(img as WatchUi.BitmapResource or Graphics.BitmapReference) as Graphics.BufferedBitmap? {
+        if (_fullFailed) {
+            return null;
+        }
+        var ref = _full;
+        var bb = ref != null ? ref.get() as Graphics.BufferedBitmap? : null;
+        if (bb == null) {
+            try {
+                _buf = null;   // the square isn't needed while this works
+                ref = Graphics.createBufferedBitmap({:width => _imgHalfW * 2, :height => _imgHalfH * 2});
+                bb = ref.get() as Graphics.BufferedBitmap?;
+                if (bb == null) {
+                    throw new Lang.Exception();
+                }
+                var bdc = bb.getDc();
+                bdc.setColor(MAP_GROUND, MAP_GROUND);
+                bdc.clear();
+                bdc.drawBitmap(0, 0, img);
+                _full = ref;
+            } catch (e) {
+                System.println("map copy: no room, turning through the square");
+                _full = null;
+                _fullFailed = true;
+                return null;
+            }
+        }
+        return bb;
     }
 
     // The buffer for turning the map, made again if the graphics pool dropped it.
@@ -593,9 +703,14 @@ class MapView extends WatchUi.View {
         dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
         drawArrow(dc, 84, 26);
         drawDistance(dc, 166, 58, Graphics.TEXT_JUSTIFY_LEFT);
-        if (_m.instr.length() > 0) {
-            var txt = Graphics.fitTextToArea(_m.instr, Graphics.FONT_XTINY, 300, 30, true);
-            dc.drawText(HALF, 110, Graphics.FONT_XTINY, txt, Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
+        var instr = _m.instr;
+        if (instr.length() > 0) {
+            if (!instr.equals(_instrFor)) {
+                _instrFor = instr;
+                var fit = Graphics.fitTextToArea(instr, Graphics.FONT_XTINY, 300, 30, true);
+                _instrFit = fit != null ? fit : instr;
+            }
+            dc.drawText(HALF, 110, Graphics.FONT_XTINY, _instrFit, Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
         }
     }
 

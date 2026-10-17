@@ -13,6 +13,7 @@ One thing: while Google Maps navigates on your phone, NavMap shows it on the wat
 - Only Back does something (it asks before exiting). Taps, swipes and the other buttons do nothing, so nothing pops up over the map
 - Maps come at 2 bits per pixel with the land transparent (the watch paints it), 7% fewer Bluetooth bytes than v0.8's three greys and about half v0.5's 15 colours (see "Bluetooth bytes" below)
 - Runs as a plain watch app (no activity session), so nothing is recorded
+- Draws about once a second, paced by the GPS: each fix is drawn at once, and turn answers and map pictures show with the next one (a buzz is drawn at once). v0.10 redrew the whole turned map on every GPS fix, timer tick, answer and picture, about three times a second in the simulator, for the same picture. Each map picture is turned into screen colours once when it arrives and then turned straight onto the screen, instead of being copied into a square every frame first. Built with the compiler's speed optimisations (`-O 3p`)
 - Gets the turns by asking NavBridge every 2 s, every second in the last 500 m before a turn (every 5 s when not navigating), at `http://127.0.0.1:18165/nav`. Garmin Connect makes that request on the phone, the same way it fetches the map pictures, so the turns don't depend on Connect IQ phone messages: Garmin Connect for Android accepts the watch's messages but no longer delivers them to phone apps (Garmin bug [CIQQA-4631](https://forums.garmin.com/developer/connect-iq/i/bug-reports/gcm-5-27-3-android-accepts-communications-transmit-messages-from-watch-app-but-never-delivers-them-to-the-companion-app)). Garmin Connect allows plain HTTP only to 127.0.0.1, and NavBridge answers only requests that carry the key both apps are built with
 
 ## What the phone app (NavBridge) does
@@ -32,6 +33,8 @@ Needs the Connect IQ SDK, a developer key and your own Google Maps Static API ke
 3. Run `tools/build-watch.sh fr165` (or `fr165m`)
 
 `watch/source/Secrets.mc` is generated at build time and never committed.
+
+`tools/build-watch.sh fr165 --perf` writes `dist/NavMap-perf.prg`, which shows on the watch how long a frame takes, averaged over 5 s: `map` (the turned map), `line` (the route line), `all` (the whole frame) in ms, and frames a second. The simulator runs on a PC, so only the watch gives real numbers. `--perf` works with `--sim` too.
 
 ### Phone app
 Needs JDK 17 and the Android SDK (platform 36). The release signing key lives in `~/.config/navmap/navbridge-release.jks`, with its password in `navbridge-signing.properties` next to it. Without them the APK is debug-signed.

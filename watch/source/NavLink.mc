@@ -58,6 +58,7 @@ class NavLink {
 
     function onAnswer(code as Number, data as Dictionary or String or PersistedContent.Iterator or Null) as Void {
         _inFlight = false;
+        var urgent = false;   // a buzz: show the turn with it, not up to a second later
         if (code == 200 && data instanceof Dictionary) {
             if (fails > 0 || !_m.phoneAnswered) {
                 System.println("nav answer");
@@ -66,6 +67,7 @@ class NavLink {
             _m.lagMs = (System.getTimer() - _sentAt) / 2;
             if (_m.onPhoneMessage(data)) {
                 _m.alertUser();
+                urgent = true;
             }
             // Counted from the request, less a little, so the 1 s timer that sends it doesn't skip a beat.
             var near = _m.liveMeters >= 0 && _m.liveMeters <= 500;
@@ -77,6 +79,6 @@ class NavLink {
             }
             _nextAt = System.getTimer() + 5000;
         }
-        WatchUi.requestUpdate();
+        getApp().redraw(urgent);
     }
 }

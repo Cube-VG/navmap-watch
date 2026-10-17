@@ -1,3 +1,4 @@
 project.manifest = manifest.xml
 # The watch build. watch/sim.jungle is the simulator build, which never transmits.
-base.excludeAnnotations = noTransmit
+# tools/build-watch.sh --perf writes its own jungle, with frame timing on (perfOn kept, perfOff left out).
+base.excludeAnnotations = noTransmit;perfOn
