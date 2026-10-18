@@ -12,6 +12,13 @@ class NavModel {
     var lon as Double? = null;
     var heading as Float = 0.0;   // radians, 0 = north, clockwise
     var mapHeading as Float = 0.0; // where the map turns to (see updateMapHeading), same units
+    // A fix that turns the map by more than TURN_STEP is shown in up to TURN_FRAMES equal steps, one a frame:
+    // MapView draws the frames after the first about 200 ms apart while turnFramesLeft > 0.
+    var turnFramesLeft as Number = 0;
+    private const TURN_STEP = 0.17453292;   // 10 degrees
+    private const TURN_FRAMES = 4;
+    private var _turnTo as Float = 0.0;     // the heading the steps lead to
+    private var _turnBy as Float = 0.0;     // and each step
     var speed as Float = 0.0;     // m/s
     var hasFix as Boolean = false;
 
@@ -116,7 +123,9 @@ class NavModel {
 
     // The way you're facing, which the map turns to, as in Google Maps: the direction of travel when moving,
     // and the compass (where the top of the watch points) when slower than walking pace. The compass is
-    // smoothed so the map doesn't shake with the wrist. Called once a second, before drawing.
+    // smoothed so the map doesn't shake with the wrist. Called before each frame is drawn.
+    // Moving, a turn of more than 10 degrees since the last fix is split into up to 4 equal steps, one per
+    // frame (38 degrees: four of 9.5), so the map turns instead of jumping. Over 40 degrees the steps are larger.
     function updateMapHeading() as Void {
         var target = heading;
         var moving = speed > 1.0;
@@ -129,7 +138,22 @@ class NavModel {
         var d = target - mapHeading;
         while (d > Math.PI) { d -= 2 * Math.PI; }
         while (d < -Math.PI) { d += 2 * Math.PI; }
-        mapHeading += moving ? d : d * 0.5;
+        if (!moving) {
+            turnFramesLeft = 0;
+            mapHeading += d * 0.5;
+        } else {
+            // A new fix, or nothing left over from the last one: plan the steps from where the map is now.
+            if (turnFramesLeft == 0 || target != _turnTo) {
+                var n = Math.ceil(d.abs() / TURN_STEP).toNumber();
+                if (n < 1) { n = 1; }
+                if (n > TURN_FRAMES) { n = TURN_FRAMES; }
+                _turnTo = target;
+                _turnBy = d / n;
+                turnFramesLeft = n;
+            }
+            turnFramesLeft -= 1;
+            mapHeading = turnFramesLeft > 0 ? mapHeading + _turnBy : target;
+        }
         if (mapHeading > Math.PI) { mapHeading -= 2 * Math.PI; }
         if (mapHeading < -Math.PI) { mapHeading += 2 * Math.PI; }
     }

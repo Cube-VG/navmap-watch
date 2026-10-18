@@ -18,6 +18,8 @@ class NavLink {
     // This run of NavMap, in each poll and in the bye: a poll that reaches NavBridge after the bye, held up on the
     // way, then isn't taken for NavMap opening again. The timer differs at each start.
     var session as Number;
+    // When the last run started, if it never closed normally (see NavMapApp.onStart): sent as "cr" until NavBridge answers.
+    var crashedRun as Number? = null;
 
     private var _m as NavModel;
     private var _inFlight as Boolean = false;
@@ -49,6 +51,10 @@ class NavLink {
             params["la"] = Math.round(lat * 100000.0d).toNumber().toString();
             params["lo"] = Math.round(lon * 100000.0d).toNumber().toString();
         }
+        var cr = crashedRun;
+        if (cr != null) {
+            params["cr"] = cr.toString();
+        }
         _inFlight = true;
         _sentAt = now;
         try {
@@ -71,6 +77,7 @@ class NavLink {
             }
             fails = 0;
             refused = false;
+            crashedRun = null;   // NavBridge has it
             _m.lagMs = (System.getTimer() - _sentAt) / 2;
             if (_m.onPhoneMessage(data)) {
                 _m.alertUser();

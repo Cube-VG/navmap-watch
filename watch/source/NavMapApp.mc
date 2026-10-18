@@ -4,6 +4,7 @@ import Toybox.Lang;
 import Toybox.Math;
 import Toybox.Position;
 import Toybox.System;
+import Toybox.Time;
 import Toybox.WatchUi;
 
 // NavMap does one thing: while Google Maps navigates on the phone, it shows the map with the next turn,
@@ -34,6 +35,17 @@ class NavMapApp extends Application.AppBase {
         if (state != null && state[:launchedFromGlance] == true) {
             _glance = true;
         }
+        // Storage "run" holds when this run started (UTC seconds) until onStop clears it. Still there now, the last run
+        // never got to onStop: it crashed, or the watch lost power. NavLink tells NavBridge, for its log.
+        var last = Application.Storage.getValue("run");
+        if (last instanceof Number) {
+            link.crashedRun = last;
+        }
+        try {
+            Application.Storage.setValue("run", Time.now().value());
+        } catch (e) {
+            // Storage full: NavMap runs all the same, it just can't tell a crash next time.
+        }
         startGps();
         Communications.registerForPhoneAppMessages(method(:onPhone));
     }
@@ -60,6 +72,7 @@ class NavMapApp extends Application.AppBase {
     }
 
     function onStop(state as Dictionary?) as Void {
+        Application.Storage.deleteValue("run");   // closed normally: see onStart
         Position.enableLocationEvents(Position.LOCATION_DISABLE, method(:onPosition));
         if (model.phoneAnswered) {
             // With how long NavMap ran and why it closes: with no "why", the watch closed it, and NavBridge asks it

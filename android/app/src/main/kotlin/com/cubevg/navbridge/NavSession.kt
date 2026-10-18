@@ -15,6 +15,9 @@ import com.cubevg.navmap.core.WatchProtocol
 import com.garmin.android.connectiq.ConnectIQ.IQMessageStatus
 import com.garmin.android.connectiq.ConnectIQ.IQOpenApplicationStatus
 import com.garmin.android.connectiq.IQDevice
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import kotlin.math.roundToInt
 import kotlin.random.Random
 
@@ -38,6 +41,7 @@ object NavSession : CiqBridge.Listener {
     private const val WHERE_MISSES = 4
     private const val POLL_GONE_MS = 20_000L
     private const val POLL_FRESH_MS = 8_000L
+    private const val STARTUP_QUIET_MS = 10_000L
     private const val OFF_ROUTE_M = 60.0
     private const val OFF_ROUTE_MS = 8_000L
     private const val OFF_ROUTE_GAP_MS = 30_000L
@@ -106,6 +110,8 @@ object NavSession : CiqBridge.Listener {
     private var promptedAt = 0L // when the watch last showed "Open NavMap?"
     private var heardAt = 0L // when NavMap was last heard from: a poll, refused or not, or a Connect IQ message; 0 after its bye
     private var closeTipShown = false
+    private var startedAt = 0L // when this process started, see justStarted()
+    private var crashLogged = 0L // the unclosed NavMap run last logged, see onPoll
 
     // Route line, from a place shared to NavBridge or from the simulator.
     var destination: Destination? = null
@@ -131,6 +137,7 @@ object NavSession : CiqBridge.Listener {
 
     fun init(appContext: Context) {
         context = appContext.applicationContext
+        startedAt = SystemClock.elapsedRealtime()
         CiqBridge.listener = this
         Roads.init(context)
         Roads.onReady = ::pump
@@ -198,6 +205,7 @@ object NavSession : CiqBridge.Listener {
             polling -> onShowing() // it fetches the turns itself
             heard() && appOpen -> watch?.let(::onWatchReady) ?: onShowing()
             heard() -> setStatus("NavMap on the watch isn't paired: tap Pair again, then open NavMap")
+            justStarted() -> openLater()
             else -> {
                 openOnWatch()
                 main.postDelayed(helloTimeout, HELLO_TIMEOUT_MS)
@@ -208,6 +216,21 @@ object NavSession : CiqBridge.Listener {
 
     /** NavMap was heard from in the last [POLL_GONE_MS], by a poll, refused or not, or a Connect IQ message, and hasn't said bye. */
     private fun heard() = heardAt > 0 && SystemClock.elapsedRealtime() - heardAt < POLL_GONE_MS
+
+    /**
+     * NavBridge started less than [STARTUP_QUIET_MS] ago, so it knows nothing of NavMap yet. Android may have stopped
+     * NavBridge in mid-navigation and started it again, with NavMap still open on the watch: its polls failed
+     * meanwhile, and the next one comes within seconds.
+     */
+    private fun justStarted() = SystemClock.elapsedRealtime() - startedAt < STARTUP_QUIET_MS
+
+    // Asks the watch to open NavMap once NavBridge has been up [STARTUP_QUIET_MS], if NavMap hasn't polled by then. Asked at
+    // once, "Open NavMap?" would close a NavMap that is open (a field test: closed 6 s after NavBridge restarted).
+    private fun openLater() {
+        setStatus("Checking whether NavMap is open on the watch")
+        main.removeCallbacks(openIfSilent)
+        main.postDelayed(openIfSilent, startedAt + STARTUP_QUIET_MS - SystemClock.elapsedRealtime())
+    }
 
     // NavMap was heard from when the navigation started or the watch came back, so the watch wasn't asked to open it.
     // If it has gone quiet since, it closed after all, and the watch is asked now.
@@ -298,7 +321,10 @@ object NavSession : CiqBridge.Listener {
 
     fun onWatchConnected(device: IQDevice) {
         if (active && !watchShowing) {
-            if (heardAt == 0L) {
+            if (heardAt == 0L && justStarted()) {
+                // Garmin Connect reports the watch as soon as NavBridge starts, just after begin() put off asking.
+                openLater()
+            } else if (heardAt == 0L) {
                 openTries = 0
                 openOnWatch()
             } else {
@@ -445,6 +471,7 @@ object NavSession : CiqBridge.Listener {
             }
             if (active && latest != null && !shown) onShowing()
             poll.position?.let(::onWatchPosition)
+            poll.crashedRun?.let(::onUnclosedRun)
         }
         val info = latest
         return when {
@@ -452,6 +479,14 @@ object NavSession : CiqBridge.Listener {
             poll.compact -> WatchProtocol.compactNavReply(info, arrow, arrowHash, routeText, routeVersion, poll)
             else -> WatchProtocol.navReply(info, arrow, arrowHash, route, routeVersion, poll)
         }
+    }
+
+    /** NavMap 0.14+ says its last run, opened at [openedAt] (Unix seconds), never closed normally. Logged once. */
+    private fun onUnclosedRun(openedAt: Long) {
+        if (openedAt == crashLogged) return
+        crashLogged = openedAt
+        val time = SimpleDateFormat("d MMM HH:mm:ss", Locale.US).format(Date(openedAt * 1000))
+        DebugLog.log("NavMap opened at $time never closed normally: it crashed (IQ! on the watch), or the watch turned off")
     }
 
     private val pollsStopped = Runnable {

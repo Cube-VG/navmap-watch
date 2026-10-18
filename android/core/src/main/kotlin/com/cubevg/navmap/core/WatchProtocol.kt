@@ -32,11 +32,13 @@ import kotlin.math.roundToInt
  *
  * NavMap also polls NavBridge over HTTP, which works when Connect IQ messaging doesn't: Garmin Connect runs the
  * watch's makeWebRequest on the phone, and plain HTTP to 127.0.0.1 is allowed.
- *  - GET /nav?k=token&ah=arrowHash&rv=routeVersion[&la=lat·1e5&lo=lng·1e5][&c=1][&kf=keyTail][&s=run] on 127.0.0.1:18165,
- *    with the watch's pairing token (see [WatchPairing]), the hash of the arrow and the version of the route line
- *    the watch has. NavMap 0.10+ adds kf, the last 6 characters of the Google Maps key it has ("none" for none); any
- *    answer then carries "mk", the key itself, while that differs (see [NavEndpoint.withMapsKey]). Any poll means
- *    NavMap is open, except one from a run that has said bye ("s", NavMap 0.12+): it was held up on the way.
+ *  - GET /nav?k=token&ah=arrowHash&rv=routeVersion[&la=lat·1e5&lo=lng·1e5][&c=1][&kf=keyTail][&s=run][&cr=time]
+ *    on 127.0.0.1:18165, with the watch's pairing token (see [WatchPairing]), the hash of the arrow and the version of
+ *    the route line the watch has. NavMap 0.10+ adds kf, the last 6 characters of the Google Maps key it has ("none"
+ *    for none); any answer then carries "mk", the key itself, while that differs (see [NavEndpoint.withMapsKey]). Any
+ *    poll means NavMap is open, except one from a run that has said bye ("s", NavMap 0.12+): it was held up on the way.
+ *    NavMap 0.14+ adds cr, when its last run started (Unix seconds), if that run never closed normally: it crashed,
+ *    or the watch lost power. Sent until a poll is answered.
  *  - Until the user has agreed in NavBridge to Google's terms and to the use of their location, every poll is
  *    answered {"t":"consent"} (200), before the token is even checked: no pairing, no "mk", and nothing from the
  *    poll is used. NavMap 0.10+ then forgets its key and route line, and says to open NavBridge.
@@ -125,6 +127,7 @@ object WatchProtocol {
         val compact: Boolean = false,
         val keyTail: String? = null,
         val session: Int? = null,
+        val crashedRun: Long? = null,
     )
 
     fun poll(query: String?): Poll {
@@ -138,6 +141,7 @@ object WatchProtocol {
             compact = q["c"] == "1",
             keyTail = q["kf"],
             session = q["s"]?.toIntOrNull(),
+            crashedRun = q["cr"]?.toLongOrNull(),
         )
     }
 

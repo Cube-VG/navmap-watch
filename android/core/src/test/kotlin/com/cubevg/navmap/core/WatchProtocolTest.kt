@@ -164,6 +164,10 @@ class WatchProtocolTest {
         // NavMap 0.12 names its run.
         assertEquals(-81234, WatchProtocol.poll("k=a&s=-81234").session)
         assertEquals(null, WatchProtocol.poll("k=a").session)
+        // NavMap 0.14 says when its last run started, if that run never closed normally.
+        assertEquals(1792300000L, WatchProtocol.poll("k=a&s=5&cr=1792300000").crashedRun)
+        assertEquals(null, WatchProtocol.poll("k=a&s=5").crashedRun)
+        assertEquals(null, WatchProtocol.poll("k=a&cr=soon").crashedRun)
         assertFalse(WatchProtocol.poll("c=yes").compact)
         // NavMap 0.9 says which Google Maps key it has.
         assertEquals("YZ_789", WatchProtocol.poll("k=a&kf=YZ_789").keyTail)

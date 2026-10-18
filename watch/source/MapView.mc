@@ -66,6 +66,10 @@ class ImageReq {
 class MapView extends WatchUi.View {
     private var _m as NavModel;
     private var _timer as Timer.Timer;
+    // Draws the next step of a turn (NavModel.turnFramesLeft) TURN_MS after the last frame.
+    private var _turnTimer as Timer.Timer;
+    private var _turnPending as Boolean = false;
+    private const TURN_MS = 200;
 
     // Current map image and where it was taken
     private var _img as WatchUi.BitmapResource or Graphics.BitmapReference or Null = null;
@@ -124,6 +128,7 @@ class MapView extends WatchUi.View {
         View.initialize();
         _m = model;
         _timer = new Timer.Timer();
+        _turnTimer = new Timer.Timer();
     }
 
     function onShow() as Void {
@@ -132,6 +137,13 @@ class MapView extends WatchUi.View {
 
     function onHide() as Void {
         _timer.stop();
+        _turnTimer.stop();
+        _turnPending = false;
+    }
+
+    function onTurnFrame() as Void {
+        _turnPending = false;
+        WatchUi.requestUpdate();
     }
 
     function onTick() as Void {
@@ -374,6 +386,11 @@ class MapView extends WatchUi.View {
             _rot = (dc has :drawBitmap2) ? _m.mapHeading : 0.0;
             _rc = Math.cos(_rot).toFloat();
             _rs = Math.sin(_rot).toFloat();
+            // A big turn has steps left: draw the next one shortly, well before the next fix.
+            if ((dc has :drawBitmap2) && _m.turnFramesLeft > 0 && !_turnPending) {
+                _turnPending = true;
+                _turnTimer.start(method(:onTurnFrame), TURN_MS, false);
+            }
             // Ground under the transparent land, and wherever the picture doesn't reach.
             dc.setColor(MAP_GROUND, MAP_GROUND);
             dc.clear();
@@ -418,7 +435,7 @@ class MapView extends WatchUi.View {
         perfShow(dc, t0);
     }
 
-    // START or a tap shows the credit strip (MapDelegate).
+    // START shows the credit strip (MapDelegate).
     function showCredits() as Void {
         if (_img != null) {
             _creditsUntil = System.getTimer() + CREDITS_MS;
@@ -882,7 +899,7 @@ class MapView extends WatchUi.View {
     }
 }
 
-// START or a tap shows the map's credits, and Back asks before leaving. Every other button and swipe is
+// START shows the map's credits, and Back asks before leaving. Every other button, tap and swipe is
 // swallowed, so nothing else pops up over the map.
 class MapDelegate extends WatchUi.BehaviorDelegate {
     private var _view as MapView;
@@ -909,8 +926,9 @@ class MapDelegate extends WatchUi.BehaviorDelegate {
         return true;
     }
 
+    // A tap does nothing: a hand or a sleeve brushing the screen while riding kept covering the map with the
+    // credits. Handled rather than left out, so the tap isn't passed on as a START press.
     function onTap(evt as WatchUi.ClickEvent) as Boolean {
-        _view.showCredits();
         return true;
     }
 
