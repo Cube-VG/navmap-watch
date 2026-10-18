@@ -10,7 +10,9 @@ import kotlin.math.roundToInt
  * Phone to watch:
  *  - nav:   {"t":"nav","s":seq,"i":instruction,"d":"350 m","dm":350,"e":"Arrive 10:01","ah":hash[,"a":[96 ints]]}
  *           "a" is only sent when the arrow changed; "a":[] with "ah":0 clears it.
- *  - route: {"t":"route","p":[lat·1e5, lng·1e5, …]}, an empty list clears the line.
+ *  - route: {"t":"route","p":[lat·1e5, lng·1e5, …],"rv":version}, an empty list clears the line. NavMap 0.12+ takes
+ *           "rv" as the version of the line it has, so a line that arrives after a newer one from a poll is replaced
+ *           by the next poll.
  *  - end:   {"t":"end","ar":arrived}, navigation finished; the watch says "Arrived" or "Navigation ended", then closes.
  *  - where: {"t":"where"}, asks for the watch's GPS position.
  *  - idle:  {"t":"idle"}, the answer to a hello when Google Maps isn't navigating.
@@ -18,19 +20,23 @@ import kotlin.math.roundToInt
  *           OpenStreetMap road lines in a square around the watch, so NavMap can draw its own map. See [RoadArea].
  *
  * Watch to phone:
- *  - hello: {"t":"hello","v":2[,"la":lat·1e5,"lo":lng·1e5][,"r":1]} when NavMap opens, repeated until the phone
- *           answers. "r":1 asks for roads; without it none are sent. NavMap 0.10+ only sends la/lo while it has
+ *  - hello: {"t":"hello","v":2[,"la":lat·1e5,"lo":lng·1e5][,"r":1][,"g":1][,"kh":hash]} when NavMap opens, repeated until the
+ *           phone answers. "r":1 asks for roads; without it none are sent. NavMap 0.10+ only sends la/lo while it has
  *           the Google Maps key, which it gets once the user has agreed in NavBridge (see the consent reply below).
+ *           "g":1 (NavMap 0.12+): the watch says it opened NavMap from the glance list.
+ *           "kh" (NavMap 0.13+): a fingerprint of its pairing token (see [WatchPairing.offer]).
  *  - pos:   {"t":"pos"[,"la","lo"]}, the answer to "where".
- *  - bye:   {"t":"bye"} when NavMap closes.
+ *  - bye:   {"t":"bye"} when NavMap closes. NavMap 0.12+ adds "id" (its run, as in the polls' "s"), "up" (seconds it
+ *           ran), "why" when it closed itself ("u" the user chose Exit, "e" the navigation ended; without it the watch
+ *           closed NavMap) and "sus":1 when the watch says it is suspending NavMap.
  *
  * NavMap also polls NavBridge over HTTP, which works when Connect IQ messaging doesn't: Garmin Connect runs the
  * watch's makeWebRequest on the phone, and plain HTTP to 127.0.0.1 is allowed.
- *  - GET /nav?k=token&ah=arrowHash&rv=routeVersion[&la=lat·1e5&lo=lng·1e5][&c=1][&kf=keyTail] on 127.0.0.1:18165,
+ *  - GET /nav?k=token&ah=arrowHash&rv=routeVersion[&la=lat·1e5&lo=lng·1e5][&c=1][&kf=keyTail][&s=run] on 127.0.0.1:18165,
  *    with the watch's pairing token (see [WatchPairing]), the hash of the arrow and the version of the route line
  *    the watch has. NavMap 0.10+ adds kf, the last 6 characters of the Google Maps key it has ("none" for none); any
  *    answer then carries "mk", the key itself, while that differs (see [NavEndpoint.withMapsKey]). Any poll means
- *    NavMap is open.
+ *    NavMap is open, except one from a run that has said bye ("s", NavMap 0.12+): it was held up on the way.
  *  - Until the user has agreed in NavBridge to Google's terms and to the use of their location, every poll is
  *    answered {"t":"consent"} (200), before the token is even checked: no pairing, no "mk", and nothing from the
  *    poll is used. NavMap 0.10+ then forgets its key and route line, and says to open NavBridge.
@@ -63,7 +69,7 @@ object WatchProtocol {
         return m
     }
 
-    fun route(points: List<Int>): Map<String, Any> = mapOf("t" to "route", "p" to points)
+    fun route(points: List<Int>, version: Int): Map<String, Any> = mapOf("t" to "route", "p" to points, "rv" to version)
 
     fun end(arrived: Boolean): Map<String, Any> = mapOf("t" to "end", "ar" to arrived)
 
@@ -118,6 +124,7 @@ object WatchProtocol {
         val position: LatLng?,
         val compact: Boolean = false,
         val keyTail: String? = null,
+        val session: Int? = null,
     )
 
     fun poll(query: String?): Poll {
@@ -130,6 +137,7 @@ object WatchProtocol {
             position = position(q["la"]?.toDoubleOrNull(), q["lo"]?.toDoubleOrNull()),
             compact = q["c"] == "1",
             keyTail = q["kf"],
+            session = q["s"]?.toIntOrNull(),
         )
     }
 
@@ -153,11 +161,18 @@ object WatchProtocol {
         }
 
     sealed class FromWatch {
-        data class Hello(val version: Int, val position: LatLng?, val roads: Boolean = false) : FromWatch()
+        data class Hello(
+            val version: Int,
+            val position: LatLng?,
+            val roads: Boolean = false,
+            val glance: Boolean = false,
+            val token: String? = null,
+        ) : FromWatch()
 
         data class Position(val position: LatLng?) : FromWatch()
 
-        data object Bye : FromWatch()
+        /** [why]: "u" the user chose Exit, "e" the navigation ended, null the watch closed NavMap (or it is older than 0.12). */
+        data class Bye(val session: Int? = null, val seconds: Int? = null, val why: String? = null, val suspended: Boolean = false) : FromWatch()
 
         data class Unknown(val raw: Any?) : FromWatch()
     }
@@ -166,9 +181,15 @@ object WatchProtocol {
     fun parse(raw: Any?): FromWatch {
         val map = raw as? Map<*, *> ?: return FromWatch.Unknown(raw)
         return when (map["t"]) {
-            "hello" -> FromWatch.Hello((map["v"] as? Number)?.toInt() ?: 1, position(map), (map["r"] as? Number)?.toInt() == 1)
+            "hello" -> FromWatch.Hello(
+                (map["v"] as? Number)?.toInt() ?: 1,
+                position(map),
+                (map["r"] as? Number)?.toInt() == 1,
+                (map["g"] as? Number)?.toInt() == 1,
+                map["kh"] as? String,
+            )
             "pos" -> FromWatch.Position(position(map))
-            "bye" -> FromWatch.Bye
+            "bye" -> FromWatch.Bye((map["id"] as? Number)?.toInt(), (map["up"] as? Number)?.toInt(), map["why"] as? String, (map["sus"] as? Number)?.toInt() == 1)
             else -> FromWatch.Unknown(raw)
         }
     }

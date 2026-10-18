@@ -45,4 +45,21 @@ class PolylineTest {
         assertEquals(1_100_000, flat[1])
         assertEquals(0, flat.size % 2)
     }
+
+    @Test
+    fun distanceToALine() {
+        // An east-west line about 1.1 km long at Bangalore's latitude.
+        val line = listOf(LatLng(12.97, 77.59), LatLng(12.97, 77.60))
+        assertEquals(0.0, Polyline.distanceTo(line, LatLng(12.97, 77.595)), 0.01)
+        // 0.0009 degrees north is about 100 m.
+        assertEquals(99.5, Polyline.distanceTo(line, LatLng(12.9709, 77.595)), 0.5)
+        // Past the end, the distance is to the end point: 0.001 degrees east is about 108 m there.
+        assertEquals(108.5, Polyline.distanceTo(line, LatLng(12.97, 77.601)), 0.5)
+        // The nearest of several segments counts.
+        val bend = line + LatLng(12.98, 77.60)
+        assertEquals(0.0, Polyline.distanceTo(bend, LatLng(12.975, 77.60)), 0.01)
+        assertEquals(54.2, Polyline.distanceTo(bend, LatLng(12.975, 77.6005)), 0.5)
+        assertEquals(Double.POSITIVE_INFINITY, Polyline.distanceTo(emptyList(), LatLng(12.97, 77.59)), 0.0)
+        assertEquals(0.0, Polyline.distanceTo(listOf(LatLng(12.97, 77.59)), LatLng(12.97, 77.59)), 0.01)
+    }
 }

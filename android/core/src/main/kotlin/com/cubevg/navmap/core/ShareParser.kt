@@ -51,10 +51,18 @@ object ShareParser {
         val uri = runCatching { URI(url.replace(" ", "%20").replace("|", "%7C")) }.getOrNull() ?: return null
         val path = uri.rawPath.orEmpty()
         val query = params(uri.rawQuery)
+        val segments = path.split('/').filter { it.isNotEmpty() }.map(::decode)
+        val dir = segments.indexOf("dir")
+        val stops = if (dir < 0) emptyList() else segments.drop(dir + 1).filter {
+            !it.startsWith("@") && !it.startsWith("data=") && !it.startsWith("am=")
+        }
+        // A directions link's last stop names the destination, unless it's coordinates. That beats the name the share
+        // came with, which for directions is only a label like "Shared route".
+        val label = stops.lastOrNull()?.takeIf { latLng(it) == null } ?: name
 
         // A specific place: /maps/place/<name>/@<view>/data=...!3d<lat>!4d<lng>
         placePin.findAll(path).lastOrNull()?.let {
-            return Destination.Point(it.groupValues[1].toDouble(), it.groupValues[2].toDouble(), name ?: placeName(path))
+            return Destination.Point(it.groupValues[1].toDouble(), it.groupValues[2].toDouble(), label ?: placeName(path))
         }
         query["query_place_id"]?.let { return Destination.Place(it, name ?: query["query"]) }
         query["destination_place_id"]?.let { return Destination.Place(it, name ?: query["destination"]) }
@@ -63,15 +71,12 @@ object ShareParser {
             return pointOrAddress(value, name)
         }
 
-        val segments = path.split('/').filter { it.isNotEmpty() }.map(::decode)
-        val dir = segments.indexOf("dir")
         if (dir >= 0) {
             // /maps/dir/<from>/<to>/@<view>/data=...: the last !1d<lng>!2d<lat> pair is the destination.
             routePin.findAll(path).lastOrNull()?.let {
-                return Destination.Point(it.groupValues[2].toDouble(), it.groupValues[1].toDouble(), name)
+                return Destination.Point(it.groupValues[2].toDouble(), it.groupValues[1].toDouble(), label)
             }
-            val stops = segments.drop(dir + 1).filter { !it.startsWith("@") && !it.startsWith("data=") && !it.startsWith("am=") }
-            stops.lastOrNull()?.let { return pointOrAddress(it, name) }
+            stops.lastOrNull()?.let { return pointOrAddress(it, label) }
         }
         for (marker in listOf("search", "place")) {
             val at = segments.indexOf(marker)

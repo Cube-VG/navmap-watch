@@ -175,6 +175,11 @@ class NavModel {
         } else if (t != null && "route".equals(t)) {
             if (data["p"] instanceof Array) {
                 setRoute(data["p"] as Array<Number>);
+                // Its version (NavBridge 0.10+): if this line is older than one the polls brought, the next poll
+                // brings the newest again.
+                if (data["rv"] instanceof Number) {
+                    routeVersion = data["rv"] as Number;
+                }
             }
         } else if (t != null && "end".equals(t)) {
             // Only a navigation this NavMap was showing ends it; opened later, NavMap just waits.

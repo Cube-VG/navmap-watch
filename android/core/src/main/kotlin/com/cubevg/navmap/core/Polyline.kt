@@ -104,6 +104,25 @@ object Polyline {
         return line.flatMap { listOf((it.lat * 1e5).roundToInt(), (it.lng * 1e5).roundToInt()) }
     }
 
+    /** How far [p] is from the nearest point of [line], in metres; infinite for no line. */
+    fun distanceTo(line: List<LatLng>, p: LatLng): Double {
+        if (line.isEmpty()) return Double.POSITIVE_INFINITY
+        // Metres east and north of p, which is near enough flat over the few hundred metres that matter.
+        val kx = 111_320.0 * cos(Math.toRadians(p.lat))
+        val ky = 110_574.0
+        var ax = (line[0].lng - p.lng) * kx
+        var ay = (line[0].lat - p.lat) * ky
+        var best = hypot(ax, ay)
+        for (i in 1 until line.size) {
+            val bx = (line[i].lng - p.lng) * kx
+            val by = (line[i].lat - p.lat) * ky
+            best = minOf(best, segmentDistance(0.0, 0.0, ax, ay, bx, by))
+            ax = bx
+            ay = by
+        }
+        return best
+    }
+
     private fun segmentDistance(px: Double, py: Double, ax: Double, ay: Double, bx: Double, by: Double): Double {
         val dx = bx - ax
         val dy = by - ay

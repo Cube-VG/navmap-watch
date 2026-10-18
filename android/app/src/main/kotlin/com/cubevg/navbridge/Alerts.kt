@@ -27,7 +27,7 @@ object Alerts {
     fun openOnWatch(context: Context) = post(
         context,
         "Open NavMap on your watch",
-        "The watch didn't answer. Tap Try again for a new prompt, or open NavMap from the watch's app list.",
+        "If the watch asks to open NavMap, press START. If not, tap Try again for a new prompt, or open NavMap from the watch's app list.",
         retry = true,
     )
 

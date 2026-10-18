@@ -31,6 +31,20 @@ module Keys {
         return t;
     }
 
+    // The first 16 bytes of the token's SHA-256, in hex, for the hello. Any phone app can listen to NavMap's
+    // Connect IQ messages, so the hello carries this rather than the token itself.
+    function tokenHash() as String {
+        var h = new Cryptography.Hash({:algorithm => Cryptography.HASH_SHA256});
+        h.update(StringUtil.convertEncodedString(token(), {
+            :fromRepresentation => StringUtil.REPRESENTATION_STRING_PLAIN_TEXT,
+            :toRepresentation => StringUtil.REPRESENTATION_BYTE_ARRAY
+        }) as ByteArray);
+        return StringUtil.convertEncodedString(h.digest().slice(0, 16), {
+            :fromRepresentation => StringUtil.REPRESENTATION_BYTE_ARRAY,
+            :toRepresentation => StringUtil.REPRESENTATION_STRING_HEX
+        }) as String;
+    }
+
     // The Google Maps key NavBridge last sent, or null until NavBridge has sent one.
     function mapsKey() as String? {
         if (_mapsKey == null) {

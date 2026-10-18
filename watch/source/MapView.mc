@@ -81,6 +81,7 @@ class MapView extends WatchUi.View {
     private var _reqStart as Number = 0;
     private var _retryAt as Number = 0;
     private var _backoff as Number = 0;
+    private var _mapErr as Number? = null;   // code of the last failed map picture; null once one arrives
     private const SIZES = [280, 240, 200];   // Static Maps points; image is 2x (scale=2)
     private var _sizeIdx as Number = 0;
     private var _fetchSecs as Float = 6.0;
@@ -138,6 +139,7 @@ class MapView extends WatchUi.View {
         // Exit confirmed, or the navigation ended 5 s ago: NavMap closes, back to the watch face.
         var endAt = _m.endAt;
         if (app.exitRequested || (endAt != null && System.getTimer() - endAt > 5000)) {
+            app.closeWhy = app.exitRequested ? "u" : "e";
             app.exitRequested = false;
             WatchUi.popView(WatchUi.SLIDE_IMMEDIATE);
             return;
@@ -308,6 +310,7 @@ class MapView extends WatchUi.View {
                 _imgZoom = req.zoom;
                 _backoff = 0;
                 _retryAt = 0;
+                _mapErr = null;
                 // The first map shows its credit strip once by itself; after that, START shows it.
                 if (!_creditsShown) {
                     _creditsShown = true;
@@ -322,6 +325,7 @@ class MapView extends WatchUi.View {
                 maybeFetch();
             }
         } else {
+            _mapErr = code;
             // Too large for the transfer or memory: step down to a smaller image.
             if (code == -402 || code == -403 || code == -1006) {
                 stepDown();
@@ -359,7 +363,11 @@ class MapView extends WatchUi.View {
         var lat = _m.lat;
         var lon = _m.lon;
         var img = _img;
-        if (img != null && lat != null && lon != null) {
+        var onMap = false;
+        // Without a map picture (the phone has no internet, or the first one is on its way) the route line is
+        // still drawn, on the bare ground.
+        if (lat != null && lon != null && (img != null || _m.route != null)) {
+            onMap = true;
             var z = desiredZoom();
             // Turned here, with the position this frame shows, rather than up to a second earlier.
             _m.updateMapHeading();
@@ -369,11 +377,20 @@ class MapView extends WatchUi.View {
             // Ground under the transparent land, and wherever the picture doesn't reach.
             dc.setColor(MAP_GROUND, MAP_GROUND);
             dc.clear();
-            drawMap(dc, img, lat, lon, z);
+            if (img != null) {
+                drawMap(dc, img, lat, lon, z);
+            }
             perfMark(t0, 0);
             drawRoute(dc, lat, lon, z);
             perfMark(t0, 1);
             drawAttribution(dc);
+            if (img == null) {
+                // The route line alone: say why there's no map, as the black screen did.
+                var err = _mapErr;
+                // Refused (403): a NavMap NavBridge doesn't know, such as one copied under another file name.
+                drawPill(dc, 160, Keys.mapsKey() == null ? (getApp().link.refused ? "Open NavBridge to pair" : "No map key yet")
+                    : err == null ? "Loading map" : "No map: error " + err, Graphics.FONT_XTINY);
+            }
         } else {
             dc.setColor(Graphics.COLOR_BLACK, Graphics.COLOR_BLACK);
             dc.clear();
@@ -381,7 +398,7 @@ class MapView extends WatchUi.View {
             dc.drawText(HALF, HALF + 50, Graphics.FONT_SMALL, lat == null ? "Waiting for GPS" : Keys.mapsKey() == null ? "No map key yet" : "Loading map",
                 Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
         }
-        drawMarker(dc);
+        drawMarker(dc, onMap);
 
         if (_m.navActive) {
             drawBanner(dc);
@@ -753,10 +770,10 @@ class MapView extends WatchUi.View {
     }
 
     // Our chevron: straight up when the map turns with us, otherwise the way we face on a north-up map.
-    private function drawMarker(dc as Graphics.Dc) as Void {
+    private function drawMarker(dc as Graphics.Dc, onMap as Boolean) as Void {
         // Straight up when the map turns with us.
         var h = _m.mapHeading - _rot;
-        var cy = _m.lat != null && _img != null ? MARK_Y : HALF;
+        var cy = onMap ? MARK_Y : HALF;
         var s = Math.sin(h);
         var c = Math.cos(h);
         var pts = [[0.0, -20.0], [13.0, 14.0], [0.0, 6.0], [-13.0, 14.0]];

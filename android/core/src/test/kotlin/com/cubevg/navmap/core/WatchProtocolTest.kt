@@ -35,7 +35,7 @@ class WatchProtocolTest {
     @Test
     fun otherMessages() {
         assertEquals(mapOf("t" to "end", "ar" to true), WatchProtocol.end(arrived = true))
-        assertEquals(mapOf("t" to "route", "p" to listOf(1, 2, 3, 4)), WatchProtocol.route(listOf(1, 2, 3, 4)))
+        assertEquals(mapOf("t" to "route", "p" to listOf(1, 2, 3, 4), "rv" to 9), WatchProtocol.route(listOf(1, 2, 3, 4), 9))
         assertEquals(mapOf("t" to "where"), WatchProtocol.where())
         assertEquals(mapOf("t" to "idle"), WatchProtocol.idle())
     }
@@ -51,7 +51,20 @@ class WatchProtocolTest {
         assertTrue((WatchProtocol.parse(mapOf("t" to "hello", "r" to 1L)) as WatchProtocol.FromWatch.Hello).roads)
         assertFalse((WatchProtocol.parse(mapOf("t" to "hello", "r" to 0)) as WatchProtocol.FromWatch.Hello).roads)
         assertEquals(WatchProtocol.FromWatch.Position(null), WatchProtocol.parse(mapOf("t" to "pos", "la" to 0, "lo" to 0)))
-        assertEquals(WatchProtocol.FromWatch.Bye, WatchProtocol.parse(mapOf("t" to "bye")))
+        assertTrue((WatchProtocol.parse(mapOf("t" to "hello", "g" to 1)) as WatchProtocol.FromWatch.Hello).glance)
+        assertFalse((WatchProtocol.parse(mapOf("t" to "hello")) as WatchProtocol.FromWatch.Hello).glance)
+        assertEquals("ab12", (WatchProtocol.parse(mapOf("t" to "hello", "kh" to "ab12")) as WatchProtocol.FromWatch.Hello).token)
+        assertEquals(null, (WatchProtocol.parse(mapOf("t" to "hello", "kh" to 5)) as WatchProtocol.FromWatch.Hello).token)
+        // NavMap before 0.12 says only bye; 0.12 adds its run, how long it ran and why it closed.
+        assertEquals(WatchProtocol.FromWatch.Bye(), WatchProtocol.parse(mapOf("t" to "bye")))
+        assertEquals(
+            WatchProtocol.FromWatch.Bye(session = 81234, seconds = 120),
+            WatchProtocol.parse(mapOf("t" to "bye", "id" to 81234, "up" to 120L)),
+        )
+        assertEquals(
+            WatchProtocol.FromWatch.Bye(session = 5, seconds = 300, why = "u", suspended = true),
+            WatchProtocol.parse(mapOf("t" to "bye", "id" to 5, "up" to 300, "why" to "u", "sus" to 1)),
+        )
         assertTrue(WatchProtocol.parse("hello") is WatchProtocol.FromWatch.Unknown)
     }
 
@@ -148,6 +161,9 @@ class WatchProtocolTest {
         assertTrue(WatchProtocol.poll("k=a&ah=1&rv=2&c=1").compact)
         assertFalse(WatchProtocol.poll("k=a&ah=1&rv=2").compact)
         assertFalse(WatchProtocol.poll("c=0").compact)
+        // NavMap 0.12 names its run.
+        assertEquals(-81234, WatchProtocol.poll("k=a&s=-81234").session)
+        assertEquals(null, WatchProtocol.poll("k=a").session)
         assertFalse(WatchProtocol.poll("c=yes").compact)
         // NavMap 0.9 says which Google Maps key it has.
         assertEquals("YZ_789", WatchProtocol.poll("k=a&kf=YZ_789").keyTail)

@@ -15,6 +15,9 @@ const NAV_URL = "http://127.0.0.1:18165/nav";
 class NavLink {
     var fails as Number = 0;   // requests in a row that got no answer
     var refused as Boolean = false;   // NavBridge answered 403: this watch isn't paired with it (yet)
+    // This run of NavMap, in each poll and in the bye: a poll that reaches NavBridge after the bye, held up on the
+    // way, then isn't taken for NavMap opening again. The timer differs at each start.
+    var session as Number;
 
     private var _m as NavModel;
     private var _inFlight as Boolean = false;
@@ -23,6 +26,7 @@ class NavLink {
 
     function initialize(model as NavModel) {
         _m = model;
+        session = System.getTimer();
     }
 
     // Called every second.
@@ -37,7 +41,7 @@ class NavLink {
         if (now < _nextAt || !System.getDeviceSettings().phoneConnected) {
             return;
         }
-        var params = {"k" => Keys.token(), "kf" => Keys.mapsKeyTail(), "ah" => _m.arrowHash.toString(), "rv" => _m.routeVersion.toString(), "c" => "1"};
+        var params = {"k" => Keys.token(), "kf" => Keys.mapsKeyTail(), "ah" => _m.arrowHash.toString(), "rv" => _m.routeVersion.toString(), "c" => "1", "s" => session.toString()};
         var lat = _m.lat;
         var lon = _m.lon;
         // The position goes to NavBridge only once the user has agreed there, which is when it hands over the key.

@@ -70,4 +70,36 @@ class WatchPairingTest {
         // A broken saved token counts as none.
         assertFalse(pairing(kept = "not a token").paired)
     }
+
+    @Test
+    fun fingerprintIsSha256sFirstHalf() {
+        // printf %s 0123456789abcdef0123456789abcdef | sha256sum
+        assertEquals("3eb1bd439947eb762998e566ccc2e099", WatchPairing.fingerprint(watch))
+    }
+
+    @Test
+    fun aWatchThatSaidHelloReplacesThePairedOneWhilePairingIsOpen() {
+        val p = pairing(kept = watch)
+        assertFalse(p.offer(WatchPairing.fingerprint(watch)))
+        assertFalse(p.offer("not a fingerprint"))
+        // A hello with the token itself doesn't count.
+        assertFalse(p.offer(other.take(16)))
+        p.openWindow()
+        assertFalse(p.accepts(other))
+        // Not while pairing is closed.
+        p.openWindow(0)
+        assertTrue(p.offer(WatchPairing.fingerprint(other).uppercase()))
+        assertFalse(p.accepts(other))
+        p.openWindow()
+        // Nor a token that wasn't in the hello.
+        assertFalse(p.accepts("00112233445566778899aabbccddeeff"))
+        assertTrue(p.accepts(other))
+        assertEquals(listOf<String?>(other), saved)
+        assertFalse(p.accepts(watch))
+        assertTrue(p.accepts(other))
+        // With no watch paired, a hello isn't needed, as before.
+        val fresh = pairing()
+        fresh.openWindow()
+        assertTrue(fresh.accepts(watch))
+    }
 }

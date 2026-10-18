@@ -86,8 +86,13 @@ object NavServer {
         val consented = Prefs.consented(appContext)
         if (!consented) watchHasKey = false // NavMap drops its key when told to ask for consent
         val (code, body) = NavEndpoint.answer(method, target, consented, pairing::accepts, Prefs.mapsKey(appContext), ::onMain)
-        if (code == 403 && refusals.getAndIncrement() == 0) {
-            DebugLog.log("Refused a request for turns from a watch that isn't paired. Open NavBridge, or tap Pair again after changing watches.")
+        if (code == 403) {
+            if (refusals.getAndIncrement() == 0) {
+                DebugLog.log("Refused a request for turns from a watch that isn't paired. Open NavBridge, or tap Pair again after changing watches.")
+            }
+            // Refused, but a NavMap is open: NavBridge mustn't ask the watch to open it, which would close it.
+            val session = WatchProtocol.poll(target.substringAfter('?', "")).session
+            main.post { NavSession.onRefusedPoll(session) }
         }
         return code to body
     }

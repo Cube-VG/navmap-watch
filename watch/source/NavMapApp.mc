@@ -13,10 +13,13 @@ class NavMapApp extends Application.AppBase {
     var model as NavModel;
     var link as NavLink;
     var exitRequested as Boolean = false;
+    var closeWhy as String? = null;   // set as NavMap closes itself: "u" Exit chosen, "e" the navigation ended
     private var _drawAt as Number = -100000;   // System.getTimer() when the last frame was asked for
     private var _gpsAt as Number = -100000;    // and of the last GPS event
     private var _helloAt as Number = -100000;
     private var _hellos as Number = 0;
+    private var _startedAt as Number = 0;
+    private var _glance as Boolean = false;
 
     function initialize() {
         AppBase.initialize();
@@ -25,6 +28,12 @@ class NavMapApp extends Application.AppBase {
     }
 
     function onStart(state as Dictionary?) as Void {
+        _startedAt = System.getTimer();
+        // For NavBridge's log: Garmin closes an app opened from the glance list after a while without a button
+        // press, and not one opened from the app list.
+        if (state != null && state[:launchedFromGlance] == true) {
+            _glance = true;
+        }
         startGps();
         Communications.registerForPhoneAppMessages(method(:onPhone));
     }
@@ -53,7 +62,17 @@ class NavMapApp extends Application.AppBase {
     function onStop(state as Dictionary?) as Void {
         Position.enableLocationEvents(Position.LOCATION_DISABLE, method(:onPosition));
         if (model.phoneAnswered) {
-            send({"t" => "bye"});
+            // With how long NavMap ran and why it closes: with no "why", the watch closed it, and NavBridge asks it
+            // to open NavMap again if Google Maps is still navigating.
+            var bye = {"t" => "bye", "id" => link.session, "up" => (System.getTimer() - _startedAt) / 1000} as Dictionary<String, String or Number>;
+            var why = closeWhy;
+            if (why != null) {
+                bye["why"] = why;
+            }
+            if (state != null && state[:suspend] == true) {
+                bye["sus"] = 1;
+            }
+            send(bye);
         }
     }
 
@@ -111,7 +130,13 @@ class NavMapApp extends Application.AppBase {
         }
         _helloAt = now;
         _hellos++;
-        send(withPosition({"t" => "hello", "v" => 2}));
+        // "kh": a fingerprint of the pairing token. Coming through Garmin Connect, it lets NavBridge pair this NavMap
+        // in place of one paired before, e.g. after a reinstall, without the user tapping Pair.
+        var hello = withPosition({"t" => "hello", "v" => 2, "kh" => Keys.tokenHash()});
+        if (_glance) {
+            hello["g"] = 1;
+        }
+        send(hello);
     }
 
     private function withPosition(msg as Dictionary<String, String or Number>) as Dictionary<String, String or Number> {

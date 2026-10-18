@@ -59,11 +59,22 @@ class ShareParserTest {
     fun directionsLink() {
         val url = "https://www.google.com/maps/dir/Home/Office+Park/@51.5,-0.12,13z/data=!3m1!4b1!4m13!4m12" +
             "!1m5!1m1!1s0x0:0x0!2m2!1d-0.1276!2d51.5072!1m5!1m1!1s0x0:0x1!2m2!1d-0.0754!2d51.5155"
-        assertEquals(Destination.Point(51.5155, -0.0754, null), ShareParser.destination(url))
+        assertEquals(Destination.Point(51.5155, -0.0754, "Office Park"), ShareParser.destination(url))
         assertEquals(
             Destination.Address("Office Park", "Office Park"),
             ShareParser.destination("https://www.google.com/maps/dir/Home/Office+Park/@51.5,-0.12,13z"),
         )
+    }
+
+    @Test
+    fun sharedDirectionsAreNamedByTheirLastStop() {
+        // Google Maps' Share on a route, as its short link resolved (2026): the share itself is only "Shared route".
+        val named = "https://www.google.com/maps/dir/13.0956634,77.6079622/Manipal+Hospital+Yelahanka/data=!4m12!4m11!1m1!4e1" +
+            "!1m5!1m4!1s0x3bae19c4f008371f:0x6e1a4f674605fe3a!8m2!3d13.1076453!4d77.6031632!2m1!11b1!3e9?utm_source=mstt_0"
+        assertEquals(Destination.Point(13.1076453, 77.6031632, "Manipal Hospital Yelahanka"), ShareParser.destination(named, "Shared route"))
+        val coordinates = "https://www.google.com/maps/dir/13.0955973,77.608016/13.1076453,77.6031632/data=!4m8!4m7!1m1!4e1!1m1!4e1" +
+            "!2m1!11b1!3e9?utm_source=mstt_0"
+        assertEquals(Destination.Point(13.1076453, 77.6031632, "Shared route"), ShareParser.destination(coordinates, "Shared route"))
     }
 
     @Test

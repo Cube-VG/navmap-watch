@@ -19,7 +19,7 @@ The key lets NavMap get map pictures and route lines from Google, billed to you.
 
 ## 3. Put NavMap on the watch
 1. Plug the watch into the computer with its charging cable. On Windows and Linux it shows up like a phone or a USB stick. On a Mac you need [OpenMTP](https://openmtp.ganeshrvel.com/) to open it.
-2. Copy the `.prg` file into the watch's **GARMIN** folder, then into **Apps**. If a NavMap file is there already, replace it.
+2. Copy the `.prg` file into the watch's **GARMIN** folder, then into **Apps**. If a NavMap file is there already, give the new file the same name so it replaces the old one (setup.sh names it `NavMap.prg`). The watch takes a NavMap under a new name for a new app that must pair again, so delete any other NavMap file.
 3. Unplug the watch. NavMap is now in the watch's list of activities and apps (press **START** on the watch face).
 
 ## 4. Install NavBridge
@@ -52,7 +52,8 @@ Under **I travel by**, pick Motorbike, Car, Bicycle or Walking. It sets the rout
 
 ## 7. Ride
 - **Turns only:** start navigation in Google Maps as usual. The watch asks to open NavMap. Press **START** once and the turns appear.
-- **Turns and the blue route line:** in Google Maps, open the destination, tap **Share** and pick **Navigate with NavMap**. NavBridge works out the route and starts Google Maps navigation for you.
+- **Turns and the blue route line:** in Google Maps, open the destination, tap **Share** and pick **Navigate with NavMap**. NavBridge works out the route and starts Google Maps navigation for you. If you take another way, NavBridge draws a new line from where you are once you've been 60 m off the old one for 8 seconds.
+- **For rides longer than 2 minutes:** first open NavMap on the watch yourself (press **START** on the watch face and pick NavMap). When it says "Waiting for Google Maps", start navigating. Opened by the phone, NavMap is closed by the watch after about 2 minutes without a button press; opened from the watch's list, it stays open. If the watch does close it, NavBridge asks it to open NavMap again: press **START**.
 
 Press **START** on the watch to see the map's credits: Google's logo and the map data providers, as printed on the map picture. "Google Maps" stays under the map.
 
@@ -70,14 +71,17 @@ On a Mac or Linux computer, first run `bash setup.sh` again: it checks every par
   2. Check that the **Watch** card shows the watch as connected and says "Paired with NavMap".
   3. Check that the **Log** has a line for the Google Maps notification.
 - **"Press the button on the watch":** Garmin always asks before opening an app on the watch, so one press is the minimum.
+- **NavMap closes after a few minutes:** the watch closes NavMap about 2 minutes after the last button press when the phone's prompt opened it. NavBridge asks the watch to open it again: press **START**. To avoid it, open NavMap from the watch's list before you start navigating. If it closes the moment navigation starts, update NavBridge: before 0.11 it asked even when NavMap was open, and the watch closes an open NavMap when it shows that prompt. NavBridge's **Log** says how long NavMap ran and why it closed, after "NavMap closed".
+- **"The watch didn't show the prompt":** the watch said no to a new "Open NavMap?", for example because it still shows an earlier one. Press **START** if it asks; otherwise tap **Try again** in NavBridge's notification, or open NavMap from the watch's app list.
 - **Watch says "Waiting for GPS":** the map, the route line and your arrow need the watch's own GPS, which needs open sky. Indoors it may never find you; outside it takes from a few seconds to a couple of minutes. The phone's location isn't used.
 - **Watch says "Open NavBridge to agree":** you haven't agreed in NavBridge yet, or withdrew. Open NavBridge, read **Before you start** and tap **Agree**, or tap **Read** on the first Setup line.
 - **Watch says "No map key yet":** NavBridge hasn't given the watch your key. Check that the first Setup line is green and that NavBridge shows "Google Maps key: …" with the last 4 characters of yours, then keep NavMap open for a few seconds.
-- **Watch says "Loading map" and no map comes:** check in the Google Cloud console that **Maps Static API** is enabled for the key's project and that billing is linked. The watch gets the pictures through Garmin Connect, so that must be connected too.
-- **Watch says "Open NavBridge to pair":** NavBridge is paired with another watch, or NavMap was set up again. Open NavBridge, tap **Pair again**, then open NavMap on the watch within 10 minutes. The Watch card counts these refusals as "N refused: not the paired watch".
+- **Watch says "Loading map" and no map comes:** check in the Google Cloud console that **Maps Static API** is enabled for the key's project and that billing is linked. The watch gets the pictures through Garmin Connect, so that must be connected too. When the phone has no internet, no map comes, but the turns and the route line still show, on the plain ground. Over the route line the watch then says "Loading map", or "No map: error" with the number of the last failure: 401 or 403 is Google refusing the key, a negative number is the watch, phone or internet connection.
+- **Watch says "Open NavBridge to pair":** NavBridge is paired with another watch, or NavMap was set up again, for example copied to the watch under a new file name. With NavMap 0.13 and NavBridge 0.12 or later, opening NavBridge (or sharing a place to it) is enough: NavMap pairs by itself within a few seconds, because its hello through Garmin Connect vouches for it. Otherwise open NavBridge, tap **Pair again**, then open NavMap on the watch within 10 minutes. The Watch card counts these refusals as "N refused: not the paired watch".
 - **Watch says "NavBridge not answering":** open NavBridge on the phone and check that it's running and up to date. Its Watch card should say "Answering NavMap on 127.0.0.1:18165", and "NavMap is open" while the watch fetches turns.
 - **Watch says "Phone not connected":** the watch has lost Bluetooth to the phone; open Garmin Connect.
 - **Watch says "Waiting for Google Maps":** all is well; it's waiting for you to start navigating in Google Maps.
 - **No route line:** the route line needs the Share → **Navigate with NavMap** start, because Google Maps doesn't tell other apps the route. The key's project also needs the **Routes API** enabled.
+- **"Couldn't open the shared link: Google didn't answer":** NavBridge couldn't follow the short link Google Maps shared, not even through Google's other servers, so the phone probably has no internet. Tap **Start** in Google Maps instead: the watch still shows the turns, without the route line. The **Log** says why, after "Couldn't read the shared link".
 - **"App not installed" when installing NavBridge:** an older NavBridge, signed differently, is in the way. Uninstall it, then install again.
 - **Reporting a bug:** tap **Copy** under Log and paste it into [a new issue](https://github.com/Cube-VG/navmap-watch/issues), with a photo of the watch. Read it first: it can show where you were going.

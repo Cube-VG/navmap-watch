@@ -198,7 +198,9 @@ object CiqBridge {
                 DebugLog.log("Bad message from watch: $status")
                 return@post
             }
-            for (item in data.orEmpty()) listener?.onWatchMessage(device, WatchProtocol.parse(item))
+            // Garmin Connect's message broadcasts carry the watch's number but not its name: use the listed watch.
+            val watch = devices.firstOrNull { it == device } ?: device
+            for (item in data.orEmpty()) listener?.onWatchMessage(watch, WatchProtocol.parse(item))
         }
     }
 }

@@ -31,10 +31,13 @@ On Ubuntu, if it says `curl: command not found`, run `sudo apt install curl` fir
 
 For the blue route line as well, start from Google Maps' **Share** button: open the place, tap **Share** and choose **Navigate with NavMap**.
 
+For rides longer than 2 minutes, open NavMap on the watch first (press **START** on the watch face and pick NavMap), then start navigating. When the phone opens NavMap, the watch closes it again after about 2 minutes without a button press. If that happens, the watch asks to open NavMap again: press **START**.
+
 ## What the watch shows
 
 - A light, high-contrast map, readable in sunlight: warm paper ground, blue-grey water and small roads, dark main roads. Like Google Maps it turns so the way you're going is up (the compass when you stand still), with you just below the centre so more road ahead shows. It slides as you move and zooms out when you go faster.
-- The next turn with Google's arrow, the distance to it, the street and your arrival time, plus the blue route line ahead of you when you started with Share.
+- The next turn with Google's arrow, the distance to it, the street and your arrival time, plus the blue route line ahead of you when you started with Share. If you take another way, a new line from where you are follows within seconds.
+- Without internet on the phone the map can't load, but the turns and the route line carry on.
 - Before each turn the watch buzzes twice, timed by your speed: one long buzz about 25 seconds before, and three short ones about 6 seconds before, when the turn banner turns blue. It lights up with each buzz and stays lit for the last 120 m.
 - When the screen dims it shows just the next turn and the distance. Garmin lets an app keep the screen bright for only about a minute at a time.
 - When you arrive, it says "Arrived" and closes. It records no activity.
@@ -53,7 +56,7 @@ NavMap is free. The map pictures and the route line come from Google Maps Platfo
 | Route lines by car | 5,000 | $10 |
 | Route lines by motorbike | 1,000 | $15 |
 
-The watch loads about 100 to 200 map pictures per hour of riding, so the free allowance covers roughly 50 to 100 hours a month. A route line is one request per trip, plus one per reroute. These are Google's prices as of October 2026, lower in India; see [Google's pricing page](https://mapsplatform.google.com/pricing/). To avoid surprises, set a [budget alert](https://console.cloud.google.com/billing/budgets) on the billing account.
+The watch loads about 100 to 200 map pictures per hour of riding, so the free allowance covers roughly 50 to 100 hours a month. A route line is one request per trip, plus one each time you leave the route. These are Google's prices as of October 2026, lower in India; see [Google's pricing page](https://mapsplatform.google.com/pricing/). To avoid surprises, set a [budget alert](https://console.cloud.google.com/billing/budgets) on the billing account.
 
 ## If something isn't working
 

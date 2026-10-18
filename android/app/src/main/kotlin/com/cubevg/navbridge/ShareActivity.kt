@@ -23,22 +23,29 @@ class ShareActivity : Activity() {
             done("Nothing to navigate to")
             return
         }
+        // A NavMap that said hello can pair now: the user has NavBridge on screen.
+        NavServer.pairing.openWindow()
         // Read now, while NavBridge is on screen: Android only gives location to apps in the foreground.
         val origin = Locator.lastKnown(this)
         Toast.makeText(this, "Getting directions…", Toast.LENGTH_SHORT).show()
         thread(name = "share") {
-            val destination = try {
-                destinationOf(shared.url, shared.name, shared.lines)
-            } catch (e: Exception) {
-                DebugLog.log("Couldn't read the shared place: $e")
-                null
+            val read = runCatching { destinationOf(shared.url, shared.name, shared.lines) }
+            val destination = read.getOrElse { e ->
+                DebugLog.log("Couldn't read the shared link: $e")
+                // A place's name and address can still be searched for. A single line is only a label, like
+                // "Shared route" for directions.
+                shared.lines.takeIf { it.size > 1 }?.let { Destination.Address(it.joinToString(", "), shared.name) }
             }
             runOnUiThread {
-                if (destination == null) {
-                    done("Couldn't find a place in what was shared")
-                } else {
-                    NavSession.setDestination(destination, origin)
-                    startNavigation(destination)
+                when {
+                    destination != null -> {
+                        NavSession.setDestination(destination, origin)
+                        startNavigation(destination)
+                    }
+                    read.isFailure -> done(
+                        "Couldn't open the shared link: Google didn't answer. Start in Google Maps instead: the watch still shows the turns.",
+                    )
+                    else -> done("Couldn't find a place in what was shared")
                 }
             }
         }
