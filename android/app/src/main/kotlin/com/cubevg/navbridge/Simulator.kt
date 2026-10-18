@@ -62,7 +62,7 @@ object Simulator {
         running = false
         main.removeCallbacks(loop)
         DebugLog.log("Simulation stopped")
-        NavSession.onNavEnded()
+        NavSession.onNavEnded("the simulation ended", mapsStopped = true)
     }
 
     fun onWatchReady() {
@@ -100,7 +100,7 @@ object Simulator {
                     if (++arrivedFor >= 8) {
                         running = false
                         DebugLog.log("Simulation finished")
-                        NavSession.onNavEnded()
+                        NavSession.onNavEnded("the simulation ended", mapsStopped = true)
                         return
                     }
                 }

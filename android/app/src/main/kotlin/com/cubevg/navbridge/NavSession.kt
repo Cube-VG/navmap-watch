@@ -11,6 +11,7 @@ import com.cubevg.navmap.core.NavCodec
 import com.cubevg.navmap.core.NavInfo
 import com.cubevg.navmap.core.NavKind
 import com.cubevg.navmap.core.Polyline
+import com.cubevg.navmap.core.RawNotification
 import com.cubevg.navmap.core.WatchProtocol
 import com.garmin.android.connectiq.ConnectIQ.IQMessageStatus
 import com.garmin.android.connectiq.ConnectIQ.IQOpenApplicationStatus
@@ -33,6 +34,7 @@ object NavSession : CiqBridge.Listener {
     private const val SEND_TIMEOUT_MS = 12_000L
     private const val END_GRACE_MS = 6_000L
     private const val END_GIVE_UP_MS = 30_000L
+    private const val CARD_STALE_MS = 30 * 60_000L
     private const val OPEN_TRIES = 3
     private const val DESTINATION_FRESH_MS = 10 * 60_000L
     private const val REROUTE_GAP_MS = 20_000L
@@ -99,6 +101,9 @@ object NavSession : CiqBridge.Listener {
     private var sendId = 0
     private var endPending = false
     private var endArrived = false
+    private var endWhy = "" // why the navigation is ending, for the log
+    private var cardGone = false // Maps' card went away but Maps didn't stop, see onNavEnded
+    private var unreadableLogged = false
     private var whereDirty = false
     private var idleDirty = false
     private var wheresUnanswered = 0
@@ -149,7 +154,11 @@ object NavSession : CiqBridge.Listener {
     fun onNav(info: NavInfo, arrowBits: IntArray?) {
         main.removeCallbacks(endNow)
         main.removeCallbacks(giveUpEnd)
+        main.removeCallbacks(cardStale)
         endPending = false
+        if (active && cardGone) DebugLog.log("Google Maps' notification is back")
+        cardGone = false
+        unreadableLogged = false
         latest = info
         arrow = arrowBits
         arrowHash = arrowBits?.let(ArrowEncoder::hash) ?: 0
@@ -159,15 +168,47 @@ object NavSession : CiqBridge.Listener {
         pump()
     }
 
-    /** The navigation notification went away. Wait a moment in case Maps is only replacing it. */
-    fun onNavEnded() {
+    /**
+     * The navigation notification went away, [why]. If Maps stopped navigating, wait a moment in case it's only
+     * replacing the card, then end. If not (the card timed out while the phone sat still, say, or was swiped away),
+     * the watch keeps the last turn until Maps updates the card, which it does as soon as you move.
+     */
+    fun onNavEnded(why: String, mapsStopped: Boolean) {
         if (!active) return
+        endWhy = why
         main.removeCallbacks(endNow)
-        main.postDelayed(endNow, END_GRACE_MS)
+        if (mapsStopped) {
+            main.postDelayed(endNow, END_GRACE_MS)
+        } else {
+            cardGone = true
+            DebugLog.log("Google Maps' notification went away: $why. Maps is still navigating, so the watch keeps the last turn")
+            main.removeCallbacks(cardStale)
+            main.postDelayed(cardStale, CARD_STALE_MS)
+        }
     }
 
-    private val endNow = Runnable {
-        DebugLog.log("Navigation ended")
+    /** Maps updated its card into one that isn't turn-by-turn, though it's still its ongoing navigation card. */
+    fun onNavUnreadable(raw: RawNotification) {
+        if (!active || unreadableLogged) return
+        unreadableLogged = true
+        DebugLog.log("Google Maps changed its notification to one NavBridge can't read, so the watch keeps the last turn: ${describe(raw)}")
+    }
+
+    // No card from Maps for [CARD_STALE_MS] after it went away without Maps stopping: Exit was chosen in Maps meanwhile.
+    private val cardStale: Runnable = Runnable {
+        endWhy = "no word from Google Maps for ${CARD_STALE_MS / 60_000} min after its notification went away"
+        endNow.run()
+    }
+
+    private val endNow: Runnable = Runnable {
+        main.removeCallbacks(cardStale)
+        // Maps may still show a turn-by-turn card under another key: then it's still navigating.
+        if (NavListenerService.rescan()) {
+            DebugLog.log("Google Maps still shows turns, so the navigation carries on")
+            return@Runnable
+        }
+        DebugLog.log("Navigation ended: $endWhy" + (latest?.let { ". Maps last said: ${describe(it)}" } ?: ""))
+        cardGone = false
         endArrived = latest?.kind == NavKind.ARRIVED
         endedAt = SystemClock.elapsedRealtime()
         latest = null
@@ -252,6 +293,8 @@ object NavSession : CiqBridge.Listener {
         main.removeCallbacks(helloTimeout)
         main.removeCallbacks(giveUpEnd)
         main.removeCallbacks(openAgain)
+        main.removeCallbacks(cardStale)
+        cardGone = false
         active = false
         watchReady = false
         endPending = false
@@ -810,6 +853,12 @@ object NavSession : CiqBridge.Listener {
             }
         }
     }
+
+    private fun describe(info: NavInfo) =
+        listOfNotNull(info.distance?.text, info.instruction.ifEmpty { null }, info.trip.ifEmpty { null }).joinToString(" · ")
+
+    private fun describe(raw: RawNotification) =
+        "title \"${raw.title}\", text \"${raw.text}\", subText \"${raw.subText}\", category ${raw.category}, ongoing ${raw.ongoing}"
 
     private fun setStatus(text: String) {
         if (status != text) DebugLog.log(text)

@@ -128,3 +128,31 @@ object MapsNotificationParser {
         return if (fields.size >= 3) "${fields.first()} · ${etaSuffix.replace(fields.last(), "")}" else sub
     }
 }
+
+/**
+ * Why Android took Google Maps' navigation notification away, from NotificationListenerService's REASON_* code, and
+ * whether that means Maps stopped navigating. Only Maps itself, or Maps being stopped or blocked, ends it: a card
+ * swiped away, timed out or cleared by another app leaves Maps navigating, and its next update brings the card back.
+ */
+object MapsRemoval {
+    data class Why(val text: String, val mapsStopped: Boolean)
+
+    fun of(reason: Int): Why = when (reason) {
+        8, 9 -> Why("Google Maps removed it", true) // REASON_APP_CANCEL, REASON_APP_CANCEL_ALL
+        5 -> Why("Google Maps was stopped, updated or turned off", true) // REASON_PACKAGE_CHANGED
+        6, 15 -> Why("the phone's user or work profile was stopped", true) // REASON_USER_STOPPED, REASON_PROFILE_TURNED_OFF
+        7, 14 -> Why("Google Maps' notifications are blocked or paused", true) // REASON_PACKAGE_BANNED, REASON_PACKAGE_SUSPENDED
+        17, 20 -> Why("Google Maps' navigation notifications are turned off", true) // REASON_CHANNEL_BANNED, _REMOVED
+        21 -> Why("Google Maps' data was cleared", true) // REASON_CLEAR_DATA
+        1 -> Why("it was tapped", false) // REASON_CLICK
+        2 -> Why("it was swiped away", false) // REASON_CANCEL
+        3 -> Why("notifications were cleared", false) // REASON_CANCEL_ALL
+        10, 11 -> Why("another app removed it", false) // REASON_LISTENER_CANCEL, _ALL: Garmin Connect, say
+        18 -> Why("it was snoozed", false) // REASON_SNOOZED
+        19 -> Why("it timed out without an update", false) // REASON_TIMEOUT
+        22 -> Why("the phone's notification assistant removed it", false) // REASON_ASSISTANT_CANCEL
+        23 -> Why("the phone was locked down", false) // REASON_LOCKDOWN
+        4, 12, 13, 16 -> Why("Android regrouped or dropped it (reason $reason)", false)
+        else -> Why("Android gave reason $reason", true) // unknown: end, as before
+    }
+}
