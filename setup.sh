@@ -212,7 +212,7 @@ set_prop() {
 check_computer() {
     case "$OS" in
         Darwin | Linux) ;;
-        *) die "This script runs on a Mac or a Linux computer. On Windows, follow docs/SETUP.md instead." ;;
+        *) die "This script runs on a Mac or a Linux computer. On Windows, run setup.ps1 in PowerShell instead (see the README)." ;;
     esac
     local missing='' tool
     for tool in curl tar; do

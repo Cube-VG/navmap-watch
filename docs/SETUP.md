@@ -1,6 +1,6 @@
 # Setting up NavMap by hand
 
-On a Mac or Linux computer, `bash setup.sh` does all of this for you (see the [README](../README.md)). This page is for Windows, or if you'd rather do it yourself. You need the same things as the README lists.
+`bash setup.sh` on a Mac or Linux computer, or `setup.ps1` on Windows, does all of this for you (see the [README](../README.md)). This page is for doing it yourself. You need the same things as the README lists.
 
 ## 1. Download the two apps
 From [the latest release](https://github.com/Cube-VG/navmap-watch/releases/latest), download:
@@ -19,7 +19,7 @@ The key lets NavMap get map pictures and route lines from Google, billed to you.
 
 ## 3. Put NavMap on the watch
 1. Plug the watch into the computer with its charging cable. On Windows and Linux it shows up like a phone or a USB stick. On a Mac you need [OpenMTP](https://openmtp.ganeshrvel.com/) to open it.
-2. Copy the `.prg` file into the watch's **GARMIN** folder, then into **Apps**. If a NavMap file is there already, give the new file the same name so it replaces the old one (setup.sh names it `NavMap.prg`). The watch takes a NavMap under a new name for a new app that must pair again, so delete any other NavMap file.
+2. Copy the `.prg` file into the watch's **GARMIN** folder, then into **Apps**. If a NavMap file is there already, give the new file the same name so it replaces the old one (the setup scripts name it `NavMap.prg`). The watch takes a NavMap under a new name for a new app that must pair again, so delete any other NavMap file.
 3. Unplug the watch. NavMap is now in the watch's list of activities and apps (press **START** on the watch face).
 
 ## 4. Install NavBridge
@@ -64,7 +64,7 @@ The map can't stay on all the time: Garmin lets a Connect IQ app hold the screen
 For the longest bright screen, on the watch hold **Up → System → Display**, and in both **General Use** and **During Activity** set **Timeout** to the longest value, turn **Gesture** on, and leave **Always On Display** on.
 
 ## Troubleshooting
-On a Mac or Linux computer, first run `bash setup.sh` again: it checks every part and fixes what it can. `bash setup.sh test` runs just the final test.
+First run the setup script again (`bash setup.sh` on a Mac or Linux computer, `powershell -ExecutionPolicy Bypass -File setup.ps1` on Windows): it checks every part and fixes what it can. Add `test` to run just the final test.
 
 - **Nothing on the watch:**
   1. Open NavBridge and check that every Setup step is green.

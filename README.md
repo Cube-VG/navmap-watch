@@ -10,20 +10,26 @@ It's two small apps, NavMap on the watch and NavBridge on the phone, and one scr
 
 - A **Forerunner 165** or **Forerunner 165 Music**. NavMap doesn't run on other watches.
 - An **Android phone** (Android 8 or newer) with **Garmin Connect** and **Google Maps**, and the watch paired in Garmin Connect. iPhones can't run NavBridge.
-- A **Mac or Linux computer**, the watch's charging cable and a USB cable for the phone.
+- A **Windows, Mac or Linux computer**, the watch's charging cable and a USB cable for the phone.
 - A **Google account and a payment card**. Google wants a card on file before it gives you a Maps key, but one person's use normally stays inside the free allowance (see [What it costs](#what-it-costs)).
 
 ## Set it up
 
-Open Terminal on the computer and paste this line:
+On a **Mac or Linux** computer, open Terminal and paste this line:
 
 ```
 curl -fsSLO https://raw.githubusercontent.com/Cube-VG/navmap-watch/main/setup.sh && bash setup.sh
 ```
 
+On **Windows** 10 or 11, open the Start menu, type **PowerShell**, open **Windows PowerShell** and paste this line:
+
+```
+irm https://raw.githubusercontent.com/Cube-VG/navmap-watch/main/setup.ps1 -OutFile setup.ps1; powershell -ExecutionPolicy Bypass -File setup.ps1
+```
+
 The script asks one thing at a time and does everything else. You sign in to Google, plug in the phone and the watch, and tap what it tells you on the phone. It takes about 20 minutes. If anything stops it, paste the same line again: it carries on from where it was.
 
-On Ubuntu, if it says `curl: command not found`, run `sudo apt install curl` first. On Windows, set it up by hand with [docs/SETUP.md](docs/SETUP.md).
+On Ubuntu, if it says `curl: command not found`, run `sudo apt install curl` first. On Windows, if the phone never shows up, it may need its maker's USB driver: the script says so. To set it up by hand instead, see [docs/SETUP.md](docs/SETUP.md).
 
 ## Using it
 

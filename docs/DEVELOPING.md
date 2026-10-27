@@ -52,6 +52,17 @@ Each step checks first and does only what's missing, so it's safe to run again. 
 
 `bash setup.sh key|phone|watch|test` runs one step again. `bash setup.sh --from-source` adds three steps before the phone: Garmin sign-in with [connect-iq-sdk-manager](https://github.com/lindell/connect-iq-sdk-manager-cli) (it shows Garmin's licence, accepts it once you say yes, signs in, and downloads SDK 9.2.0 and the fr165/fr165m device files), a developer key made with openssl, and the build below with Java 17 and the Android SDK downloaded into the cache. The Android build needs an x86-64 computer or a Mac: Google ships aapt2 only for those.
 
+### setup.ps1 on Windows
+
+`setup.ps1` does the same six steps on Windows 10 and 11, in the Windows PowerShell 5.1 that comes with them. It is plain ASCII, because Windows PowerShell reads a file without a byte-order mark as ANSI. Tools go in `%LOCALAPPDATA%\navmap`, the key and choices in `%APPDATA%\navmap` (files limited to you with `icacls`). The differences:
+
+- **Key.** It downloads Google's Windows gcloud with its bundled Python (x86-64, or ARM64 on ARM PCs) and runs `python.exe -S lib\gcloud.py` directly, the way `gcloud.cmd` does, so arguments with spaces and `=` reach gcloud intact. The key check uses `Invoke-WebRequest`, so the key never appears on a command line.
+- **Phone.** adb from `platform-tools-latest-windows.zip`. If no phone shows up after 40 seconds, it points to the maker's USB driver, which some phones (Samsung, older ones) need on Windows.
+- **Watch.** Windows opens MTP devices itself, so it copies through the Shell (`Shell.Application`, This PC): it finds the device named Forerunner or Garmin (or any with a `GARMIN` folder), reads `GarminDevice.xml` for the part number, and copies `NavMap.prg` into `GARMIN\Apps`, waiting until the file on the watch has the right size. Windows may ask to replace an existing `NavMap.prg`.
+- No `--from-source`: building needs a Mac or Linux.
+
+`powershell -ExecutionPolicy Bypass -File setup.ps1 key|phone|watch|test` runs one step again. `NAVMAP_FILES` and `NAVMAP_FILES_URL` work the same.
+
 ### SetupProvider
 
 setup.sh's way into NavBridge, over USB debugging. Only adb's shell user and root may call it.
