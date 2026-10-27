@@ -4,6 +4,8 @@ NavMap shows a map and the next turn on a **Garmin Forerunner 165** while **Goog
 
 It's two small apps, NavMap on the watch and NavBridge on the phone, and one script sets up both.
 
+<img src="docs/navmap-on-wrist.jpg" alt="NavMap on a Forerunner 165 showing a right turn in 400 m, next to the same turn in Google Maps on the phone" width="480">
+
 ## What you need
 
 - A **Forerunner 165** or **Forerunner 165 Music**. NavMap doesn't run on other watches.
