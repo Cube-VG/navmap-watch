@@ -1,0 +1,178 @@
+#!/usr/bin/env bash
+# Drives NavMap in the Connect IQ simulator against tools/sim-phone.py (a stand-in for NavBridge),
+# and keeps the evidence of each run in verify-out/<run-id>/ in the repo.
+#
+# usage: navmap-verify up [--no-ride] [--no-consent] [--fresh-watch]   build, start, load; waits for the first /nav poll
+#        navmap-verify doctor                 read-only: is this run's instance worth driving?
+#        navmap-verify gps [<lat> <lon>]      GPS fix + simulated movement (default: the demo ride's start)
+#        navmap-verify wait <regex> [<secs>] [--app]   wait for a line in sim-phone.log (or the watch console)
+#        navmap-verify phone <ride|stop|agree|withdraw|send '<json>'>   act as the user in NavBridge
+#        navmap-verify shot <name>            watch screen to <run>/<name>.png, logged in <run>/journal.txt
+#        navmap-verify down                   copy the logs into the run folder, stop everything this run started
+#
+# The simulator harness is ~/opt/ciq-sim (its README.md explains it). It is one instance per user, and
+# sim-phone.py uses fixed ports, so only one run at a time: up refuses while another run or simulator is live.
+set -u
+REPO=$(cd "$(dirname "$(readlink -f "$0")")/../../.." && pwd)
+CIQ=$HOME/opt/ciq-sim
+STATE=$CIQ/run/navmap-verify.state
+INI=$HOME/.Garmin/ConnectIQ/simulator.ini
+STORE=$CIQ/tmp/com.garmin.connectiq/GARMIN/APPS/DATA
+RIDE_START="38.85591 -94.79964"   # where sim-phone.py's demo ride begins
+
+die() { echo "navmap-verify: $*" >&2; exit 1; }
+alive() { [ -n "${1:-}" ] && kill -0 "$1" 2>/dev/null; }
+load_state() {
+    [ -f "$STATE" ] || die "no run is active (navmap-verify up)"
+    # shellcheck disable=SC1090
+    . "$STATE"
+}
+note() { echo "$(date '+%F %T') $*" >> "$RUN_DIR/journal.txt"; }
+sim_up() { pgrep -u "$(id -u)" -f "$HOME/.Garmin/ConnectIQ/Sdks/.*/bin/simulator" > /dev/null; }
+port_busy() { ss -Hltn "sport = :$1" | grep -q .; }
+
+cmd_up() {
+    local ride=--ride consent= fresh=0
+    for a in "$@"; do
+        case $a in
+            --no-ride) ride= ;;
+            --no-consent) consent=--no-consent ;;
+            --fresh-watch) fresh=1 ;;
+            *) die "up: unknown option $a" ;;
+        esac
+    done
+    if [ -f "$STATE" ]; then
+        . "$STATE"
+        alive "$PHONE_PID" && die "a run is active ($RUN_DIR). navmap-verify down first."
+        rm -f "$STATE"
+    fi
+    sim_up && die "the simulator is running but not for a navmap-verify run. It may be another session's: check, then ~/opt/ciq-sim/stop.sh if it is free."
+    for p in 18165 7381 7382; do port_busy $p && die "port $p is in use (another sim-phone.py or NavBridge?)"; done
+
+    RUN_DIR=$REPO/verify-out/$(date +%Y%m%d-%H%M%S)
+    mkdir -p "$RUN_DIR"
+    note "up $* (repo $(git -C "$REPO" rev-parse --short HEAD)$(git -C "$REPO" diff --quiet || echo ', with local changes'))"
+
+    echo "building dist/NavMap-sim.prg"
+    "$REPO/tools/build-watch.sh" fr165 --sim > "$RUN_DIR/build.log" 2>&1 || { tail -20 "$RUN_DIR/build.log"; die "build failed ($RUN_DIR/build.log)"; }
+
+    if [ "$fresh" = 1 ]; then
+        rm -f "$STORE"/NAVMAP-FR165.DAT "$STORE"/NAVMAP-FR165.IDX
+        note "fresh watch: deleted NavMap's storage (token and key)"
+    fi
+    # Garmin Connect allows plain HTTP to 127.0.0.1; the simulator only does with this off.
+    if grep -q '^UseHttpsRequirements=1' "$INI" 2>/dev/null; then
+        sed -i 's/^UseHttpsRequirements=1/UseHttpsRequirements=0/' "$INI"
+        note "set UseHttpsRequirements=0 in simulator.ini"
+    fi
+
+    setsid python3 -u "$REPO/tools/sim-phone.py" serve $ride $consent > "$RUN_DIR/sim-phone.log" 2>&1 < /dev/null &
+    PHONE_PID=$!
+    printf 'RUN_DIR=%q\nPHONE_PID=%q\n' "$RUN_DIR" "$PHONE_PID" > "$STATE"
+    sleep 1
+    alive "$PHONE_PID" || { cat "$RUN_DIR/sim-phone.log"; die "sim-phone.py did not start"; }
+
+    "$CIQ/start.sh" > "$RUN_DIR/start.log" 2>&1 || { cat "$RUN_DIR/start.log"; die "the simulator did not start (navmap-verify down to clean up)"; }
+    "$CIQ/load.sh" "$REPO/dist/NavMap-sim.prg" fr165 >> "$RUN_DIR/start.log" 2>&1 \
+        || { tail -5 "$RUN_DIR/start.log"; die "NavMap did not load (navmap-verify down to clean up)"; }
+    note "loaded dist/NavMap-sim.prg on fr165"
+    echo "waiting for NavMap's first /nav poll"
+    cmd_wait "NavMap (sends|doesn't send) its position" 45 > /dev/null || die "no /nav poll in 45 s (navmap-verify doctor)"
+    echo "ready. run folder: $RUN_DIR"
+}
+
+cmd_wait() {
+    load_state
+    local re=${1:?wait: regex} secs=60 log=$RUN_DIR/sim-phone.log
+    shift
+    for a in "$@"; do
+        case $a in
+            --app) log=$CIQ/logs/app.log ;;
+            *) secs=$a ;;
+        esac
+    done
+    for _ in $(seq 1 "$secs"); do
+        if grep -E -m1 -- "$re" "$log"; then return 0; fi
+        sleep 1
+    done
+    echo "navmap-verify: no line matching /$re/ in $(basename "$log") after ${secs}s" >&2
+    return 1
+}
+
+cmd_gps() {
+    load_state
+    # shellcheck disable=SC2086
+    set -- ${1:-${RIDE_START% *}} ${2:-${RIDE_START#* }}
+    note "gps start $1 $2"
+    "$CIQ/gps.sh" start "$1" "$2"
+}
+
+cmd_phone() {
+    load_state
+    [ $# -ge 1 ] || die "phone: ride | stop | agree | withdraw | send '<json>'"
+    note "phone $*"
+    python3 "$REPO/tools/sim-phone.py" "$@"
+}
+
+cmd_shot() {
+    load_state
+    local name=${1:?shot: name}
+    "$CIQ/shot.sh" "$RUN_DIR/$name.png" --screen fr165 > /dev/null || die "screenshot failed"
+    note "shot $name.png | phone: $(tail -n1 "$RUN_DIR/sim-phone.log") | watch: $(tail -n1 "$CIQ/logs/app.log")"
+    echo "$RUN_DIR/$name.png"
+}
+
+cmd_doctor() {
+    load_state
+    local bad=0 pid age
+    ok() { printf '  ok   %s\n' "$*"; }
+    no() { printf '  FAIL %s\n' "$*"; bad=1; }
+    echo "run folder: $RUN_DIR"
+    if alive "$PHONE_PID"; then ok "sim-phone.py running (pid $PHONE_PID)"; else no "sim-phone.py is not running"; fi
+    if ss -Hltnp "sport = :18165" 2>/dev/null | grep -q "pid=$PHONE_PID,"; then ok "127.0.0.1:18165 belongs to this run's sim-phone.py"
+    else no "127.0.0.1:18165 is not served by this run's sim-phone.py"; fi
+    for name in xvfb simulator monkeydo; do
+        pid=$(cat "$CIQ/run/$name.pid" 2>/dev/null)
+        if alive "$pid"; then ok "$name running (pid $pid)"; else no "$name is not running"; fi
+    done
+    if grep -q '^UseHttpsRequirements=0' "$INI"; then ok "UseHttpsRequirements=0"; else no "UseHttpsRequirements is not 0: /nav polls fail with -1001"; fi
+    if [ "$(sed -n 's/^LastUsedDevice=//p' "$INI" | tr -d '\r')" = fr165 ]; then ok "device fr165"; else no "the simulator's device is not fr165"; fi
+    if [ "$REPO/dist/NavMap-sim.prg" -nt "$REPO/watch/source" ] && [ -z "$(find "$REPO/watch" -newer "$REPO/dist/NavMap-sim.prg" -type f)" ]; then
+        ok "dist/NavMap-sim.prg is newer than every file in watch/"
+    else no "watch/ changed since dist/NavMap-sim.prg was built: down, then up again"; fi
+    age=$(( $(date +%s) - $(stat -c %Y "$RUN_DIR/sim-phone.log") ))
+    echo "  info sim-phone.log last written ${age}s ago (it logs only changes, so quiet is normal mid-ride)"
+    echo "  info last phone line: $(tail -n1 "$RUN_DIR/sim-phone.log")"
+    echo "  info last watch line: $(tail -n1 "$CIQ/logs/app.log" 2>/dev/null)"
+    grep -E 'could not dismiss' "$CIQ/logs/dialogs.log" 2>/dev/null | tail -1 | sed 's/^/  warn /'
+    return $bad
+}
+
+cmd_down() {
+    if [ ! -f "$STATE" ]; then
+        echo "no run is active"
+        sim_up && echo "the simulator is still running, not started by navmap-verify: left alone"
+        return 0
+    fi
+    . "$STATE"
+    cp "$(readlink -f "$CIQ/logs/app.log")" "$RUN_DIR/watch-console.log" 2>/dev/null
+    awk -v t="$(head -c 19 "$RUN_DIR/journal.txt")" 'substr($0,1,19) >= t' "$CIQ/logs/dialogs.log" > "$RUN_DIR/dialogs.log" 2>/dev/null
+    "$CIQ/stop.sh" >> "$RUN_DIR/start.log" 2>&1
+    if alive "$PHONE_PID"; then kill -TERM -- "-$PHONE_PID" 2>/dev/null || kill -TERM "$PHONE_PID"; fi
+    note "down"
+    rm -f "$STATE"
+    # The Google Maps key must never sit in the evidence (sim-phone.py logs only its last 6 characters).
+    if grep -l -a -E 'AIza[0-9A-Za-z_-]{35}' "$RUN_DIR"/* 2>/dev/null; then
+        echo "navmap-verify: WARNING: the files above hold a Google Maps key. Delete or redact them before sharing." >&2
+    fi
+    echo "stopped. evidence: $RUN_DIR"
+    ls "$RUN_DIR"
+}
+
+cmd=${1:-}
+[ -n "$cmd" ] || { sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'; exit 2; }
+shift
+case $cmd in
+    up|doctor|gps|wait|phone|shot|down) "cmd_$cmd" "$@" ;;
+    *) die "unknown command $cmd (run with no arguments for usage)" ;;
+esac
