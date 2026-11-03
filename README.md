@@ -1,17 +1,18 @@
 # NavMap
 
-NavMap shows a map and the next turn on a **Garmin Forerunner 165** while **Google Maps** navigates on your **Android phone**.
+NavMap shows a map and the next turn on your **Garmin smartwatch** while **Google Maps** navigates on your **Android phone**.
 
 It's two small apps, NavMap on the watch and NavBridge on the phone, and one script sets up both.
 
+**Website & Guide:** [cube-vg.github.io/navmap-watch](https://cube-vg.github.io/navmap-watch/)  
 **Download phone app update:** [NavBridge.apk](https://github.com/Cube-VG/navmap-watch/releases/latest/download/NavBridge.apk) ([releases & checksums](https://github.com/Cube-VG/navmap-watch/releases/latest)). New here? Run the setup script on a computer (it also puts NavMap on the watch). If Android says the app was blocked, use the computer setup; do not turn off Play Protect.
 
 <img src="docs/navmap-on-wrist.jpg" alt="NavMap on a Forerunner 165 showing a right turn in 400 m, next to the same turn in Google Maps on the phone" width="480">
 
 ## What you need
 
-- A **Forerunner 165** or **Forerunner 165 Music**. NavMap doesn't run on other watches.
-- An **Android phone** (Android 8 or newer) with **Garmin Connect** and **Google Maps**, and the watch paired in Garmin Connect. iPhones can't run NavBridge.
+- A supported **Garmin AMOLED smartwatch**: **Forerunner 165 / 165 Music, 265 / 265s, 965, Venu 3 / 3s, or vívoactive 5**.
+- An **Android phone** (Android 8 or newer) with **Garmin Connect** and **Google Maps**, and the watch paired in Garmin Connect. **iPhones (iOS) cannot run NavBridge** due to Apple notification sandbox restrictions.
 - A **Windows, Mac or Linux computer**, the watch's charging cable and a USB cable for the phone.
 - A **Google account and a payment card**. Google wants a card on file before it gives you a Maps key, but one person's use normally stays inside the free allowance (see [What it costs](#what-it-costs)).
 

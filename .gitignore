@@ -11,6 +11,8 @@ android/local.properties
 *.jks
 *.keystore
 *.apk
+*.aab
+*.iq
 __pycache__/
 watch/perf.jungle
 watch/publish.jungle

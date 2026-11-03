@@ -29,10 +29,6 @@ const MAP_STYLE =
 const MAP_PALETTE = [0x9fb3c9, 0x3d4654];
 const MAP_GROUND = 0xf6f3ec;   // warm paper, drawn by the watch under the transparent land
 
-const SCREEN = 390;
-const HALF = 195;
-// Heading up, we're drawn below the centre, as in Google Maps, so more of the road ahead shows under the banner.
-const MARK_Y = HALF + 60;
 const ROUTE_BLUE = 0x1a73e8;   // Google Maps route blue, strong on a light map
 const ROUTE_EDGE = 0x0b4fb3;   // its darker edge, which keeps the line clear of the dark roads
 const RUN_START = -99999;      // marks the start of a run of points in drawRoute
@@ -126,6 +122,23 @@ class MapView extends WatchUi.View {
     private var _attrY as Number = 0;
     private var _attrW as Number = 0;
     private var _attrH as Number = 0;
+
+    // Screen geometry: scales dynamically with the watch display (360px on FR265s, 390px on FR165/Venu3s/Vivoactive5, 416px on FR265, 454px on FR965/Venu3).
+    private var SCREEN as Number = 390;
+    private var HALF as Number = 195;
+    private var MARK_Y as Number = 255;
+    private var ATTR_CY as Number = 352;
+
+    function onLayout(dc as Graphics.Dc) as Void {
+        updateDimensions(dc.getWidth(), dc.getHeight());
+    }
+
+    private function updateDimensions(w as Number, h as Number) as Void {
+        SCREEN = w;
+        HALF = w / 2;
+        MARK_Y = HALF + (w * 60 / 390);
+        ATTR_CY = w * 352 / 390;
+    }
 
     function initialize(model as NavModel) {
         View.initialize();
@@ -362,6 +375,9 @@ class MapView extends WatchUi.View {
     }
 
     function onUpdate(dc as Graphics.Dc) as Void {
+        if (dc.getWidth() != SCREEN) {
+            updateDimensions(dc.getWidth(), dc.getHeight());
+        }
         var t0 = perfStart();
         // Dimmed (always-on) screen: AMOLED burn-in rules allow only a few lit pixels, so no map.
         if (isLowPower()) {
@@ -404,14 +420,14 @@ class MapView extends WatchUi.View {
                 // The route line alone: say why there's no map, as the black screen did.
                 var err = _mapErr;
                 // Refused (403): a NavMap NavBridge doesn't know, such as one copied under another file name.
-                drawPill(dc, 160, Keys.mapsKey() == null ? (getApp().link.refused ? "Open NavBridge to pair" : "No map key yet")
+                drawPill(dc, SCREEN * 160 / 390, Keys.mapsKey() == null ? (getApp().link.refused ? "Open NavBridge to pair" : "No map key yet")
                     : err == null ? "Loading map" : "No map: error " + err, Graphics.FONT_XTINY);
             }
         } else {
             dc.setColor(Graphics.COLOR_BLACK, Graphics.COLOR_BLACK);
             dc.clear();
             dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
-            dc.drawText(HALF, HALF + 50, Graphics.FONT_SMALL, lat == null ? "Waiting for GPS" : Keys.mapsKey() == null ? "No map key yet" : "Loading map",
+            dc.drawText(HALF, HALF + (SCREEN * 50 / 390), Graphics.FONT_SMALL, lat == null ? "Waiting for GPS" : Keys.mapsKey() == null ? "No map key yet" : "Loading map",
                 Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
         }
         drawMarker(dc, onMap);
@@ -419,13 +435,13 @@ class MapView extends WatchUi.View {
         if (_m.navActive) {
             drawBanner(dc);
             if (_m.eta.length() > 0) {
-                drawPill(dc, 318, _m.eta, Graphics.FONT_TINY);
+                drawPill(dc, SCREEN * 318 / 390, _m.eta, Graphics.FONT_TINY);
             }
         } else if (_m.endAt != null) {
-            drawPill(dc, 70, _m.endText, Graphics.FONT_TINY);
+            drawPill(dc, SCREEN * 70 / 390, _m.endText, Graphics.FONT_TINY);
         } else {
             // Higher than the ETA: the screen is wider there, and "NavBridge not answering" is long.
-            drawPill(dc, 292, waitingText(), Graphics.FONT_XTINY);
+            drawPill(dc, SCREEN * 292 / 390, waitingText(), Graphics.FONT_XTINY);
         }
         creditsShow(dc);
         perfShow(dc, t0);
@@ -473,10 +489,11 @@ class MapView extends WatchUi.View {
         var top = 2 * _imgHalfH - ch;
         var srcX = 2 * _imgHalfW - cw;
         dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
+        var baseCreditY = ATTR_CY - 6;
         try {
             if (cw <= 260 || cs <= 0) {
                 var x = HALF - cw / 2;
-                var y = 346 - ch;
+                var y = baseCreditY - ch;
                 dc.fillRoundedRectangle(x - 6, y - 4, cw + 12, ch + 8, 6);
                 dc.setClip(x, y, cw, ch);
                 dc.drawBitmap(x - srcX, y - top, img);
@@ -486,8 +503,8 @@ class MapView extends WatchUi.View {
                 var maxW = w1 > w2 ? w1 : w2;
                 var x1 = HALF - w1 / 2;
                 var x2 = HALF - w2 / 2;
-                var y1 = 346 - 2 * ch - 4;
-                var y2 = 346 - ch;
+                var y1 = baseCreditY - 2 * ch - 4;
+                var y2 = baseCreditY - ch;
                 dc.fillRoundedRectangle(HALF - maxW / 2 - 6, y1 - 4, maxW + 12, 2 * ch + 12, 6);
                 dc.setClip(x1, y1, w1, ch);
                 dc.drawBitmap(x1 - srcX, y1 - top, img);
@@ -676,7 +693,7 @@ class MapView extends WatchUi.View {
         var w = dc.getTextWidthInPixels(text, font) + 20;
         var h = dc.getFontHeight(font);
         var x = HALF - w / 2;
-        var y = 352 - h / 2;
+        var y = ATTR_CY - h / 2;
         _attrX = x;
         _attrY = y;
         _attrW = w;
@@ -684,7 +701,7 @@ class MapView extends WatchUi.View {
         dc.setColor(MAP_GROUND, Graphics.COLOR_TRANSPARENT);
         dc.fillRoundedRectangle(x, y, w, h, h / 2);
         dc.setColor(0x5e5e5e, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(HALF, 352, font, text, Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
+        dc.drawText(HALF, ATTR_CY, font, text, Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
     }
 
     // The map picture's own credit strip fallback (if cw/ch not yet measured)
@@ -875,19 +892,20 @@ class MapView extends WatchUi.View {
         // Dark green, and route blue from "turn now" on, so a glance says this is the turn.
         var bg = _m.turnNow ? ROUTE_BLUE : 0x0b3d2e;
         dc.setColor(bg, bg);
-        dc.fillRectangle(0, 0, SCREEN, 128);
+        var bh = SCREEN * 128 / 390;
+        dc.fillRectangle(0, 0, SCREEN, bh);
         // Google's own maneuver arrow (48x48 bitmap) drawn at 1.5x.
         dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
-        drawArrow(dc, 84, 26);
-        drawDistance(dc, 166, 58, Graphics.TEXT_JUSTIFY_LEFT);
+        drawArrow(dc, SCREEN * 84 / 390, SCREEN * 26 / 390);
+        drawDistance(dc, SCREEN * 166 / 390, SCREEN * 58 / 390, Graphics.TEXT_JUSTIFY_LEFT);
         var instr = _m.instr;
         if (instr.length() > 0) {
             if (!instr.equals(_instrFor)) {
                 _instrFor = instr;
-                var fit = Graphics.fitTextToArea(instr, Graphics.FONT_XTINY, 300, 30, true);
+                var fit = Graphics.fitTextToArea(instr, Graphics.FONT_XTINY, SCREEN * 300 / 390, 30, true);
                 _instrFit = fit != null ? fit : instr;
             }
-            dc.drawText(HALF, 110, Graphics.FONT_XTINY, _instrFit, Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
+            dc.drawText(HALF, SCREEN * 110 / 390, Graphics.FONT_XTINY, _instrFit, Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
         }
     }
 
@@ -940,23 +958,25 @@ class MapView extends WatchUi.View {
     // and a lower spot every minute.
     private function drawLowPower(dc as Graphics.Dc) as Void {
         var t = System.getClockTime();
-        var y = t.min % 2 == 0 ? 62 : 206;
+        var y = t.min % 2 == 0 ? (SCREEN * 62 / 390) : (SCREEN * 206 / 390);
         dc.setColor(Graphics.COLOR_LT_GRAY, Graphics.COLOR_TRANSPARENT);
         if (_m.navActive) {
-            drawArrow(dc, HALF - 36, y);
-            drawDistance(dc, HALF, y + 96, Graphics.TEXT_JUSTIFY_CENTER);
+            drawArrow(dc, HALF - (SCREEN * 36 / 390), y);
+            drawDistance(dc, HALF, y + (SCREEN * 96 / 390), Graphics.TEXT_JUSTIFY_CENTER);
         } else {
-            dc.drawText(HALF, y + 50, Graphics.FONT_NUMBER_MILD, t.hour.format("%02d") + ":" + t.min.format("%02d"),
+            dc.drawText(HALF, y + (SCREEN * 50 / 390), Graphics.FONT_NUMBER_MILD, t.hour.format("%02d") + ":" + t.min.format("%02d"),
                 Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
-            dc.drawText(HALF, y + 96, Graphics.FONT_XTINY, _m.endAt != null ? _m.endText : "NavMap",
+            dc.drawText(HALF, y + (SCREEN * 96 / 390), Graphics.FONT_XTINY, _m.endAt != null ? _m.endText : "NavMap",
                 Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
         }
     }
 
     private function drawPill(dc as Graphics.Dc, y as Number, text as String, font as Graphics.FontDefinition) as Void {
         var w = dc.getTextWidthInPixels(text, font) + 24;
+        var ph = SCREEN * 34 / 390;
+        var pr = ph / 2;
         dc.setColor(Graphics.COLOR_BLACK, Graphics.COLOR_TRANSPARENT);
-        dc.fillRoundedRectangle(HALF - w / 2, y - 17, w, 34, 17);
+        dc.fillRoundedRectangle(HALF - w / 2, y - pr, w, ph, pr);
         dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
         dc.drawText(HALF, y, font, text, Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
     }
