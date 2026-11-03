@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Builds the NavMap watch app. Usage: tools/build-watch.sh [device] [--sim] [--perf] [--publish]   (default fr165)
+# Builds the NavMap watch app. Usage: tools/build-watch.sh [device] [--sim] [--perf] [--publish] [--package]   (default fr165)
 # --sim writes dist/NavMap-sim.prg for the Connect IQ simulator. It receives phone messages but never
 # transmits, because the simulator segfaults on any transmit (Garmin bug CIQQA-4579).
 # --perf adds -perf to the name and shows frame times on the watch (map, route line, whole frame, frames a second).
-# --publish is the build for Garmin Connect: it keeps the map's credit strip (Google's logo and data credit,
-# with the first map and on START), which every other build leaves out. "Google Maps" under the map is in all.
+# --publish is the build for Garmin Connect: it uses the "Google Maps" label (storeOff left out).
+# --package builds a .iq application package for Garmin Connect IQ Store export instead of a single-device .prg.
 # Nothing secret goes in: the watch makes its own pairing token and gets the Google Maps key from NavBridge
 # (watch/source/Keys.mc), so the same .prg works for everyone and can be published.
 set -euo pipefail
@@ -14,11 +14,13 @@ JUNGLE="$ROOT/watch/monkey.jungle"
 NAME=NavMap
 PERF=0
 PUBLISH=0
+PACKAGE=0
 for arg in "$@"; do
     case "$arg" in
         --sim) JUNGLE="$ROOT/watch/sim.jungle"; NAME="$NAME-sim" ;;
         --perf) PERF=1 ;;
         --publish) PUBLISH=1 ;;
+        --package) PACKAGE=1 ;;
         *) DEVICE="$arg" ;;
     esac
 done
@@ -34,7 +36,6 @@ if [ "$PUBLISH" = 1 ]; then
     JUNGLE="$ROOT/watch/publish.jungle"
     NAME="$NAME-publish"
 fi
-OUT="$ROOT/dist/$NAME.prg"
 KEY_DER="$HOME/.config/navmap/developer_key.der"
 export JAVA_HOME="${JAVA_HOME:-$(ls -d "$HOME"/opt/jdk-17* | head -1)}"
 export PATH="$JAVA_HOME/bin:$PATH"
@@ -47,5 +48,12 @@ rm -f "$ROOT/watch/source/Secrets.mc"
 mkdir -p "$ROOT/dist"
 # -r (release): leaves out the debug information, which was four fifths of the .prg (124 KB -> 24 KB).
 # -O 3p: the compiler's slowest, most thorough optimisations, for speed rather than size.
-"$SDK_BIN/monkeyc" -f "$JUNGLE" -d "$DEVICE" -y "$KEY_DER" -l 2 -w -r -O 3p -o "$OUT"
-echo "Built $OUT for $DEVICE"
+if [ "$PACKAGE" = 1 ]; then
+    OUT="$ROOT/dist/$NAME.iq"
+    "$SDK_BIN/monkeyc" -f "$JUNGLE" -e -y "$KEY_DER" -l 2 -w -r -O 3p -o "$OUT"
+    echo "Built store package $OUT"
+else
+    OUT="$ROOT/dist/$NAME.prg"
+    "$SDK_BIN/monkeyc" -f "$JUNGLE" -d "$DEVICE" -y "$KEY_DER" -l 2 -w -r -O 3p -o "$OUT"
+    echo "Built $OUT for $DEVICE"
+fi
