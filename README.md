@@ -13,7 +13,12 @@ It's two small apps, NavMap on the watch and NavBridge on the phone, and one scr
 
 ## What you need
 
-- A supported **Garmin AMOLED smartwatch**: **Forerunner 165 / 165 Music, 265 / 265s, 965, Venu 3 / 3s, or vívoactive 5**.
+- A supported **Garmin circular AMOLED smartwatch** (19 models supported across 31 hardware variations):
+  - **Forerunner**: 165, 165 Music, 265, 265s, 965
+  - **Fenix & Epix**: Fenix 8 AMOLED (43mm, 47mm), Epix Gen 2, Epix Pro (42mm, 47mm, 51mm)
+  - **Venu & vívoactive**: Venu 2, Venu 2 Plus, Venu 2s, Venu 3, Venu 3s, vívoactive 5
+  - **Specialty & Aviation**: MARQ Gen 2, D2 Mach 1
+  *(Note: Memory-in-Pixel [MIP] models such as Fenix 7, FR 255/955, and Instinct are not compatible due to their 64-color palette limitation. NavMap requires Connect IQ 5.0+ and an AMOLED high-contrast circular display).*
 - An **Android phone** (Android 8 or newer) with **Garmin Connect** and **Google Maps**, and the watch paired in Garmin Connect. **iPhones (iOS) cannot run NavBridge** due to Apple notification sandbox restrictions.
 - A **Windows, Mac or Linux computer**, the watch's charging cable and a USB cable for the phone.
 - A **Google account and a payment card**. Google wants a card on file before it gives you a Maps key, but one person's use normally stays inside the free allowance (see [What it costs](#what-it-costs)).

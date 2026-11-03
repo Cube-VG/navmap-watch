@@ -2,11 +2,22 @@
 <iq:manifest xmlns:iq="http://www.garmin.com/xml/connectiq" version="3">
     <iq:application id="ab20da3b6a6544eb8cf6feede0824f3f" type="watch-app" name="@Strings.AppName" entry="NavMapApp" launcherIcon="@Drawables.LauncherIcon" minApiLevel="5.0.0">
         <iq:products>
+            <iq:product id="d2mach1"/>
+            <iq:product id="epix2"/>
+            <iq:product id="epix2pro42mm"/>
+            <iq:product id="epix2pro47mm"/>
+            <iq:product id="epix2pro51mm"/>
+            <iq:product id="fenix843mm"/>
+            <iq:product id="fenix847mm"/>
             <iq:product id="fr165"/>
             <iq:product id="fr165m"/>
             <iq:product id="fr265"/>
             <iq:product id="fr265s"/>
             <iq:product id="fr965"/>
+            <iq:product id="marq2"/>
+            <iq:product id="venu2"/>
+            <iq:product id="venu2plus"/>
+            <iq:product id="venu2s"/>
             <iq:product id="venu3"/>
             <iq:product id="venu3s"/>
             <iq:product id="vivoactive5"/>

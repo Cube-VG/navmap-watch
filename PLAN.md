@@ -217,10 +217,13 @@ This builds on the change that isn't committed yet. Install the two updates toge
 - Test with Play licence testers, and declare the payment on the Garmin listing.
 
 ### Step 7. Later
-- **More watches.** The layout is fixed to 390×390 (`SCREEN`, `HALF`, `MARK_Y` and the pixel positions in `MapView.mc`) and should become relative to the screen size. Order:
-  1. AMOLED, API 5.2: FR265/965, Venu 3, vívoactive 5.
-  2. API 6.0: FR570/970, fēnix 8, Venu 4.
-  3. MIP screens (FR255/955, fēnix 7), which need a 64-colour palette.
+- **More watches.** COMPLETED (2026-11-03): Circular AMOLED layout is dynamically responsive across 360×360 to 454×454 displays (`SCREEN`, `HALF`, `MARK_Y`, `ATTR_CY`). 19 flagship AMOLED devices (31 hardware variations) are fully enabled in `manifest.xml` and package built in `dist/NavMap-publish.iq` (737 KB):
+  - Forerunner 165, 165 Music, 265, 265s, 965.
+  - Fenix 8 AMOLED (43mm, 47mm).
+  - Epix (Gen 2), Epix Pro (42mm, 47mm, 51mm).
+  - Venu 2, Venu 2 Plus, Venu 2s, Venu 3, Venu 3s, vívoactive 5.
+  - MARQ Gen 2, D2 Mach 1.
+  *(Future: MIP screens like FR255/955, fēnix 7, Instinct, which need 64-color palette quantization).*
 - **Fewer map pictures per hour:** re-fetch less often and zoom out at speed. Measure with `tools/build-watch.sh --perf` logging.
 - **Optional managed subscription:** a small server that signs Static Maps URLs (with the unsigned quota set to 0), calls the Routes API itself and limits use per subscriber.
   - It must return signed URLs, not pass the images through.
