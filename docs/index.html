@@ -3,58 +3,91 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NavMap & NavBridge — Google Maps Navigation for Garmin Watches</title>
+    <title>NavMap & NavBridge — Google Maps Navigation on Garmin Smartwatches</title>
     <meta name="description" content="Turn-by-turn Google Maps navigation, live AMOLED vector map tiles, and route lines on Garmin smartwatches powered by NavBridge for Android.">
     
-    <!-- Modern Typography: Plus Jakarta Sans & JetBrains Mono -->
+    <!-- Typography Substitutes for Labil Grotesk (from DESIGN.md): DM Sans & Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,700;0,9..40,900;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     
     <style>
         /* ==========================================================================
-           Liquid Glass & Editorial Design System (Inspired by Glisse & DESIGN.md)
+           Exact Design Tokens from DESIGN.md (Amplemarket Style Reference)
            ========================================================================== */
         :root {
-            /* Palette: Deep Obsidian, Phoenix Orange, Route Blue, Emerald */
-            --bg-deep: #07090e;
-            --bg-canvas: #0b0e14;
-            
-            /* Liquid Glass Tokens */
-            --lg-glass: rgba(255, 255, 255, 0.035);
-            --lg-glass-elevated: rgba(255, 255, 255, 0.065);
-            --lg-glass-active: rgba(255, 255, 255, 0.12);
-            --lg-border: rgba(255, 255, 255, 0.08);
-            --lg-border-bright: rgba(255, 255, 255, 0.18);
-            --lg-rim: inset 0 1px 1px 0 rgba(255, 255, 255, 0.35), inset 0 0 0 0.5px rgba(255, 255, 255, 0.12);
-            --lg-blur: 24px;
-            --lg-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.65), 0 0 1px 1px rgba(255, 255, 255, 0.05);
-
-            /* Brand Accents */
-            --phoenix-orange: #ff5722;
-            --phoenix-glow: rgba(255, 87, 34, 0.28);
-            --route-blue: #1a73e8;
-            --route-blue-glow: rgba(26, 115, 232, 0.35);
-            --emerald: #10b981;
-            --emerald-glow: rgba(16, 185, 129, 0.25);
-            --violet: #8b5cf6;
-            --amber: #f59e0b;
+            /* Colors */
+            --color-phoenix-orange: #e8400d;
+            --gradient-phoenix-orange: radial-gradient(386.06% 162.79% at 3.76985% -12.1005%, rgb(232, 64, 13) 0%, rgb(255, 238, 216) 31.14%, rgb(208, 178, 255) 81.98%);
+            --color-midnight-indigo: #10054d;
+            --color-charcoal: #272625;
+            --color-ink: #111111;
+            --color-canvas-white: #ffffff;
+            --color-cream-wash: #f6f5f3;
+            --color-ash: #6d6c6b;
+            --color-stone: #b1b1af;
+            --color-pearl: #ecebea;
+            --color-petal-pink: #ffd7f0;
+            --color-mint-green: #b7efb2;
+            --color-canary-yellow: #ffef99;
+            --color-soft-violet: #e2ddfd;
+            --color-aqua: #99fff9;
+            --color-indigo-deep: #2e2460;
 
             /* Typography */
-            --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            --font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             --font-mono: 'JetBrains Mono', monospace;
-            --text-primary: #f8fafc;
-            --text-secondary: #94a3b8;
-            --text-muted: #64748b;
-            
-            /* Radii */
-            --radius-pill: 9999px;
-            --radius-card: 20px;
-            --radius-inner: 14px;
-            --radius-sm: 10px;
 
-            /* Springs */
-            --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+            /* Type Scale (Strictly from DESIGN.md) */
+            --text-eyebrow: 10px;
+            --leading-eyebrow: 1;
+            --tracking-eyebrow: 0.3px;
+
+            --text-caption: 12px;
+            --leading-caption: 1;
+
+            --text-body-sm: 14px;
+            --leading-body-sm: 1.3;
+
+            --text-body: 16px;
+            --leading-body: 1.4;
+
+            --text-body-lg: 20px;
+            --leading-body-lg: 1.3;
+            --tracking-body-lg: -0.4px;
+
+            --text-subheading: 28px;
+            --leading-subheading: 1.1;
+            --tracking-subheading: -0.476px;
+
+            --text-heading-sm: 36px;
+            --leading-heading-sm: 1.1;
+            --tracking-heading-sm: -1.08px;
+
+            --text-heading: 44px;
+            --leading-heading: 1.1;
+            --tracking-heading: -1.76px;
+
+            --text-heading-lg: 56px;
+            --leading-heading-lg: 1.0;
+            --tracking-heading-lg: -2.8px;
+
+            --text-display: clamp(48px, 7vw, 84px);
+            --leading-display: 0.88;
+            --tracking-display: -2.52px;
+
+            /* Radii (DESIGN.md: 8px on buttons, 12px on cards) */
+            --radius-cards: 12px;
+            --radius-buttons: 8px;
+            --radius-badges: 9999px;
+            --radius-inputs: 12px;
+
+            /* Shadows from DESIGN.md */
+            --shadow-subtle: rgba(17, 17, 17, 0.05) 0px 0px 0px 1px inset;
+            --shadow-sm: rgba(17, 17, 17, 0.02) 0px -6px 6px 0px, rgba(17, 17, 17, 0.01) 0px -23px 9px 0px;
+            --shadow-xl: rgba(17, 17, 17, 0.12) 0px 26px 60px -6px, rgba(17, 17, 17, 0.02) 0px 28px 28px -14px, rgba(17, 17, 17, 0.04) 0px 6px 6px -3px, rgba(17, 17, 17, 0.04) 0px 1px 1px -0.5px;
+            
+            --page-max-width: 1200px;
         }
 
         * {
@@ -64,920 +97,584 @@
         }
 
         body {
-            background-color: var(--bg-deep);
-            color: var(--text-primary);
-            font-family: var(--font-sans);
-            line-height: 1.6;
+            background-color: var(--color-canvas-white);
+            color: var(--color-ink);
+            font-family: var(--font-family);
+            line-height: var(--leading-body);
             -webkit-font-smoothing: antialiased;
             overflow-x: hidden;
-            position: relative;
-            min-height: 100vh;
-        }
-
-        /* --------------------------------------------------------------------------
-           Dynamic Liquid Mesh Background
-           -------------------------------------------------------------------------- */
-        .ambient-mesh {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 100vh;
-            pointer-events: none;
-            z-index: 0;
-            overflow: hidden;
-        }
-
-        .mesh-orb {
-            position: absolute;
-            border-radius: 50%;
-            filter: blur(100px);
-            opacity: 0.35;
-            transition: transform 1.2s var(--ease-spring);
-            will-change: transform;
-        }
-
-        .orb-1 {
-            width: 700px;
-            height: 700px;
-            top: -250px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: radial-gradient(circle, var(--route-blue) 0%, rgba(139, 92, 246, 0.5) 45%, transparent 75%);
-        }
-
-        .orb-2 {
-            width: 500px;
-            height: 500px;
-            top: 250px;
-            left: -150px;
-            background: radial-gradient(circle, var(--phoenix-orange) 0%, rgba(245, 158, 11, 0.3) 50%, transparent 80%);
-            opacity: 0.22;
-        }
-
-        .orb-3 {
-            width: 550px;
-            height: 550px;
-            top: 450px;
-            right: -150px;
-            background: radial-gradient(circle, var(--emerald) 0%, rgba(26, 115, 232, 0.35) 50%, transparent 80%);
-            opacity: 0.22;
         }
 
         .container {
             width: 100%;
-            max-width: 1200px;
+            max-width: var(--page-max-width);
             margin: 0 auto;
             padding: 0 24px;
-            position: relative;
-            z-index: 1;
         }
 
         /* --------------------------------------------------------------------------
-           Apple Liquid Glass Utility Classes
+           Sticky Navigation Bar (DESIGN.md: Transparent to frosted white on scroll)
            -------------------------------------------------------------------------- */
-        .liquid-glass {
-            background: var(--lg-glass);
-            backdrop-filter: blur(var(--lg-blur)) saturate(180%);
-            -webkit-backdrop-filter: blur(var(--lg-blur)) saturate(180%);
-            border: 1px solid var(--lg-border);
-            box-shadow: var(--lg-rim), var(--lg-shadow);
-            position: relative;
-            overflow: hidden;
-            transition: all 0.3s var(--ease-spring);
-        }
-
-        .liquid-glass::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: radial-gradient(circle 300px at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(255, 255, 255, 0.08), transparent 70%);
-            pointer-events: none;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            border-radius: inherit;
-        }
-
-        .liquid-glass:hover::before {
-            opacity: 1;
-        }
-
-        .liquid-glass:hover {
-            border-color: var(--lg-border-bright);
-            box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.45), var(--lg-shadow);
-            transform: translateY(-2px);
-        }
-
-        /* --------------------------------------------------------------------------
-           Navigation Bar (Floating Liquid Capsule)
-           -------------------------------------------------------------------------- */
-        .nav-wrapper {
+        .site-header {
             position: sticky;
-            top: 16px;
+            top: 0;
             z-index: 1000;
-            padding: 0 16px;
-            margin-bottom: 24px;
+            background: rgba(255, 255, 255, 0.88);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border-bottom: 1px solid rgba(17, 17, 17, 0.06);
+            height: 64px;
+            display: flex;
+            align-items: center;
         }
 
-        .nav-capsule {
-            max-width: 980px;
-            margin: 0 auto;
-            padding: 8px 14px;
-            border-radius: var(--radius-pill);
+        .nav-inner {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            background: rgba(11, 14, 20, 0.72);
-            backdrop-filter: blur(28px) saturate(200%);
-            -webkit-backdrop-filter: blur(28px) saturate(200%);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.3), 0 16px 36px -10px rgba(0, 0, 0, 0.6);
+            width: 100%;
         }
 
         .brand-lockup {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
             text-decoration: none;
-            color: var(--text-primary);
+            color: var(--color-ink);
         }
 
-        .brand-icon {
-            width: 34px;
-            height: 34px;
-            border-radius: 10px;
-            background: linear-gradient(135deg, var(--route-blue), var(--emerald));
+        .brand-pill {
+            background: var(--color-ink);
+            color: var(--color-canvas-white);
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 4px 14px var(--route-blue-glow);
             font-weight: 900;
-            font-size: 0.95rem;
-            color: #fff;
+            font-size: 13px;
+            letter-spacing: -0.02em;
+        }
+
+        .brand-name {
+            font-weight: 700;
+            font-size: 18px;
             letter-spacing: -0.03em;
         }
 
-        .brand-title {
-            font-weight: 800;
-            font-size: 1.15rem;
-            letter-spacing: -0.03em;
-        }
-
-        .nav-menu {
+        .nav-links {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 28px;
             list-style: none;
         }
 
         .nav-link {
-            padding: 8px 14px;
-            border-radius: var(--radius-pill);
-            color: var(--text-secondary);
+            color: var(--color-ash);
             text-decoration: none;
-            font-size: 0.88rem;
-            font-weight: 500;
-            transition: all 0.2s ease;
+            font-size: var(--text-body-sm);
+            font-weight: 400;
+            transition: color 0.15s ease;
         }
 
         .nav-link:hover {
-            color: var(--text-primary);
-            background: rgba(255, 255, 255, 0.06);
+            color: var(--color-ink);
         }
 
-        .nav-actions {
+        .nav-cluster {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
         }
 
-        .btn-glass-sm {
-            padding: 8px 16px;
-            border-radius: var(--radius-pill);
-            font-size: 0.85rem;
-            font-weight: 600;
+        /* DESIGN.md Button Styles */
+        .btn-ghost {
+            background: transparent;
+            color: var(--color-ink);
+            border: none;
+            border-radius: var(--radius-buttons);
+            padding: 10px 16px;
+            font-family: inherit;
+            font-size: var(--text-body-sm);
+            font-weight: 400;
             text-decoration: none;
-            color: var(--text-primary);
-            background: rgba(255, 255, 255, 0.08);
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+            cursor: pointer;
+            transition: background 0.15s ease;
+        }
+
+        .btn-ghost:hover {
+            background: var(--color-pearl);
+        }
+
+        .btn-primary {
+            background: var(--color-ink);
+            color: var(--color-canvas-white);
+            border: none;
+            border-radius: var(--radius-buttons);
+            padding: 12px 18px;
+            font-family: inherit;
+            font-size: var(--text-body-sm);
+            font-weight: 400;
+            text-decoration: none;
             display: inline-flex;
             align-items: center;
-            gap: 6px;
-            transition: all 0.2s var(--ease-spring);
+            gap: 8px;
+            cursor: pointer;
+            transition: opacity 0.2s ease, transform 0.15s ease;
         }
 
-        .btn-glass-sm:hover {
-            background: rgba(255, 255, 255, 0.14);
-            border-color: rgba(255, 255, 255, 0.25);
-            transform: scale(1.02);
+        .btn-primary:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
         }
 
-        .btn-primary-sm {
-            padding: 8px 18px;
-            border-radius: var(--radius-pill);
-            font-size: 0.85rem;
-            font-weight: 700;
+        .btn-pearl {
+            background: var(--color-pearl);
+            color: var(--color-ink);
+            border: none;
+            border-radius: var(--radius-buttons);
+            padding: 12px 18px;
+            font-family: inherit;
+            font-size: var(--text-body-sm);
+            font-weight: 400;
             text-decoration: none;
-            color: #fff;
-            background: linear-gradient(135deg, var(--route-blue), #2563eb);
-            box-shadow: 0 4px 16px var(--route-blue-glow), inset 0 1px 0 rgba(255, 255, 255, 0.4);
             display: inline-flex;
             align-items: center;
-            gap: 6px;
-            transition: all 0.2s var(--ease-spring);
+            gap: 8px;
+            cursor: pointer;
+            transition: background 0.15s ease;
         }
 
-        .btn-primary-sm:hover {
-            box-shadow: 0 6px 22px var(--route-blue-glow);
-            transform: scale(1.03);
+        .btn-pearl:hover {
+            background: #e2e1df;
         }
 
         /* --------------------------------------------------------------------------
-           Hero Section
+           Hero Section: Radial wash from Phoenix Orange -> Cream -> Violet
            -------------------------------------------------------------------------- */
-        .hero {
-            padding: 60px 0 80px;
+        .hero-section {
+            background: var(--gradient-phoenix-orange);
+            padding: 96px 0 80px;
             text-align: center;
             position: relative;
+            border-bottom: 1px solid rgba(17, 17, 17, 0.06);
         }
 
-        .hero-pill {
+        .eyebrow-badge {
             display: inline-flex;
             align-items: center;
-            gap: 10px;
-            padding: 6px 16px;
-            border-radius: var(--radius-pill);
-            background: rgba(255, 255, 255, 0.04);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.25);
-            font-size: 0.82rem;
-            font-weight: 600;
-            color: var(--text-secondary);
+            gap: 8px;
+            background: var(--color-canvas-white);
+            color: var(--color-ink);
+            border-radius: var(--radius-badges);
+            padding: 6px 14px;
+            font-size: var(--text-eyebrow);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: var(--tracking-eyebrow);
+            box-shadow: var(--shadow-subtle);
             margin-bottom: 28px;
         }
 
-        .live-dot {
-            width: 8px;
-            height: 8px;
+        .eyebrow-dot {
+            width: 6px;
+            height: 6px;
             border-radius: 50%;
-            background: var(--emerald);
-            box-shadow: 0 0 10px var(--emerald);
-            animation: pulse 2s infinite ease-in-out;
+            background: var(--color-phoenix-orange);
         }
 
-        @keyframes pulse {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.5; transform: scale(0.85); }
-        }
-
-        .hero h1 {
-            font-size: clamp(2.5rem, 6vw, 4.8rem);
+        /* Poster headline: 84px, weight 900, uppercase, negative tracking */
+        .hero-display-headline {
+            font-size: var(--text-display);
             font-weight: 900;
-            line-height: 1.05;
-            letter-spacing: -0.045em;
-            margin-bottom: 24px;
-            background: linear-gradient(180deg, #ffffff 40%, #94a3b8 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .hero h1 span.gradient-highlight {
-            background: linear-gradient(135deg, #60a5fa 0%, #38bdf8 50%, var(--emerald) 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .hero-lead {
-            font-size: clamp(1.1rem, 2.2vw, 1.35rem);
-            color: var(--text-secondary);
-            max-width: 720px;
-            margin: 0 auto 36px;
-            font-weight: 400;
-            line-height: 1.55;
-            letter-spacing: -0.015em;
-        }
-
-        /* Liquid Platform Warning Pill */
-        .ios-callout {
-            max-width: 680px;
-            margin: 0 auto 40px;
-            padding: 14px 20px;
-            border-radius: var(--radius-inner);
-            background: rgba(245, 158, 11, 0.08);
-            border: 1px solid rgba(245, 158, 11, 0.25);
-            box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.2), 0 8px 24px rgba(0, 0, 0, 0.3);
-            display: flex;
-            align-items: flex-start;
-            gap: 14px;
-            text-align: left;
-            font-size: 0.88rem;
-            color: #fef08a;
-        }
-
-        .ios-callout strong {
-            color: #fff;
-        }
-
-        .ios-badge {
-            background: rgba(245, 158, 11, 0.2);
-            color: #fde047;
-            padding: 2px 8px;
-            border-radius: 6px;
-            font-weight: 700;
-            font-size: 0.75rem;
+            line-height: var(--leading-display);
+            letter-spacing: var(--tracking-display);
             text-transform: uppercase;
-            letter-spacing: 0.04em;
-            display: inline-block;
-            margin-right: 4px;
+            color: var(--color-ink);
+            max-width: 980px;
+            margin: 0 auto 28px;
         }
 
-        /* Hero Primary Actions */
-        .hero-cta {
+        /* Calmer subtitle: weight 400 */
+        .hero-subtext {
+            font-size: var(--text-body-lg);
+            font-weight: 400;
+            line-height: var(--leading-body-lg);
+            letter-spacing: var(--tracking-body-lg);
+            color: var(--color-ink);
+            max-width: 680px;
+            margin: 0 auto 36px;
+        }
+
+        /* Platform Notice (Android Companion Required) */
+        .platform-callout-pill {
+            max-width: 640px;
+            margin: 0 auto 36px;
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid rgba(17, 17, 17, 0.08);
+            border-radius: var(--radius-cards);
+            padding: 12px 18px;
             display: flex;
             align-items: center;
-            justify-content: center;
-            gap: 16px;
-            flex-wrap: wrap;
-            margin-bottom: 64px;
+            gap: 12px;
+            font-size: var(--text-body-sm);
+            text-align: left;
+            box-shadow: var(--shadow-sm);
         }
 
-        .btn-liquid-primary {
-            display: inline-flex;
-            align-items: center;
-            gap: 12px;
-            padding: 16px 32px;
-            border-radius: var(--radius-pill);
-            background: linear-gradient(135deg, var(--route-blue), #2563eb);
-            color: #fff;
-            text-decoration: none;
+        .platform-callout-pill strong {
+            color: var(--color-phoenix-orange);
             font-weight: 700;
-            font-size: 1.05rem;
-            letter-spacing: -0.01em;
-            box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.45), 0 10px 30px var(--route-blue-glow);
-            transition: all 0.3s var(--ease-spring);
         }
 
-        .btn-liquid-primary:hover {
-            transform: translateY(-3px) scale(1.02);
-            box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.6), 0 16px 40px var(--route-blue-glow);
+        /* Email Capture Input joined inline with Primary Filled Button */
+        .hero-actions-container {
+            max-width: 540px;
+            margin: 0 auto 64px;
+            display: flex;
+            gap: 8px;
+            background: var(--color-canvas-white);
+            border: 1px solid rgba(17, 17, 17, 0.12);
+            border-radius: var(--radius-inputs);
+            padding: 6px;
+            box-shadow: var(--shadow-xl);
         }
 
-        .btn-liquid-secondary {
-            display: inline-flex;
+        .hero-direct-dl {
+            flex: 1;
+            display: flex;
             align-items: center;
-            gap: 12px;
-            padding: 16px 30px;
-            border-radius: var(--radius-pill);
-            background: var(--lg-glass);
-            backdrop-filter: blur(var(--lg-blur));
-            -webkit-backdrop-filter: blur(var(--lg-blur));
-            border: 1px solid var(--lg-border);
-            box-shadow: var(--lg-rim);
-            color: var(--text-primary);
-            text-decoration: none;
-            font-weight: 600;
-            font-size: 1.05rem;
-            transition: all 0.3s var(--ease-spring);
+            padding: 0 16px;
+            color: var(--color-ash);
+            font-size: var(--text-body-sm);
         }
 
-        .btn-liquid-secondary:hover {
-            background: var(--lg-glass-elevated);
-            border-color: var(--lg-border-bright);
-            transform: translateY(-3px) scale(1.02);
-        }
-
-        /* --------------------------------------------------------------------------
-           Hero Device Showcase Frame
-           -------------------------------------------------------------------------- */
-        .showcase-stage {
-            position: relative;
-            max-width: 780px;
+        /* Hero Media Container (DESIGN.md: black container, 12px radius) */
+        .hero-media-wrapper {
+            max-width: 840px;
             margin: 0 auto;
         }
 
-        .stage-aura {
-            position: absolute;
-            inset: -20px;
-            background: radial-gradient(circle at 50% 50%, rgba(26, 115, 232, 0.35) 0%, rgba(16, 185, 129, 0.15) 50%, transparent 75%);
-            filter: blur(48px);
-            z-index: 0;
-            border-radius: 40px;
-        }
-
-        .glass-device-card {
-            position: relative;
-            z-index: 1;
-            padding: 16px;
-            border-radius: 32px;
-            background: rgba(18, 23, 33, 0.7);
-            border: 1px solid rgba(255, 255, 255, 0.14);
-            box-shadow: inset 0 2px 3px rgba(255, 255, 255, 0.3), 0 30px 60px -15px rgba(0, 0, 0, 0.8);
-            backdrop-filter: blur(32px);
-            -webkit-backdrop-filter: blur(32px);
-        }
-
-        .device-image-container {
-            border-radius: 22px;
+        .hero-media-container {
+            background: #000000;
+            border-radius: var(--radius-cards);
             overflow: hidden;
+            border: 1px solid rgba(17, 17, 17, 0.15);
+            box-shadow: var(--shadow-xl);
             position: relative;
-            background: #000;
         }
 
-        .device-image-container img {
+        .hero-media-container img {
             width: 100%;
             height: auto;
             display: block;
-            transition: transform 0.6s var(--ease-spring);
         }
 
-        .glass-device-card:hover .device-image-container img {
-            transform: scale(1.015);
-        }
-
-        .device-caption-bar {
-            margin-top: 14px;
-            padding: 8px 16px;
+        .media-caption-bar {
+            background: var(--color-charcoal);
+            color: #ffffff;
+            padding: 12px 20px;
+            font-size: var(--text-caption);
             display: flex;
-            align-items: center;
             justify-content: space-between;
-            font-size: 0.85rem;
-            color: var(--text-secondary);
-        }
-
-        .device-badge-active {
-            display: inline-flex;
             align-items: center;
-            gap: 6px;
-            background: rgba(16, 185, 129, 0.12);
-            color: #34d399;
-            padding: 4px 10px;
-            border-radius: var(--radius-pill);
-            font-weight: 600;
-            font-size: 0.78rem;
         }
 
         /* --------------------------------------------------------------------------
-           Interactive Segmented Control (Apple-style from Glisse)
+           Pastel Taxonomy System Section (Feature Pillars)
+           Strict rule: Flat color fills, no shadow, no border, 12px radius, weight 400
            -------------------------------------------------------------------------- */
-        .section-lead-block {
+        .section-taxonomy {
+            padding: 100px 0;
+            background: var(--color-canvas-white);
+        }
+
+        .section-header-calm {
+            max-width: 720px;
+            margin: 0 auto 56px;
             text-align: center;
-            max-width: 700px;
-            margin: 100px auto 40px;
         }
 
-        .eyebrow-tag {
-            font-size: 0.82rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            color: var(--route-blue);
-            margin-bottom: 12px;
-        }
-
-        .section-lead-block h2 {
-            font-size: clamp(2rem, 4vw, 3rem);
-            font-weight: 800;
-            letter-spacing: -0.035em;
-            line-height: 1.15;
+        /* Large headings at weight 400 with negative tracking */
+        .heading-calm {
+            font-size: var(--text-heading-lg);
+            font-weight: 400;
+            line-height: var(--leading-heading-lg);
+            letter-spacing: var(--tracking-heading-lg);
+            color: var(--color-ink);
             margin-bottom: 16px;
         }
 
-        .section-lead-block p {
-            color: var(--text-secondary);
-            font-size: 1.05rem;
+        .subtitle-calm {
+            font-size: var(--text-body);
+            color: var(--color-ash);
+            line-height: 1.5;
         }
 
-        .segmented-track {
-            display: inline-flex;
-            padding: 6px;
-            border-radius: var(--radius-pill);
-            background: rgba(255, 255, 255, 0.04);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4);
-            gap: 4px;
-            margin: 0 auto 48px;
-        }
-
-        .segment-btn {
-            background: transparent;
-            border: none;
-            padding: 10px 22px;
-            border-radius: var(--radius-pill);
-            color: var(--text-secondary);
-            font-family: var(--font-sans);
-            font-size: 0.92rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.25s var(--ease-spring);
-        }
-
-        .segment-btn.active {
-            background: rgba(255, 255, 255, 0.15);
-            color: #fff;
-            box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.4), 0 4px 12px rgba(0, 0, 0, 0.3);
-        }
-
-        /* --------------------------------------------------------------------------
-           Taxonomy Feature Tiles (DESIGN.md Pastel System Meets Glass)
-           -------------------------------------------------------------------------- */
-        .features-grid {
+        .pastel-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-            gap: 24px;
-            margin-bottom: 80px;
+            gap: 16px;
         }
 
-        .feature-tile {
-            border-radius: var(--radius-card);
-            padding: 32px;
+        .pastel-card {
+            border-radius: var(--radius-cards);
+            padding: 24px;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            min-height: 260px;
-            position: relative;
+            min-height: 220px;
         }
 
-        .feature-top {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
+        .card-pink { background: var(--color-petal-pink); }
+        .card-mint { background: var(--color-mint-green); }
+        .card-yellow { background: var(--color-canary-yellow); }
+        .card-violet { background: var(--color-soft-violet); }
+        .card-aqua { background: var(--color-aqua); }
+
+        .pastel-eyebrow {
+            font-size: var(--text-eyebrow);
+            text-transform: uppercase;
+            letter-spacing: var(--tracking-eyebrow);
+            font-weight: 700;
+            color: var(--color-ink);
+            opacity: 0.7;
             margin-bottom: 24px;
         }
 
-        .feature-icon-badge {
-            width: 48px;
-            height: 48px;
-            border-radius: var(--radius-inner);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.5rem;
-            box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.3);
-        }
-
-        .tile-turn .feature-icon-badge {
-            background: rgba(16, 185, 129, 0.15);
-            color: var(--emerald);
-        }
-
-        .tile-map .feature-icon-badge {
-            background: rgba(26, 115, 232, 0.15);
-            color: var(--route-blue);
-        }
-
-        .tile-haptic .feature-icon-badge {
-            background: rgba(255, 87, 34, 0.15);
-            color: var(--phoenix-orange);
-        }
-
-        .tile-privacy .feature-icon-badge {
-            background: rgba(139, 92, 246, 0.15);
-            color: var(--violet);
-        }
-
-        .tile-quota .feature-icon-badge {
-            background: rgba(245, 158, 11, 0.15);
-            color: var(--amber);
-        }
-
-        .tile-credit .feature-icon-badge {
-            background: rgba(56, 189, 248, 0.15);
-            color: #38bdf8;
-        }
-
-        .feature-tile h3 {
-            font-size: 1.35rem;
-            font-weight: 700;
-            letter-spacing: -0.02em;
+        .pastel-card h3 {
+            font-size: var(--text-subheading);
+            font-weight: 400;
+            line-height: var(--leading-subheading);
+            letter-spacing: var(--tracking-subheading);
+            color: var(--color-ink);
             margin-bottom: 10px;
-            color: #fff;
         }
 
-        .feature-tile p {
-            color: var(--text-secondary);
-            font-size: 0.95rem;
-            line-height: 1.6;
+        .pastel-card p {
+            font-size: var(--text-body-sm);
+            line-height: var(--leading-body-sm);
+            color: var(--color-ink);
+            opacity: 0.85;
         }
 
         /* --------------------------------------------------------------------------
-           Supported Devices Matrix (All 8 AMOLED Garmin Watches)
+           Dark Section Panel (DESIGN.md: Charcoal #272625 / Midnight Indigo #10054d)
+           Full-bleed dark panel for high-contrast light-to-dark rhythm
            -------------------------------------------------------------------------- */
-        .devices-panel {
-            border-radius: var(--radius-card);
-            padding: 40px;
-            margin-bottom: 90px;
-            background: rgba(255, 255, 255, 0.025);
-            border: 1px solid var(--lg-border);
-            box-shadow: var(--lg-rim), var(--lg-shadow);
+        .section-dark-panel {
+            background: var(--color-charcoal);
+            color: var(--color-canvas-white);
+            padding: 100px 0;
+            position: relative;
         }
 
-        .devices-header {
-            display: flex;
-            align-items: flex-end;
-            justify-content: space-between;
-            margin-bottom: 32px;
-            flex-wrap: wrap;
-            gap: 16px;
+        .section-dark-panel .heading-calm {
+            color: #ffffff;
         }
 
-        .devices-header h3 {
-            font-size: 1.6rem;
-            font-weight: 800;
-            letter-spacing: -0.025em;
+        .section-dark-panel .subtitle-calm {
+            color: var(--color-ash);
         }
 
-        .devices-grid {
+        .dark-card-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-            gap: 16px;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 12px;
+            margin-top: 48px;
         }
 
-        .device-card-item {
-            padding: 18px 20px;
-            border-radius: var(--radius-inner);
-            background: rgba(255, 255, 255, 0.04);
-            border: 1px solid rgba(255, 255, 255, 0.07);
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15);
+        .dark-device-card {
+            background: #1e1d1c;
+            border-radius: var(--radius-cards);
+            padding: 20px;
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
             display: flex;
-            align-items: center;
             justify-content: space-between;
-            transition: all 0.25s var(--ease-spring);
+            align-items: center;
         }
 
-        .device-card-item:hover {
-            background: rgba(255, 255, 255, 0.08);
-            border-color: rgba(255, 255, 255, 0.18);
-            transform: translateY(-2px);
+        .dark-device-card h4 {
+            font-size: var(--text-body);
+            font-weight: 500;
+            color: #ffffff;
+            margin-bottom: 4px;
         }
 
-        .device-meta h4 {
-            font-size: 0.98rem;
-            font-weight: 700;
-            color: #fff;
-            margin-bottom: 3px;
+        .dark-device-card span {
+            font-size: var(--text-caption);
+            color: var(--color-ash);
         }
 
-        .device-meta span {
-            font-size: 0.8rem;
-            color: var(--text-muted);
+        .device-pill-res {
+            background: rgba(255, 255, 255, 0.1);
+            color: #ffffff;
+            font-size: var(--text-caption);
             font-family: var(--font-mono);
-        }
-
-        .device-res-badge {
-            font-size: 0.78rem;
-            font-family: var(--font-mono);
-            font-weight: 600;
-            background: rgba(26, 115, 232, 0.15);
-            color: #60a5fa;
             padding: 4px 8px;
-            border-radius: 6px;
+            border-radius: 4px;
         }
 
         /* --------------------------------------------------------------------------
-           Setup Terminal & 3-Step Walkthrough
+           Cream Wash Section: 3-Step Setup & Terminal
            -------------------------------------------------------------------------- */
-        .setup-section {
-            margin-bottom: 100px;
+        .section-cream {
+            background: var(--color-cream-wash);
+            padding: 100px 0;
+            border-top: 1px solid rgba(17, 17, 17, 0.06);
+            border-bottom: 1px solid rgba(17, 17, 17, 0.06);
         }
 
-        .steps-wrapper {
+        .steps-row {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
             gap: 20px;
-            margin-bottom: 36px;
+            margin-bottom: 48px;
         }
 
-        .step-tile {
+        .white-feature-card {
+            background: var(--color-canvas-white);
+            border-radius: var(--radius-cards);
             padding: 28px;
-            border-radius: var(--radius-card);
+            box-shadow: var(--shadow-sm);
+            border: 1px solid rgba(17, 17, 17, 0.08);
         }
 
-        .step-index {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            color: #fff;
-            font-weight: 800;
+        .step-pill-number {
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            background: var(--color-pearl);
+            color: var(--color-ink);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 0.9rem;
-            margin-bottom: 18px;
+            font-size: var(--text-caption);
+            font-weight: 700;
+            margin-bottom: 16px;
         }
 
-        .step-tile h3 {
-            font-size: 1.15rem;
-            font-weight: 700;
+        .white-feature-card h3 {
+            font-size: var(--text-body-lg);
+            font-weight: 500;
+            letter-spacing: var(--tracking-body-lg);
             margin-bottom: 8px;
         }
 
-        .step-tile p {
-            font-size: 0.9rem;
-            color: var(--text-secondary);
+        .white-feature-card p {
+            font-size: var(--text-body-sm);
+            color: var(--color-ash);
+            line-height: var(--leading-body-sm);
         }
 
-        /* Glass Terminal */
-        .glass-terminal {
-            border-radius: var(--radius-card);
-            overflow: hidden;
-            background: rgba(7, 9, 14, 0.9);
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.25), 0 24px 48px rgba(0, 0, 0, 0.7);
-        }
-
-        .terminal-header {
-            padding: 14px 20px;
-            background: rgba(255, 255, 255, 0.03);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .terminal-dots {
-            display: flex;
-            gap: 8px;
-        }
-
-        .dot {
-            width: 11px;
-            height: 11px;
-            border-radius: 50%;
-        }
-
-        .dot-red { background: #ff5f56; }
-        .dot-yellow { background: #ffbd2e; }
-        .dot-green { background: #27c93f; }
-
-        .terminal-title {
-            font-size: 0.82rem;
-            color: var(--text-muted);
-            font-family: var(--font-mono);
-        }
-
-        .terminal-body {
+        /* Clean Terminal Box */
+        .terminal-container {
+            background: #111111;
+            border-radius: var(--radius-cards);
             padding: 24px;
+            color: #ffffff;
+            box-shadow: var(--shadow-xl);
+            max-width: 880px;
+            margin: 0 auto;
         }
 
-        .command-row {
+        .terminal-row {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 14px 18px;
-            background: rgba(255, 255, 255, 0.03);
-            border-radius: var(--radius-sm);
-            border: 1px solid rgba(255, 255, 255, 0.06);
+            padding: 12px 16px;
+            background: #1a1a1a;
+            border-radius: 8px;
             margin-bottom: 12px;
             gap: 16px;
         }
 
-        .command-row:last-child {
+        .terminal-row:last-child {
             margin-bottom: 0;
         }
 
-        .command-text {
+        .terminal-code {
             font-family: var(--font-mono);
-            font-size: 0.88rem;
-            color: #38bdf8;
+            font-size: 13px;
+            color: var(--color-aqua);
             word-break: break-all;
         }
 
-        .copy-btn {
-            background: rgba(255, 255, 255, 0.08);
-            border: 1px solid rgba(255, 255, 255, 0.14);
-            color: var(--text-primary);
-            padding: 6px 14px;
-            border-radius: 8px;
-            font-family: var(--font-sans);
-            font-size: 0.8rem;
-            font-weight: 600;
+        .btn-copy-code {
+            background: #2a2a2a;
+            border: none;
+            color: #ffffff;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: var(--text-caption);
             cursor: pointer;
             white-space: nowrap;
-            transition: all 0.2s ease;
+            transition: background 0.15s ease;
         }
 
-        .copy-btn:hover {
-            background: rgba(255, 255, 255, 0.16);
-            color: #fff;
+        .btn-copy-code:hover {
+            background: #3a3a3a;
         }
 
         /* --------------------------------------------------------------------------
-           Download Center (Liquid Glass Cards)
+           Download Center (Canvas White)
            -------------------------------------------------------------------------- */
-        .downloads-section {
-            margin-bottom: 120px;
+        .section-downloads {
+            padding: 100px 0;
+            background: var(--color-canvas-white);
         }
 
-        .download-cards-grid {
+        .downloads-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-            gap: 24px;
+            gap: 20px;
+            max-width: 1040px;
+            margin: 0 auto;
         }
 
-        .download-liquid-card {
+        .dl-card {
+            background: var(--color-canvas-white);
+            border: 1px solid rgba(17, 17, 17, 0.08);
+            border-radius: var(--radius-cards);
             padding: 32px;
-            border-radius: var(--radius-card);
             display: flex;
             flex-direction: column;
             justify-content: space-between;
+            box-shadow: var(--shadow-sm);
         }
 
-        .dl-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 4px 12px;
-            border-radius: var(--radius-pill);
-            font-size: 0.78rem;
-            font-weight: 700;
-            margin-bottom: 20px;
+        .dl-tag {
+            font-size: var(--text-eyebrow);
             text-transform: uppercase;
-            letter-spacing: 0.05em;
+            letter-spacing: var(--tracking-eyebrow);
+            font-weight: 700;
+            color: var(--color-phoenix-orange);
+            margin-bottom: 14px;
         }
 
-        .dl-badge-phone {
-            background: rgba(26, 115, 232, 0.15);
-            color: #60a5fa;
-            border: 1px solid rgba(26, 115, 232, 0.3);
-        }
-
-        .dl-badge-store {
-            background: rgba(16, 185, 129, 0.15);
-            color: #34d399;
-            border: 1px solid rgba(16, 185, 129, 0.3);
-        }
-
-        .dl-badge-side {
-            background: rgba(255, 87, 34, 0.15);
-            color: #fb923c;
-            border: 1px solid rgba(255, 87, 34, 0.3);
-        }
-
-        .download-liquid-card h4 {
-            font-size: 1.35rem;
-            font-weight: 800;
-            letter-spacing: -0.02em;
+        .dl-card h4 {
+            font-size: var(--text-subheading);
+            font-weight: 400;
+            letter-spacing: var(--tracking-subheading);
             margin-bottom: 8px;
         }
 
-        .download-liquid-card p {
-            color: var(--text-secondary);
-            font-size: 0.92rem;
-            margin-bottom: 28px;
-            line-height: 1.55;
-        }
-
-        .dl-action-btn {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            padding: 14px 20px;
-            border-radius: var(--radius-inner);
-            font-size: 0.95rem;
-            font-weight: 700;
-            text-decoration: none;
-            transition: all 0.25s var(--ease-spring);
-        }
-
-        .dl-action-primary {
-            background: linear-gradient(135deg, var(--route-blue), #2563eb);
-            color: #fff;
-            box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.4), 0 8px 24px var(--route-blue-glow);
-        }
-
-        .dl-action-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 12px 30px var(--route-blue-glow);
-        }
-
-        .dl-action-glass {
-            background: rgba(255, 255, 255, 0.08);
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
-            color: #fff;
-        }
-
-        .dl-action-glass:hover {
-            background: rgba(255, 255, 255, 0.14);
-            transform: translateY(-2px);
+        .dl-card p {
+            font-size: var(--text-body-sm);
+            color: var(--color-ash);
+            margin-bottom: 24px;
+            line-height: var(--leading-body-sm);
         }
 
         /* --------------------------------------------------------------------------
-           Footer
+           Dark Footer (DESIGN.md: Charcoal #272625)
            -------------------------------------------------------------------------- */
-        footer {
-            padding: 60px 0 40px;
+        .site-footer {
+            background: var(--color-charcoal);
+            color: #ffffff;
+            padding: 72px 0 48px;
             border-top: 1px solid rgba(255, 255, 255, 0.08);
-            background: rgba(7, 9, 14, 0.9);
-            font-size: 0.88rem;
-            color: var(--text-muted);
             text-align: center;
         }
 
@@ -990,439 +687,360 @@
         }
 
         .footer-nav a {
-            color: var(--text-secondary);
+            color: rgba(255, 255, 255, 0.7);
             text-decoration: none;
+            font-size: var(--text-body-sm);
             transition: color 0.15s ease;
         }
 
         .footer-nav a:hover {
-            color: #fff;
+            color: #ffffff;
         }
 
-        .legal-notice {
+        .footer-disclaimer {
             max-width: 680px;
             margin: 0 auto;
+            font-size: var(--text-caption);
+            color: var(--color-ash);
             line-height: 1.6;
-            font-size: 0.82rem;
         }
 
-        @media (max-width: 820px) {
-            .nav-menu {
-                display: none;
-            }
-            .hero h1 {
-                font-size: 2.5rem;
-            }
-            .features-grid, .download-cards-grid {
-                grid-template-columns: 1fr;
-            }
+        @media (max-width: 768px) {
+            .nav-links { display: none; }
+            .hero-display-headline { font-size: 40px; }
+            .hero-actions-container { flex-direction: column; }
+            .heading-calm { font-size: 36px; letter-spacing: -1.08px; }
         }
     </style>
 </head>
 <body>
 
-    <!-- Ambient Mesh Orbs -->
-    <div class="ambient-mesh">
-        <div class="mesh-orb orb-1"></div>
-        <div class="mesh-orb orb-2"></div>
-        <div class="mesh-orb orb-3"></div>
-    </div>
-
-    <!-- Floating Navigation Bar -->
-    <div class="nav-wrapper">
-        <nav class="nav-capsule">
+    <!-- Sticky Navigation Bar -->
+    <header class="site-header">
+        <div class="container nav-inner">
             <a href="#" class="brand-lockup">
-                <div class="brand-icon">NM</div>
-                <div class="brand-title">NavMap</div>
+                <div class="brand-pill">N</div>
+                <div class="brand-name">NavMap</div>
             </a>
 
-            <div class="nav-menu">
-                <a href="#features" class="nav-link">Features</a>
-                <a href="#devices" class="nav-link">Watches</a>
-                <a href="#setup" class="nav-link">Setup</a>
-                <a href="#downloads" class="nav-link">Downloads</a>
+            <ul class="nav-links">
+                <li><a href="#features" class="nav-link">Capabilities</a></li>
+                <li><a href="#watches" class="nav-link">Watches</a></li>
+                <li><a href="#setup" class="nav-link">Setup</a></li>
+                <li><a href="#downloads" class="nav-link">Downloads</a></li>
+            </ul>
+
+            <div class="nav-cluster">
+                <a href="https://github.com/Cube-VG/navmap-watch" class="btn-ghost" target="_blank" rel="noopener">GitHub</a>
+                <a href="#downloads" class="btn-primary">Get App</a>
             </div>
+        </div>
+    </header>
 
-            <div class="nav-actions">
-                <a href="https://github.com/Cube-VG/navmap-watch" class="btn-glass-sm" target="_blank" rel="noopener">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
-                    <span>GitHub</span>
-                </a>
-                <a href="#downloads" class="btn-primary-sm">
-                    <span>Get Apps</span>
-                </a>
-            </div>
-        </nav>
-    </div>
-
-    <main class="container">
-        <!-- Hero Section -->
-        <section class="hero">
-            <div class="hero-pill">
-                <span class="live-dot"></span>
-                <span>NavMap 0.16 & NavBridge 0.16 Live</span>
-            </div>
-
-            <h1>
-                Google Maps Navigation.<br>
-                <span class="gradient-highlight">On Your Garmin Wrist.</span>
-            </h1>
-
-            <p class="hero-lead">
-                Turn-by-turn guidance, live vector map tiles, route lines, and haptic vibration buzzes streamed straight from Google Maps to your AMOLED smartwatch.
-            </p>
-
-            <!-- Platform Warning (Android Required / No iOS) -->
-            <div class="ios-callout">
-                <span style="font-size: 1.3rem;">⚠️</span>
-                <div>
-                    <span class="ios-badge">Android Phone Required</span>
-                    NavBridge reads Google Maps navigation alerts in the background. Due to Apple's iOS security sandbox which isolates third-party notifications, <strong>NavMap is not compatible with iPhones</strong>.
+    <main>
+        <!-- Hero Section (Phoenix Orange Gradient Wash) -->
+        <section class="hero-section">
+            <div class="container">
+                <div class="eyebrow-badge">
+                    <span class="eyebrow-dot"></span>
+                    <span>NavMap v0.16 Released</span>
                 </div>
-            </div>
 
-            <!-- CTA Buttons -->
-            <div class="hero-cta">
-                <a href="https://github.com/Cube-VG/navmap-watch/releases/latest/download/NavBridge.apk" class="btn-liquid-primary">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                    <span>Download NavBridge.apk (v0.16)</span>
-                </a>
-                <a href="#downloads" class="btn-liquid-secondary">
-                    <span>Garmin Store & Sideload</span>
-                </a>
-            </div>
+                <h1 class="hero-display-headline">
+                    GOOGLE MAPS ON YOUR GARMIN.
+                </h1>
 
-            <!-- Showcase Wrist Frame -->
-            <div class="showcase-stage">
-                <div class="stage-aura"></div>
-                <div class="glass-device-card liquid-glass">
-                    <div class="device-image-container">
+                <p class="hero-subtext">
+                    Turn-by-turn guidance, sunlight-optimized live vector maps, and route lines streamed straight to your AMOLED smartwatch.
+                </p>
+
+                <!-- Android Phone Required Callout -->
+                <div class="platform-callout-pill">
+                    <span>⚠️</span>
+                    <div>
+                        <strong>Android Companion Required:</strong> NavBridge captures turn notifications from Google Maps. Because Apple's iOS sandbox isolates third-party notifications, <strong>NavMap is not compatible with iPhones</strong>.
+                    </div>
+                </div>
+
+                <!-- Hero Action Block -->
+                <div class="hero-actions-container">
+                    <div class="hero-direct-dl">
+                        <span>Latest release: NavBridge v0.16 (Android)</span>
+                    </div>
+                    <a href="https://github.com/Cube-VG/navmap-watch/releases/latest/download/NavBridge.apk" class="btn-primary">
+                        <span>Download APK</span>
+                    </a>
+                </div>
+
+                <!-- Hero Media Frame (Black Frame with Real Wrist Photo) -->
+                <div class="hero-media-wrapper">
+                    <div class="hero-media-container">
                         <img src="navmap-on-wrist.jpg" alt="NavMap active ride navigation on Garmin AMOLED watch">
-                    </div>
-                    <div class="device-caption-bar">
-                        <span>NavMap active navigation view: 400 m right turn with AMOLED route line</span>
-                        <span class="device-badge-active">● Live GPS Tracking</span>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Features Showcase Section -->
-        <section id="features">
-            <div class="section-lead-block">
-                <div class="eyebrow-tag">Engineered for Movement</div>
-                <h2>Built for Glanceable Clarity</h2>
-                <p>Designed for motorcycle riding, cycling, and city runs where every second off the road counts.</p>
-            </div>
-
-            <div class="features-grid">
-                <!-- Tile 1 -->
-                <div class="feature-tile liquid-glass tile-turn">
-                    <div class="feature-top">
-                        <div class="feature-icon-badge">🧭</div>
-                        <span style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--emerald);">01 / GUIDANCE</span>
-                    </div>
-                    <div>
-                        <h3>Turn-by-Turn Maneuvers</h3>
-                        <p>Silently decodes Google Maps' next-turn arrows, street names, distance counts, and estimated time of arrival right onto your wrist.</p>
-                    </div>
-                </div>
-
-                <!-- Tile 2 -->
-                <div class="feature-tile liquid-glass tile-map">
-                    <div class="feature-top">
-                        <div class="feature-icon-badge">🗺️</div>
-                        <span style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--route-blue);">02 / MAPS</span>
-                    </div>
-                    <div>
-                        <h3>Live AMOLED Vector Maps</h3>
-                        <p>Sunlight-optimized 2-bit map pictures that dynamically turn with your heading, with speed-adaptive auto-zoom and road outlines.</p>
-                    </div>
-                </div>
-
-                <!-- Tile 3 -->
-                <div class="feature-tile liquid-glass tile-haptic">
-                    <div class="feature-top">
-                        <div class="feature-icon-badge">⚡</div>
-                        <span style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--phoenix-orange);">03 / HAPTICS</span>
-                    </div>
-                    <div>
-                        <h3>Wrist Haptic Buzzes</h3>
-                        <p>Gentle wrist vibrations trigger as you approach your turn, giving you physical heads-up awareness without staring at the screen.</p>
-                    </div>
-                </div>
-
-                <!-- Tile 4 -->
-                <div class="feature-tile liquid-glass tile-privacy">
-                    <div class="feature-top">
-                        <div class="feature-icon-badge">🔒</div>
-                        <span style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--violet);">04 / PRIVACY</span>
-                    </div>
-                    <div>
-                        <h3>Zero Cloud Servers</h3>
-                        <p>Your location and route stay strictly local. NavBridge bridges directly over Garmin Connect Bluetooth with no cloud relays or user accounts.</p>
-                    </div>
-                </div>
-
-                <!-- Tile 5 -->
-                <div class="feature-tile liquid-glass tile-quota">
-                    <div class="feature-top">
-                        <div class="feature-icon-badge">🔑</div>
-                        <span style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--amber);">05 / FREE QUOTA</span>
-                    </div>
-                    <div>
-                        <h3>Your Own Maps Key</h3>
-                        <p>Uses your own free Google Maps API key with generous monthly credits (70,000 free map pictures in India / 10,000 worldwide every month).</p>
-                    </div>
-                </div>
-
-                <!-- Tile 6 -->
-                <div class="feature-tile liquid-glass tile-credit">
-                    <div class="feature-top">
-                        <div class="feature-icon-badge">👆</div>
-                        <span style="font-family: var(--font-mono); font-size: 0.8rem; color: #38bdf8;">06 / ATTRIBUTION</span>
-                    </div>
-                    <div>
-                        <h3>Tappable Credit Pill</h3>
-                        <p>Minimal, clean Google label at the bottom of the map. Tap the pill or press START anytime to inspect the 5-second copyright source popup.</p>
+                        <div class="media-caption-bar">
+                            <span>Live ride navigation on Forerunner 165 AMOLED display with Google map background</span>
+                            <span>Direct Bluetooth Bridge</span>
+                        </div>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- Supported Devices Matrix -->
-        <section id="devices">
-            <div class="devices-panel liquid-glass">
-                <div class="devices-header">
-                    <div>
-                        <div class="eyebrow-tag">Hardware Compatibility</div>
-                        <h3>Supported Garmin Watches</h3>
-                    </div>
-                    <span style="font-size: 0.88rem; color: var(--text-secondary);">
-                        Calibrated for 360px – 454px AMOLED Displays
-                    </span>
+        <!-- Pastel Taxonomy Section (DESIGN.md Flat Category Tiles) -->
+        <section id="features" class="section-taxonomy">
+            <div class="container">
+                <div class="section-header-calm">
+                    <h2 class="heading-calm">Designed for glanceable clarity on the road.</h2>
+                    <p class="subtitle-calm">Five focused pillars engineered for cyclists, motorcyclists, and city runners.</p>
                 </div>
 
-                <div class="devices-grid">
-                    <div class="device-card-item">
-                        <div class="device-meta">
+                <div class="pastel-grid">
+                    <!-- Mint Green Tile -->
+                    <div class="pastel-card card-mint">
+                        <div class="pastel-eyebrow">Pillar 01 / Navigation</div>
+                        <div>
+                            <h3>Turn-by-turn guidance</h3>
+                            <p>Reads Google Maps' next-turn arrows, street names, distance counts, and arrival times directly from your phone's notification feed.</p>
+                        </div>
+                    </div>
+
+                    <!-- Canary Yellow Tile -->
+                    <div class="pastel-card card-yellow">
+                        <div class="pastel-eyebrow">Pillar 02 / AMOLED Maps</div>
+                        <div>
+                            <h3>Live vector map tiles</h3>
+                            <p>High-contrast, 2-bit sunlight-readable map pictures with heading-up rotation and speed-adaptive auto-zoom.</p>
+                        </div>
+                    </div>
+
+                    <!-- Petal Pink Tile -->
+                    <div class="pastel-card card-pink">
+                        <div class="pastel-eyebrow">Pillar 03 / Hardware</div>
+                        <div>
+                            <h3>Haptic wrist buzzes</h3>
+                            <p>Vibration pulses alert your wrist right before an upcoming maneuver, keeping your eyes on the road.</p>
+                        </div>
+                    </div>
+
+                    <!-- Soft Violet Tile -->
+                    <div class="pastel-card card-violet">
+                        <div class="pastel-eyebrow">Pillar 04 / Privacy</div>
+                        <div>
+                            <h3>Zero cloud footprint</h3>
+                            <p>Direct peer-to-peer communication over Garmin Connect Bluetooth. No tracking servers, accounts, or telemetry.</p>
+                        </div>
+                    </div>
+
+                    <!-- Aqua Tile -->
+                    <div class="pastel-card card-aqua">
+                        <div class="pastel-eyebrow">Pillar 05 / Free Quota</div>
+                        <div>
+                            <h3>Your own Maps key</h3>
+                            <p>Uses your personal Google Maps key with free monthly allowances (up to 70,000 monthly map tiles) that cost you nothing.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Dark Section Panel (Charcoal #272625: Supported Watches) -->
+        <section id="watches" class="section-dark-panel">
+            <div class="container">
+                <div class="section-header-calm">
+                    <h2 class="heading-calm">Calibrated across Garmin AMOLED hardware.</h2>
+                    <p class="subtitle-calm">NavMap scales dynamically to circular screens from 360 px to 454 px.</p>
+                </div>
+
+                <div class="dark-card-grid">
+                    <div class="dark-device-card">
+                        <div>
                             <h4>Forerunner 165</h4>
                             <span>fr165 • AMOLED</span>
                         </div>
-                        <div class="device-res-badge">390×390</div>
+                        <div class="device-pill-res">390×390</div>
                     </div>
 
-                    <div class="device-card-item">
-                        <div class="device-meta">
+                    <div class="dark-device-card">
+                        <div>
                             <h4>Forerunner 165 Music</h4>
                             <span>fr165m • AMOLED</span>
                         </div>
-                        <div class="device-res-badge">390×390</div>
+                        <div class="device-pill-res">390×390</div>
                     </div>
 
-                    <div class="device-card-item">
-                        <div class="device-meta">
+                    <div class="dark-device-card">
+                        <div>
                             <h4>Forerunner 265</h4>
                             <span>fr265 • AMOLED</span>
                         </div>
-                        <div class="device-res-badge">416×416</div>
+                        <div class="device-pill-res">416×416</div>
                     </div>
 
-                    <div class="device-card-item">
-                        <div class="device-meta">
+                    <div class="dark-device-card">
+                        <div>
                             <h4>Forerunner 265s</h4>
                             <span>fr265s • AMOLED</span>
                         </div>
-                        <div class="device-res-badge">360×360</div>
+                        <div class="device-pill-res">360×360</div>
                     </div>
 
-                    <div class="device-card-item">
-                        <div class="device-meta">
+                    <div class="dark-device-card">
+                        <div>
                             <h4>Forerunner 965</h4>
                             <span>fr965 • AMOLED</span>
                         </div>
-                        <div class="device-res-badge">454×454</div>
+                        <div class="device-pill-res">454×454</div>
                     </div>
 
-                    <div class="device-card-item">
-                        <div class="device-meta">
+                    <div class="dark-device-card">
+                        <div>
                             <h4>Venu 3</h4>
                             <span>venu3 • AMOLED</span>
                         </div>
-                        <div class="device-res-badge">454×454</div>
+                        <div class="device-pill-res">454×454</div>
                     </div>
 
-                    <div class="device-card-item">
-                        <div class="device-meta">
+                    <div class="dark-device-card">
+                        <div>
                             <h4>Venu 3s</h4>
                             <span>venu3s • AMOLED</span>
                         </div>
-                        <div class="device-res-badge">390×390</div>
+                        <div class="device-pill-res">390×390</div>
                     </div>
 
-                    <div class="device-card-item">
-                        <div class="device-meta">
+                    <div class="dark-device-card">
+                        <div>
                             <h4>vívoactive 5</h4>
                             <span>vivoactive5 • AMOLED</span>
                         </div>
-                        <div class="device-res-badge">390×390</div>
+                        <div class="device-pill-res">390×390</div>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- 3-Step Setup Section -->
-        <section id="setup" class="setup-section">
-            <div class="section-lead-block">
-                <div class="eyebrow-tag">Quick Start</div>
-                <h2>Up & Riding in 3 Steps</h2>
-                <p>Run the automated computer setup script or install directly from your phone.</p>
-            </div>
-
-            <div class="steps-wrapper">
-                <div class="step-tile liquid-glass">
-                    <div class="step-index">1</div>
-                    <h3>Install NavBridge</h3>
-                    <p>Download and install <code>NavBridge.apk</code> on your Android phone and grant notification access.</p>
+        <!-- Cream Wash Section: 3-Step Setup & Terminal -->
+        <section id="setup" class="section-cream">
+            <div class="container">
+                <div class="section-header-calm">
+                    <h2 class="heading-calm">Get started in three simple steps.</h2>
+                    <p class="subtitle-calm">Connect over USB once, or install the APK directly to your phone.</p>
                 </div>
 
-                <div class="step-tile liquid-glass">
-                    <div class="step-index">2</div>
-                    <h3>Install NavMap</h3>
-                    <p>Install NavMap from the Garmin Connect IQ Store or copy <code>NavMap.prg</code> over USB into <code>GARMIN/APPS</code>.</p>
-                </div>
-
-                <div class="step-tile liquid-glass">
-                    <div class="step-index">3</div>
-                    <h3>Start Navigating</h3>
-                    <p>Open Google Maps on your phone, choose a destination, and tap <strong>Start</strong>. NavMap launches on your wrist.</p>
-                </div>
-            </div>
-
-            <!-- Terminal Code Box -->
-            <div class="glass-terminal">
-                <div class="terminal-header">
-                    <div class="terminal-dots">
-                        <div class="dot dot-red"></div>
-                        <div class="dot dot-yellow"></div>
-                        <div class="dot dot-green"></div>
+                <div class="steps-row">
+                    <div class="white-feature-card">
+                        <div class="step-pill-number">1</div>
+                        <h3>Install Phone App</h3>
+                        <p>Install <code>NavBridge.apk</code> on your Android phone and grant notification access so it can read turns.</p>
                     </div>
-                    <div class="terminal-title">automated-setup-terminal</div>
-                    <div style="width: 50px;"></div>
+
+                    <div class="white-feature-card">
+                        <div class="step-pill-number">2</div>
+                        <h3>Install Watch App</h3>
+                        <p>Install NavMap from the Connect IQ Store, or sideload <code>NavMap.prg</code> directly via USB to <code>GARMIN/APPS</code>.</p>
+                    </div>
+
+                    <div class="white-feature-card">
+                        <div class="step-pill-number">3</div>
+                        <h3>Ride with Maps</h3>
+                        <p>Start any route in Google Maps on your phone. NavMap opens automatically on your watch display.</p>
+                    </div>
                 </div>
-                <div class="terminal-body">
-                    <div class="command-row">
-                        <div class="command-text">
-                            <span style="color: var(--text-muted);"># macOS & Linux (Terminal)</span><br>
+
+                <!-- Code Terminal Box -->
+                <div class="terminal-container">
+                    <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #888; margin-bottom: 14px;">
+                        Automated computer setup scripts
+                    </div>
+                    <div class="terminal-row">
+                        <div class="terminal-code">
                             curl -fsSLO https://raw.githubusercontent.com/Cube-VG/navmap-watch/main/setup.sh && bash setup.sh
                         </div>
-                        <button class="copy-btn" onclick="copyCmd('curl -fsSLO https://raw.githubusercontent.com/Cube-VG/navmap-watch/main/setup.sh && bash setup.sh', this)">Copy</button>
+                        <button class="btn-copy-code" onclick="copySnippet('curl -fsSLO https://raw.githubusercontent.com/Cube-VG/navmap-watch/main/setup.sh && bash setup.sh', this)">Copy macOS/Linux</button>
                     </div>
 
-                    <div class="command-row">
-                        <div class="command-text">
-                            <span style="color: var(--text-muted);"># Windows 10/11 (PowerShell)</span><br>
+                    <div class="terminal-row">
+                        <div class="terminal-code">
                             irm https://raw.githubusercontent.com/Cube-VG/navmap-watch/main/setup.ps1 -OutFile setup.ps1; powershell -ExecutionPolicy Bypass -File setup.ps1
                         </div>
-                        <button class="copy-btn" onclick="copyCmd('irm https://raw.githubusercontent.com/Cube-VG/navmap-watch/main/setup.ps1 -OutFile setup.ps1; powershell -ExecutionPolicy Bypass -File setup.ps1', this)">Copy</button>
+                        <button class="btn-copy-code" onclick="copySnippet('irm https://raw.githubusercontent.com/Cube-VG/navmap-watch/main/setup.ps1 -OutFile setup.ps1; powershell -ExecutionPolicy Bypass -File setup.ps1', this)">Copy Windows</button>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- Download Center -->
-        <section id="downloads" class="downloads-section">
-            <div class="section-lead-block">
-                <div class="eyebrow-tag">Download Center</div>
-                <h2>Get NavMap for Free</h2>
-                <p>Pure open-source binaries signed with release keys and verifiable SHA-256 checksums.</p>
-            </div>
-
-            <div class="download-cards-grid">
-                <!-- Phone Card -->
-                <div class="download-liquid-card liquid-glass">
-                    <div>
-                        <div class="dl-badge dl-badge-phone">Android Phone</div>
-                        <h4>NavBridge App</h4>
-                        <p>Version 0.16 • Signed release APK for Android 8.0+. Intercepts Google Maps turns and delivers live tiles.</p>
-                    </div>
-                    <a href="https://github.com/Cube-VG/navmap-watch/releases/latest/download/NavBridge.apk" class="dl-action-btn dl-action-primary">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                        <span>Download APK (5.3 MB)</span>
-                    </a>
+        <!-- Download Center (Canvas White) -->
+        <section id="downloads" class="section-downloads">
+            <div class="container">
+                <div class="section-header-calm">
+                    <h2 class="heading-calm">Open-source release downloads.</h2>
+                    <p class="subtitle-calm">Verified binaries signed with release certificates and published on GitHub.</p>
                 </div>
 
-                <!-- Store Package Card -->
-                <div class="download-liquid-card liquid-glass">
-                    <div>
-                        <div class="dl-badge dl-badge-store">Garmin Store (.iq)</div>
-                        <h4>NavMap Store Package</h4>
-                        <p>Universal Connect IQ app package supporting all 8 AMOLED Garmin watches. Ready for Connect IQ upload.</p>
+                <div class="downloads-grid">
+                    <!-- Phone APK Card -->
+                    <div class="dl-card">
+                        <div>
+                            <div class="dl-tag">Android Companion</div>
+                            <h4>NavBridge App</h4>
+                            <p>Version 0.16 • Signed release APK for Android 8.0+. Runs in background to relay turns and map pictures.</p>
+                        </div>
+                        <a href="https://github.com/Cube-VG/navmap-watch/releases/latest/download/NavBridge.apk" class="btn-primary">
+                            <span>Download APK (5.3 MB)</span>
+                        </a>
                     </div>
-                    <a href="https://github.com/Cube-VG/navmap-watch/releases/latest" class="dl-action-btn dl-action-glass">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-                        <span>Releases & IQ Package</span>
-                    </a>
-                </div>
 
-                <!-- Personal Sideload Card -->
-                <div class="download-liquid-card liquid-glass">
-                    <div>
-                        <div class="dl-badge dl-badge-side">USB Sideload (.prg)</div>
-                        <h4>NavMap Personal Build</h4>
-                        <p>Precompiled watch binary with clean minimal "Google" label. Drop directly into watch <code>GARMIN/APPS/</code>.</p>
+                    <!-- Watch IQ Store Package Card -->
+                    <div class="dl-card">
+                        <div>
+                            <div class="dl-tag">Connect IQ Package</div>
+                            <h4>NavMap Store Package</h4>
+                            <p>Universal .iq application package compiled for all 8 supported Garmin AMOLED watches.</p>
+                        </div>
+                        <a href="https://github.com/Cube-VG/navmap-watch/releases/latest" class="btn-pearl">
+                            <span>GitHub Releases (.iq)</span>
+                        </a>
                     </div>
-                    <a href="https://github.com/Cube-VG/navmap-watch/releases/latest" class="dl-action-btn dl-action-glass">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="8 17 12 21 16 17"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"/></svg>
-                        <span>Download NavMap.prg</span>
-                    </a>
+
+                    <!-- Direct Sideload PRG Card -->
+                    <div class="dl-card">
+                        <div>
+                            <div class="dl-tag">USB Sideload</div>
+                            <h4>NavMap Sideload Build</h4>
+                            <p>Precompiled watch binary with clean minimal "Google" label for USB transfer to <code>GARMIN/APPS/</code>.</p>
+                        </div>
+                        <a href="https://github.com/Cube-VG/navmap-watch/releases/latest" class="btn-pearl">
+                            <span>Download .prg</span>
+                        </a>
+                    </div>
                 </div>
             </div>
         </section>
     </main>
 
-    <!-- Glass Footer -->
-    <footer>
+    <!-- Dark Footer Panel (Charcoal #272625) -->
+    <footer class="site-footer">
         <div class="container">
             <div class="footer-nav">
                 <a href="https://github.com/Cube-VG/navmap-watch">GitHub Repository</a>
                 <a href="PRIVACY.md">Privacy Policy</a>
                 <a href="SETUP.md">Setup Guide</a>
-                <a href="DEVELOPING.md">Developer Docs</a>
+                <a href="DEVELOPING.md">Developer Guide</a>
                 <a href="https://github.com/Cube-VG/navmap-watch/releases">Releases</a>
             </div>
-            <p class="legal-notice">
+            <p class="footer-disclaimer">
                 NavMap is an independent open-source project. Not affiliated with, sponsored by, or endorsed by Google LLC or Garmin Ltd.
                 Google Maps is a trademark of Google LLC. Garmin, Forerunner, Venu, and Connect IQ are trademarks of Garmin Ltd.
             </p>
         </div>
     </footer>
 
-    <!-- Interactive Liquid Glass Specular & Copy Script -->
+    <!-- Copy Helper -->
     <script>
-        // Track mouse movement across liquid glass cards for dynamic specular glare
-        document.querySelectorAll('.liquid-glass').forEach(card => {
-            card.addEventListener('mousemove', e => {
-                const rect = card.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
-                card.style.setProperty('--mouse-x', `${x}px`);
-                card.style.setProperty('--mouse-y', `${y}px`);
-            });
-        });
-
-        // 1-Click Copy Command Helper
-        function copyCmd(text, btn) {
+        function copySnippet(text, btn) {
             navigator.clipboard.writeText(text).then(() => {
-                const orig = btn.innerText;
-                btn.innerText = 'Copied!';
-                btn.style.color = '#34d399';
-                btn.style.borderColor = '#34d399';
-                setTimeout(() => {
-                    btn.innerText = orig;
-                    btn.style.color = '';
-                    btn.style.borderColor = '';
-                }, 2000);
+                const old = btn.innerText;
+                btn.innerText = 'Copied';
+                setTimeout(() => { btn.innerText = old; }, 2000);
             });
         }
     </script>
