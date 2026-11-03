@@ -29,8 +29,8 @@ if [ "$PERF" = 1 ]; then
     NAME="$NAME-perf"
 fi
 if [ "$PUBLISH" = 1 ]; then
-    # The same build with the credit strip kept in: creditsOff left out instead of creditsOn.
-    sed 's/creditsOn/creditsOff/' "$JUNGLE" > "$ROOT/watch/publish.jungle"
+    # Store build for Garmin Connect: uses "Google Maps" label (storeOff left out instead of storeOn).
+    sed 's/storeOn/storeOff/' "$JUNGLE" > "$ROOT/watch/publish.jungle"
     JUNGLE="$ROOT/watch/publish.jungle"
     NAME="$NAME-publish"
 fi

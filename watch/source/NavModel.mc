@@ -41,6 +41,10 @@ class NavModel {
     var endText as String = "";
     var phoneAnswered as Boolean = false;
     var consentNeeded as Boolean = false;     // NavBridge answered {"t":"consent"}: the user hasn't agreed there
+    var creditW as Number = 0;               // probe credit width
+    var creditH as Number = 0;               // probe credit height
+    var creditSplit as Number = 0;           // probe word split
+    var zoom as Number = 16;
 
     // Two buzzes per turn, timed by seconds to the turn at the current speed, not fixed metres: one long
     // buzz about SOON_S before ("turn coming"), three short strong ones about NOW_S before ("turn now").
@@ -182,6 +186,15 @@ class NavModel {
         var mk = data["mk"] as Object?;
         if (mk instanceof String && mk.length() > 0) {
             Keys.setMapsKey(mk);
+        }
+        if (data["cw"] instanceof Number) {
+            creditW = (data["cw"] as Number).toNumber();
+        }
+        if (data["ch"] instanceof Number) {
+            creditH = (data["ch"] as Number).toNumber();
+        }
+        if (data["cs"] instanceof Number) {
+            creditSplit = (data["cs"] as Number).toNumber();
         }
         var line = data["n"] as Object?;
         if (line instanceof String) {

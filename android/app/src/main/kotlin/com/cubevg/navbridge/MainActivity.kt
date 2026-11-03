@@ -155,9 +155,12 @@ class MainActivity : AppCompatActivity() {
         notifications = Step(steps, "Notifications", "For the reminder when the watch needs a button press.") {
             if (Build.VERSION.SDK_INT >= 33) askPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
-        battery = Step(steps, "Battery: NavBridge", "Unrestricted, so Android doesn't stop it mid-ride.") {
-            startSafely(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:$packageName")))
-        }
+        battery = Step(
+            steps,
+            "Battery: NavBridge",
+            "Set to Unrestricted in App info → Battery, so Android doesn't stop it mid-ride.",
+            "App info",
+        ) { openAppDetails(packageName) }
         garminBattery = Step(
             steps,
             "Battery: Garmin Connect",
@@ -287,7 +290,6 @@ class MainActivity : AppCompatActivity() {
             if (CiqBridge.state == CiqBridge.State.READY && CiqBridge.devices.isEmpty()) append("\nNo watch paired in Garmin Connect")
             append("\n").append(NavServer.status)
             if (NavSession.polling || NavSession.appOpen) append("\nNavMap is open")
-            if (Roads.status.isNotEmpty()) append("\nRoads © OpenStreetMap contributors: ").append(Roads.status)
         }
     }
 

@@ -16,8 +16,6 @@ import kotlin.math.roundToInt
  *  - end:   {"t":"end","ar":arrived}, navigation finished; the watch says "Arrived" or "Navigation ended", then closes.
  *  - where: {"t":"where"}, asks for the watch's GPS position.
  *  - idle:  {"t":"idle"}, the answer to a hello when Google Maps isn't navigating.
- *  - roads: {"t":"roads","id":area,"c":chunk,"n":chunks,"o":[ox,oy,size],"p":[point, …]}, one chunk of the
- *           OpenStreetMap road lines in a square around the watch, so NavMap can draw its own map. See [RoadArea].
  *
  * Watch to phone:
  *  - hello: {"t":"hello","v":2[,"la":lat·1e5,"lo":lng·1e5][,"r":1][,"g":1][,"kh":hash]} when NavMap opens, repeated until the
@@ -79,16 +77,6 @@ object WatchProtocol {
 
     fun idle(): Map<String, Any> = mapOf("t" to "idle")
 
-    fun roads(area: Int, chunk: Int, chunks: Int, square: RoadArea.Square, points: List<Int>): Map<String, Any> =
-        linkedMapOf(
-            "t" to "roads",
-            "id" to area,
-            "c" to chunk,
-            "n" to chunks,
-            "o" to listOf(square.ox, square.oy, square.size),
-            "p" to points,
-        )
-
     /** The answer to a poll while navigating: "a" only if the watch's arrow is stale, "p" only if its route line is. */
     fun navReply(info: NavInfo, arrow: IntArray?, arrowHash: Int, route: List<Int>?, routeVersion: Int, poll: Poll): Map<String, Any> {
         val m = linkedMapOf<String, Any>(
@@ -128,6 +116,8 @@ object WatchProtocol {
         val keyTail: String? = null,
         val session: Int? = null,
         val crashedRun: Long? = null,
+        val creditW: Int? = null,
+        val zoom: Int? = null,
     )
 
     fun poll(query: String?): Poll {
@@ -142,6 +132,8 @@ object WatchProtocol {
             keyTail = q["kf"],
             session = q["s"]?.toIntOrNull(),
             crashedRun = q["cr"]?.toLongOrNull(),
+            creditW = q["cw"]?.toIntOrNull(),
+            zoom = q["z"]?.toIntOrNull(),
         )
     }
 

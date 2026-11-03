@@ -107,7 +107,6 @@ object NavSession : CiqBridge.Listener {
     private var whereDirty = false
     private var idleDirty = false
     private var wheresUnanswered = 0
-    private var roadsWanted = false
     private var shown = false
     private var polledAt = 0L
     private var endedAt = 0L
@@ -144,8 +143,6 @@ object NavSession : CiqBridge.Listener {
         context = appContext.applicationContext
         startedAt = SystemClock.elapsedRealtime()
         CiqBridge.listener = this
-        Roads.init(context)
-        Roads.onReady = ::pump
     }
 
     // ---- Google Maps ----
@@ -390,15 +387,10 @@ object NavSession : CiqBridge.Listener {
                 if (NavServer.pairing.offer(message.token)) {
                     DebugLog.log("This NavMap isn't the one paired before. It pairs when it next asks, if NavBridge was open in the last 10 min.")
                 }
-                roadsWanted = message.roads
-                // NavMap has just started, so it has no roads yet.
-                if (roadsWanted) Roads.restart()
                 onAppOpen(device)
                 val position = message.position
                 if (position != null) {
                     onWatchPosition(position)
-                } else if (roadsWanted) {
-                    Locator.lastKnown(context)?.let(Roads::seed)
                 }
                 if (active) {
                     onWatchReady(device)
@@ -517,10 +509,16 @@ object NavSession : CiqBridge.Listener {
             poll.crashedRun?.let(::onUnclosedRun)
         }
         val info = latest
-        return when {
+        val reply = when {
             info == null -> WatchProtocol.notNavigatingReply(if (endedAt > 0) now - endedAt else null, endArrived)
             poll.compact -> WatchProtocol.compactNavReply(info, arrow, arrowHash, routeText, routeVersion, poll)
             else -> WatchProtocol.navReply(info, arrow, arrowHash, route, routeVersion, poll)
+        }
+        val cm = CreditProbe.get(poll.position, poll.zoom, Prefs.mapsKey(context))
+        return if (cm != null && poll.creditW != cm.width) {
+            reply + mapOf("cw" to cm.width, "ch" to cm.height, "cs" to cm.split)
+        } else {
+            reply
         }
     }
 
@@ -557,9 +555,7 @@ object NavSession : CiqBridge.Listener {
     private fun onAppClosed() {
         appOpen = false
         idleDirty = false
-        roadsWanted = false
         main.removeCallbacks(pollWhere)
-        Roads.stop()
     }
 
     // Where the watch is, for the road squares, and whether NavMap is still there to answer.
@@ -584,8 +580,8 @@ object NavSession : CiqBridge.Listener {
 
     // ---- Sending, one message at a time ----
 
-    // Most urgent first. A road chunk is about 2.5 KB, so a turn waits for at most one.
-    private enum class Kind { END, NAV, IDLE, WHERE, ROUTE, ROADS }
+    // Most urgent first.
+    private enum class Kind { END, NAV, IDLE, WHERE, ROUTE }
 
     private fun pump() {
         if (inFlight || (!watchReady && !appOpen)) return
@@ -595,7 +591,6 @@ object NavSession : CiqBridge.Listener {
         val message: Map<String, Any>
         val sentArrowHash = arrowHash
         val sentRoute = route
-        val roads = if (appOpen && roadsWanted) Roads.next() else null
         // A NavMap that polls gets the turn and the line with its next poll, a second or two away. Sent over Connect IQ
         // too, they only add to what Bluetooth carries, and a line that arrives late could replace a newer one.
         val pollsFresh = polling && SystemClock.elapsedRealtime() - polledAt < POLL_FRESH_MS
@@ -619,11 +614,6 @@ object NavSession : CiqBridge.Listener {
             watchReady && routeDirty && sentRoute != null && !pollsFresh -> {
                 kind = Kind.ROUTE
                 message = WatchProtocol.route(sentRoute, routeVersion)
-            }
-            roads != null -> {
-                kind = Kind.ROADS
-                message = roads
-                Roads.onSending(roads)
             }
             else -> return
         }
@@ -660,7 +650,6 @@ object NavSession : CiqBridge.Listener {
                     whereDirty = false
                     wheresUnanswered++
                 }
-                Kind.ROADS -> Roads.onDelivered(message, SystemClock.elapsedRealtime() - sentAt)
                 Kind.END -> if (endPending) {
                     finish()
                     return
@@ -670,11 +659,6 @@ object NavSession : CiqBridge.Listener {
         } else {
             failures++
             DebugLog.log("Send $kind failed: ${result ?: "timeout"}")
-            if (kind == Kind.ROADS && result in REFUSED) {
-                Roads.onRejected(message)
-                pump()
-                return
-            }
             if (result == IQMessageStatus.FAILURE_DEVICE_NOT_CONNECTED) {
                 // Resumes from onWatchConnected; the slow retry covers a missed connection event.
                 setStatus("Watch disconnected")
@@ -733,8 +717,6 @@ object NavSession : CiqBridge.Listener {
     fun forgetLocation() {
         watchPosition = null
         clearDestination()
-        roadsWanted = false
-        Roads.stop()
         pump()
     }
 
@@ -794,7 +776,6 @@ object NavSession : CiqBridge.Listener {
         requestRoute()
         // The simulated ride's route line starts where the watch is, so it can only go once the watch has a fix.
         Simulator.onWatchReady()
-        if (roadsWanted) Roads.onPosition(position)
     }
 
     // Repeats until the watch has a GPS fix to report.

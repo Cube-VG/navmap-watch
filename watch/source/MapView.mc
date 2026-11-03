@@ -120,9 +120,12 @@ class MapView extends WatchUi.View {
     private var _sT as Float = 0.0;
     private var _sD2 as Float = -1.0;
 
-    // Until when the credit strip shows (System.getTimer()), and whether it has shown on its own yet
-    (:creditsOn) private var _creditsUntil as Number = 0;
-    (:creditsOn) private var _creditsShown as Boolean = false;
+    // Until when the credit strip shows (System.getTimer())
+    private var _creditsUntil as Number = 0;
+    private var _attrX as Number = 0;
+    private var _attrY as Number = 0;
+    private var _attrW as Number = 0;
+    private var _attrH as Number = 0;
 
     function initialize(model as NavModel) {
         View.initialize();
@@ -175,6 +178,7 @@ class MapView extends WatchUi.View {
         else if (_autoZoom == 15 && kmh < 22) { _autoZoom = 16; }
         else if (_autoZoom == 15 && kmh > 65) { _autoZoom = 14; }
         else if (_autoZoom <= 14 && kmh < 52) { _autoZoom = 15; }
+        _m.zoom = _autoZoom;
         return _autoZoom;
     }
 
@@ -323,7 +327,6 @@ class MapView extends WatchUi.View {
                 _backoff = 0;
                 _retryAt = 0;
                 _mapErr = null;
-                creditsOnFirstMap();
             } catch (e) {
                 stepDown();
                 retryLater();
@@ -428,34 +431,74 @@ class MapView extends WatchUi.View {
         perfShow(dc, t0);
     }
 
-    // ---- the credit strip (tools/build-watch.sh --publish) ---------------------------------------------
-    // Only the build for Garmin Connect has it. Every other build leaves it out, so nothing covers the map.
+    // ---- the attribution label and credit strip ---------------------------------------------
 
-    (:creditsOff) private function creditsOnFirstMap() as Void {}
-    (:creditsOff) private function creditsShow(dc as Graphics.Dc) as Void {}
-    (:creditsOff) function showCredits() as Void {}
-
-    // The first map shows its credit strip once by itself; after that, START shows it.
-    (:creditsOn) private function creditsOnFirstMap() as Void {
-        if (!_creditsShown) {
-            _creditsShown = true;
-            _creditsUntil = System.getTimer() + CREDITS_MS;
-        }
+    (:storeOn) private function attributionText() as String {
+        return "Google Maps";
+    }
+    (:storeOff) private function attributionText() as String {
+        return "Google";
     }
 
-    (:creditsOn) private function creditsShow(dc as Graphics.Dc) as Void {
-        var img = _img;   // drawMap drops an image the graphics pool purged
-        if (img != null && System.getTimer() < _creditsUntil) {
-            drawCredits(dc, img);
-        }
+    function isAttributionTap(x as Number, y as Number) as Boolean {
+        return x >= _attrX - 20 && x <= _attrX + _attrW + 20 &&
+               y >= _attrY - 20 && y <= _attrY + _attrH + 20;
     }
 
-    // START shows the credit strip (MapDelegate).
-    (:creditsOn) function showCredits() as Void {
+    // A tap on the label or START shows the credit line for 5 seconds, or hides it on a second press.
+    function showCredits() as Void {
         if (_img != null) {
-            _creditsUntil = System.getTimer() + CREDITS_MS;
+            var now = System.getTimer();
+            if (now < _creditsUntil) {
+                _creditsUntil = 0;
+            } else {
+                _creditsUntil = now + CREDITS_MS;
+            }
             WatchUi.requestUpdate();
         }
+    }
+
+    private function creditsShow(dc as Graphics.Dc) as Void {
+        var img = _img;
+        if (img == null || System.getTimer() >= _creditsUntil) {
+            return;
+        }
+        var cw = _m.creditW;
+        var ch = _m.creditH;
+        var cs = _m.creditSplit;
+        if (cw <= 0 || ch <= 0) {
+            drawCredits(dc, img);
+            return;
+        }
+        var top = 2 * _imgHalfH - ch;
+        var srcX = 2 * _imgHalfW - cw;
+        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
+        try {
+            if (cw <= 260 || cs <= 0) {
+                var x = HALF - cw / 2;
+                var y = 346 - ch;
+                dc.fillRoundedRectangle(x - 6, y - 4, cw + 12, ch + 8, 6);
+                dc.setClip(x, y, cw, ch);
+                dc.drawBitmap(x - srcX, y - top, img);
+            } else {
+                var w1 = cs;
+                var w2 = cw - cs;
+                var maxW = w1 > w2 ? w1 : w2;
+                var x1 = HALF - w1 / 2;
+                var x2 = HALF - w2 / 2;
+                var y1 = 346 - 2 * ch - 4;
+                var y2 = 346 - ch;
+                dc.fillRoundedRectangle(HALF - maxW / 2 - 6, y1 - 4, maxW + 12, 2 * ch + 12, 6);
+                dc.setClip(x1, y1, w1, ch);
+                dc.drawBitmap(x1 - srcX, y1 - top, img);
+                dc.setClip(x2, y2, w2, ch);
+                dc.drawBitmap(x2 - (srcX + cs), y2 - top, img);
+            }
+        } catch (e) {
+            _img = null;
+            _full = null;
+        }
+        dc.clearClip();
     }
 
     // ---- frame timing (tools/build-watch.sh --perf) ----------------------------------------------------
@@ -628,19 +671,24 @@ class MapView extends WatchUi.View {
     // pill so it stays readable over dark roads. The data credit, which names other providers in some countries,
     // is shown by drawCredits.
     private function drawAttribution(dc as Graphics.Dc) as Void {
+        var text = attributionText();
         var font = Graphics.FONT_XTINY;
-        var w = dc.getTextWidthInPixels("Google Maps", font) + 20;
+        var w = dc.getTextWidthInPixels(text, font) + 20;
         var h = dc.getFontHeight(font);
+        var x = HALF - w / 2;
+        var y = 352 - h / 2;
+        _attrX = x;
+        _attrY = y;
+        _attrW = w;
+        _attrH = h;
         dc.setColor(MAP_GROUND, Graphics.COLOR_TRANSPARENT);
-        dc.fillRoundedRectangle(HALF - w / 2, 352 - h / 2, w, h, h / 2);
+        dc.fillRoundedRectangle(x, y, w, h, h / 2);
         dc.setColor(0x5e5e5e, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(HALF, 352, font, "Google Maps", Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
+        dc.drawText(HALF, 352, font, text, Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
     }
 
-    // The map picture's own credit strip, Google's logo and "Map data ©…" with any other providers, unscaled and
-    // cut into two rows so it fits the round screen. It shows by itself with the first map and then whenever START
-    // is pressed: Google's suggestion where a screen is too small for the full credit is a "Data sources" control.
-    (:creditsOn) private function drawCredits(dc as Graphics.Dc, img as WatchUi.BitmapResource or Graphics.BitmapReference) as Void {
+    // The map picture's own credit strip fallback (if cw/ch not yet measured)
+    private function drawCredits(dc as Graphics.Dc, img as WatchUi.BitmapResource or Graphics.BitmapReference) as Void {
         var w = _imgHalfW;                 // each row is half the picture
         var top = 2 * _imgHalfH - STRIP;   // the strip's first row in the picture
         var x = HALF - w / 2;
@@ -941,9 +989,12 @@ class MapDelegate extends WatchUi.BehaviorDelegate {
         return true;
     }
 
-    // A tap does nothing: a hand or a sleeve brushing the screen while riding kept covering the map with the
-    // credits. Handled rather than left out, so the tap isn't passed on as a START press.
+    // Tap on the Google label shows credits. Taps anywhere else do nothing to avoid accidental touches.
     function onTap(evt as WatchUi.ClickEvent) as Boolean {
+        var c = evt.getCoordinates();
+        if (_view.isAttributionTap(c[0], c[1])) {
+            _view.showCredits();
+        }
         return true;
     }
 

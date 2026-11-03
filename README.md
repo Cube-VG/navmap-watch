@@ -4,6 +4,8 @@ NavMap shows a map and the next turn on a **Garmin Forerunner 165** while **Goog
 
 It's two small apps, NavMap on the watch and NavBridge on the phone, and one script sets up both.
 
+**Download phone app update:** [NavBridge.apk](https://github.com/Cube-VG/navmap-watch/releases/latest/download/NavBridge.apk) ([releases & checksums](https://github.com/Cube-VG/navmap-watch/releases/latest)). New here? Run the setup script on a computer (it also puts NavMap on the watch). If Android says the app was blocked, use the computer setup; do not turn off Play Protect.
+
 <img src="docs/navmap-on-wrist.jpg" alt="NavMap on a Forerunner 165 showing a right turn in 400 m, next to the same turn in Google Maps on the phone" width="480">
 
 ## What you need
@@ -49,7 +51,7 @@ For rides longer than 2 minutes, open NavMap on the watch first (press **START**
 - Before each turn the watch buzzes twice, timed by your speed: one long buzz about 25 seconds before, and three short ones about 6 seconds before, when the turn banner turns blue. It lights up with each buzz and stays lit for the last 120 m.
 - When the screen dims it shows just the next turn and the distance. Garmin lets an app keep the screen bright for only about a minute at a time.
 - When you arrive, it says "Arrived" and closes. It records no activity.
-- "Google Maps" under the map. Nothing pops up over the map: the full map credits come back in the Garmin Connect version.
+- "Google" (or "Google Maps" in the store build) under the map. Tap the label (or press **START**) to see the map data credits for 5 seconds.
 
 GPS needs open sky: indoors, the watch may wait for it forever.
 

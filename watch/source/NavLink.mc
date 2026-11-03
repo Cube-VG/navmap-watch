@@ -43,7 +43,7 @@ class NavLink {
         if (now < _nextAt || !System.getDeviceSettings().phoneConnected) {
             return;
         }
-        var params = {"k" => Keys.token(), "kf" => Keys.mapsKeyTail(), "ah" => _m.arrowHash.toString(), "rv" => _m.routeVersion.toString(), "c" => "1", "s" => session.toString()};
+        var params = {"k" => Keys.token(), "kf" => Keys.mapsKeyTail(), "ah" => _m.arrowHash.toString(), "rv" => _m.routeVersion.toString(), "c" => "1", "s" => session.toString(), "z" => _m.zoom.toString(), "cw" => _m.creditW.toString()};
         var lat = _m.lat;
         var lon = _m.lon;
         // The position goes to NavBridge only once the user has agreed there, which is when it hands over the key.

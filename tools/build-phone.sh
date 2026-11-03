@@ -25,7 +25,15 @@ if [ "$(uname -m)" = aarch64 ]; then
 fi
 
 cd "$ROOT/android"
-./gradlew "${args[@]}" :core:test :app:assembleRelease
-mkdir -p "$ROOT/dist"
-cp app/build/outputs/apk/release/app-release.apk "$ROOT/dist/NavBridge.apk"
-echo "Built $ROOT/dist/NavBridge.apk"
+MODE="${1:-}"
+if [ "$MODE" = "--play" ]; then
+    ./gradlew "${args[@]}" :core:test :app:bundleRelease
+    mkdir -p "$ROOT/dist"
+    cp app/build/outputs/bundle/release/app-release.aab "$ROOT/dist/NavBridge.aab"
+    echo "Built $ROOT/dist/NavBridge.aab"
+else
+    ./gradlew "${args[@]}" :core:test :app:assembleRelease
+    mkdir -p "$ROOT/dist"
+    cp app/build/outputs/apk/release/app-release.apk "$ROOT/dist/NavBridge.apk"
+    echo "Built $ROOT/dist/NavBridge.apk"
+fi

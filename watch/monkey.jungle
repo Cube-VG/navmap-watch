@@ -1,5 +1,5 @@
 project.manifest = manifest.xml
 # The watch build. watch/sim.jungle is the simulator build, which never transmits.
 # tools/build-watch.sh --perf writes its own jungle, with frame timing on (perfOn kept, perfOff left out).
-# The map's credit strip is left out too (creditsOn); --publish, the build for Garmin Connect, keeps it.
-base.excludeAnnotations = noTransmit;perfOn;creditsOn
+# Store build (--publish) uses storeOn ("Google Maps"); normal builds exclude it (storeOff -> "Google").
+base.excludeAnnotations = noTransmit;perfOn;storeOn
