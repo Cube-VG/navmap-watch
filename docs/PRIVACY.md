@@ -2,7 +2,7 @@
 
 Last updated: November 2026
 
-NavMap (the Connect IQ watch app) and NavBridge (the Android companion app) provide turn-by-turn guidance and map display on Garmin Forerunner 165 smartwatches using Google Maps navigation notifications from your Android device.
+NavMap (the Connect IQ watch app) and NavBridge (the Android companion app) provide turn-by-turn guidance and map display on supported Garmin AMOLED smartwatches using Google Maps navigation notifications from your Android device.
 
 ## 1. Privacy and Data Handling
 

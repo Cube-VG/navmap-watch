@@ -5,7 +5,7 @@ NavMap shows a map and the next turn on your **Garmin smartwatch** while **Googl
 It's two small apps: NavMap on the watch and NavBridge on the phone.
 
 **Website & Guide:** [cube-vg.github.io/navmap-watch](https://cube-vg.github.io/navmap-watch/)  
-**Garmin Watch App:** A Connect IQ release is planned at $1 for lifetime access. The direct listing will be added to the [website](https://cube-vg.github.io/navmap-watch/#downloads) when it is published.\
+**Garmin Watch App:** A Connect IQ release is planned at $1.99 for lifetime access. The direct listing will be added to the [website](https://cube-vg.github.io/navmap-watch/#downloads) when it is published.\
 **Phone App (Android):** [NavBridge.apk](https://github.com/Cube-VG/navmap-watch/releases/latest/download/NavBridge.apk) ([releases & checksums](https://github.com/Cube-VG/navmap-watch/releases/latest)).  
 *Note: Precompiled `.prg` and `.iq` watch packages are not distributed for free. Developers can compile from source using the Connect IQ SDK (`bash tools/build-watch.sh`).*
 
@@ -55,7 +55,7 @@ GPS needs open sky: indoors, the watch may wait for it forever.
 
 ## What it costs
 
-NavBridge is free. NavMap's planned Connect IQ price is $1 for lifetime access to the watch app. Map pictures and route lines are billed separately by Google Maps Platform to your own Google Cloud account, which has a free allowance every month:
+NavBridge is free. NavMap's planned Connect IQ price is $1.99 for lifetime access to the watch app. Map pictures and route lines are billed separately by Google Maps Platform to your own Google Cloud account, which has a free allowance every month:
 
 | | Free each month | After that, per 1,000 |
 |---|---|---|

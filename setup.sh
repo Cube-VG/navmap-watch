@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# NavMap setup: puts NavMap on a Garmin Forerunner 165 (or 165 Music) and NavBridge on an Android phone, with
+# NavMap setup: puts NavMap on a Garmin AMOLED smartwatch (19 models supported) and NavBridge on an Android phone, with
 # your own Google Maps key. It asks one thing at a time, and it's safe to run again: it checks each step and
 # redoes only what's missing.
 #
@@ -227,12 +227,48 @@ check_computer() {
 
 step_devices() {
     step "Your watch and phone"
-    choose "Which watch do you have?" "NavMap is made for the Forerunner 165's screen and doesn't run on other watches." \
-        "Forerunner 165" "Forerunner 165 Music" "Another watch"
+    choose "Which watch family do you have?" "NavMap supports 19 circular AMOLED Garmin models." \
+        "Forerunner (165, 265, 965)" "fēnix 8 AMOLED / epix / epix Pro" "Venu (2, 2 Plus, 2S, 3, 3S) / vívoactive 5" "MARQ (Gen 2) / D2 Mach 1"
     case "$CHOICE" in
-        1) WATCH=fr165 ;;
-        2) WATCH=fr165m ;;
-        *) die "Sorry: NavMap only runs on the Garmin Forerunner 165 and Forerunner 165 Music." ;;
+        1)
+            choose "Which Forerunner model?" "Choose your watch model:" "Forerunner 165" "Forerunner 165 Music" "Forerunner 265" "Forerunner 265S" "Forerunner 965"
+            case "$CHOICE" in
+                1) WATCH=fr165 ;;
+                2) WATCH=fr165m ;;
+                3) WATCH=fr265 ;;
+                4) WATCH=fr265s ;;
+                5) WATCH=fr965 ;;
+            esac
+            ;;
+        2)
+            choose "Which outdoor AMOLED model?" "Choose your watch model:" "fēnix 8 AMOLED 43mm" "fēnix 8 AMOLED 47mm" "epix Gen 2" "epix Pro 42mm" "epix Pro 47mm" "epix Pro 51mm"
+            case "$CHOICE" in
+                1) WATCH=fenix843mm ;;
+                2) WATCH=fenix847mm ;;
+                3) WATCH=epix2 ;;
+                4) WATCH=epix2pro42mm ;;
+                5) WATCH=epix2pro47mm ;;
+                6) WATCH=epix2pro51mm ;;
+            esac
+            ;;
+        3)
+            choose "Which Venu or vívoactive model?" "Choose your watch model:" "Venu 2" "Venu 2 Plus" "Venu 2S" "Venu 3" "Venu 3S" "vívoactive 5"
+            case "$CHOICE" in
+                1) WATCH=venu2 ;;
+                2) WATCH=venu2plus ;;
+                3) WATCH=venu2s ;;
+                4) WATCH=venu3 ;;
+                5) WATCH=venu3s ;;
+                6) WATCH=vivoactive5 ;;
+            esac
+            ;;
+        4)
+            choose "Which specialty model?" "Choose your watch model:" "MARQ Gen 2" "D2 Mach 1"
+            case "$CHOICE" in
+                1) WATCH=marq2 ;;
+                2) WATCH=d2mach1 ;;
+            esac
+            ;;
     esac
     set_prop WATCH "$WATCH" "$STATE"
     if ! ask_yes "Is your phone an Android phone?" "NavBridge, the half that runs on the phone, is an Android app. There's no iPhone version."; then
@@ -248,7 +284,28 @@ step_devices() {
 }
 
 watch_name() {
-    if [ "$1" = fr165m ]; then printf 'Forerunner 165 Music'; else printf 'Forerunner 165'; fi
+    case "$1" in
+        fr165) printf 'Forerunner 165' ;;
+        fr165m) printf 'Forerunner 165 Music' ;;
+        fr265) printf 'Forerunner 265' ;;
+        fr265s) printf 'Forerunner 265S' ;;
+        fr965) printf 'Forerunner 965' ;;
+        fenix843mm) printf 'fēnix 8 AMOLED 43mm' ;;
+        fenix847mm) printf 'fēnix 8 AMOLED 47mm' ;;
+        epix2) printf 'epix Gen 2' ;;
+        epix2pro42mm) printf 'epix Pro 42mm' ;;
+        epix2pro47mm) printf 'epix Pro 47mm' ;;
+        epix2pro51mm) printf 'epix Pro 51mm' ;;
+        venu2) printf 'Venu 2' ;;
+        venu2plus) printf 'Venu 2 Plus' ;;
+        venu2s) printf 'Venu 2S' ;;
+        venu3) printf 'Venu 3' ;;
+        venu3s) printf 'Venu 3S' ;;
+        vivoactive5) printf 'vívoactive 5' ;;
+        marq2) printf 'MARQ Gen 2' ;;
+        d2mach1) printf 'D2 Mach 1' ;;
+        *) printf '%s' "$1" ;;
+    esac
 }
 
 # ---- step: the Google Maps key ---------------------------------------------------------------------------------
@@ -1002,6 +1059,7 @@ watch_model() {
     case "$1" in
         006-B4432-*) printf fr165 ;;
         006-B4433-*) printf fr165m ;;
+        *) printf '%s' "$WATCH" ;;
     esac
 }
 
@@ -1010,10 +1068,7 @@ check_model() {
     local part="$1" model
     if [ -z "$part" ]; then return; fi
     model="$(watch_model "$part")"
-    if [ -z "$model" ]; then
-        die "This watch isn't a Forerunner 165 (its part number is $part). NavMap only runs on the Forerunner 165 and 165 Music."
-    fi
-    if [ "$model" != "$WATCH" ]; then
+    if [ -n "$model" ] && [ "$model" != "$WATCH" ]; then
         say "The watch says it's a $(watch_name "$model"), so that's the version it gets."
         WATCH="$model"
     fi
@@ -1226,7 +1281,7 @@ main() {
         return
     fi
     printf '%sNavMap setup%s\n' "$BOLD" "$PLAIN"
-    say "This puts NavMap on your Garmin Forerunner 165 and NavBridge on your Android phone, so the watch shows"
+    say "This puts NavMap on your Garmin AMOLED smartwatch and NavBridge on your Android phone, so the watch shows"
     say "the map and the next turn while Google Maps navigates on the phone."
     say ""
     say "Have these at hand:"

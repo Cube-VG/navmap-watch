@@ -69,12 +69,12 @@ What you asked between 2026-10-22 and 10-27:
 | India data law (DPDP Act 2023, Rules Nov 2025) | Main duties from about 13 May 2027 | No user data reaches you | Fine as long as you run no server |
 
 ## Business model
-Launch with **$1 one-time lifetime purchase on Garmin Connect IQ Store**, with users bringing their own free Google Maps key to avoid server/API operating costs.
+Launch with **$1.99 one-time lifetime purchase on Garmin Connect IQ Store**, with users bringing their own free Google Maps key to avoid server/API operating costs.
 
-- **No precompiled watch binaries on public GitHub:** Do not upload `.prg` or `.iq` to GitHub releases or the website. General users must install via Garmin Connect IQ Store ($1). Developers who wish to use it without paying must clone the repo, install the Connect IQ SDK, and build it themselves from source (`bash tools/build-watch.sh`).
+- **No precompiled watch binaries on public GitHub:** Do not upload `.prg` or `.iq` to GitHub releases or the website. General users must install via Garmin Connect IQ Store ($1.99). Developers who wish to use it without paying must clone the repo, install the Connect IQ SDK, and build it themselves from source (`bash tools/build-watch.sh`).
 - **Companion phone app:** NavBridge is distributed freely as an APK on the website/GitHub, and later via Google Play.
-- **Price:** $1 one-time lifetime unlock (₹89 in India / $0.99 worldwide).
-- **Pro Gating:** Turns, next maneuver text, distances, and haptic vibration buzzes remain accessible. Full live AMOLED map rendering and route polylines are unlocked with the $1 purchase.
+- **Price:** $1.99 one-time lifetime unlock.
+- **Pro Gating:** Turns, next maneuver text, distances, and haptic vibration buzzes remain accessible. Full live AMOLED map rendering and route polylines are unlocked with the $1.99 purchase.
 - **Play billing rules:**
   - A paid unlock must go through Play Billing.
   - Neither the app nor its listing may link or point people to pay elsewhere.

@@ -1,4 +1,4 @@
-# NavMap setup for Windows: puts NavMap on a Garmin Forerunner 165 (or 165 Music) and NavBridge on an Android
+# NavMap setup for Windows: puts NavMap on a Garmin AMOLED smartwatch (19 models supported) and NavBridge on an Android
 # phone, with your own Google Maps key. It asks one thing at a time, and it's safe to run again: it checks each
 # step and redoes only what's missing. It does what setup.sh does on a Mac or Linux.
 #
@@ -203,18 +203,74 @@ function Check-Computer {
 }
 
 function Watch-Name([string]$Model) {
-    if ($Model -eq 'fr165m') { return 'Forerunner 165 Music' }
-    return 'Forerunner 165'
+    switch ($Model) {
+        'fr165' { return 'Forerunner 165' }
+        'fr165m' { return 'Forerunner 165 Music' }
+        'fr265' { return 'Forerunner 265' }
+        'fr265s' { return 'Forerunner 265S' }
+        'fr965' { return 'Forerunner 965' }
+        'fenix843mm' { return 'fēnix 8 AMOLED 43mm' }
+        'fenix847mm' { return 'fēnix 8 AMOLED 47mm' }
+        'epix2' { return 'epix Gen 2' }
+        'epix2pro42mm' { return 'epix Pro 42mm' }
+        'epix2pro47mm' { return 'epix Pro 47mm' }
+        'epix2pro51mm' { return 'epix Pro 51mm' }
+        'venu2' { return 'Venu 2' }
+        'venu2plus' { return 'Venu 2 Plus' }
+        'venu2s' { return 'Venu 2S' }
+        'venu3' { return 'Venu 3' }
+        'venu3s' { return 'Venu 3S' }
+        'vivoactive5' { return 'vívoactive 5' }
+        'marq2' { return 'MARQ Gen 2' }
+        'd2mach1' { return 'D2 Mach 1' }
+        default { return $Model }
+    }
 }
 
 function Step-Devices {
     Step 'Your watch and phone'
-    $choice = Choose 'Which watch do you have?' "NavMap is made for the Forerunner 165's screen and doesn't run on other watches." `
-        @('Forerunner 165', 'Forerunner 165 Music', 'Another watch')
+    $choice = Choose 'Which watch family do you have?' "NavMap supports 19 circular AMOLED Garmin models." `
+        @('Forerunner (165, 265, 965)', 'fēnix 8 AMOLED / epix / epix Pro', 'Venu / vívoactive 5', 'MARQ (Gen 2) / D2 Mach 1')
     switch ($choice) {
-        1 { $script:Watch = 'fr165' }
-        2 { $script:Watch = 'fr165m' }
-        default { Die 'Sorry: NavMap only runs on the Garmin Forerunner 165 and Forerunner 165 Music.' }
+        1 {
+            $sub = Choose 'Which Forerunner model?' 'Choose your watch model:' @('Forerunner 165', 'Forerunner 165 Music', 'Forerunner 265', 'Forerunner 265S', 'Forerunner 965')
+            switch ($sub) {
+                1 { $script:Watch = 'fr165' }
+                2 { $script:Watch = 'fr165m' }
+                3 { $script:Watch = 'fr265' }
+                4 { $script:Watch = 'fr265s' }
+                5 { $script:Watch = 'fr965' }
+            }
+        }
+        2 {
+            $sub = Choose 'Which outdoor AMOLED model?' 'Choose your watch model:' @('fēnix 8 AMOLED 43mm', 'fēnix 8 AMOLED 47mm', 'epix Gen 2', 'epix Pro 42mm', 'epix Pro 47mm', 'epix Pro 51mm')
+            switch ($sub) {
+                1 { $script:Watch = 'fenix843mm' }
+                2 { $script:Watch = 'fenix847mm' }
+                3 { $script:Watch = 'epix2' }
+                4 { $script:Watch = 'epix2pro42mm' }
+                5 { $script:Watch = 'epix2pro47mm' }
+                6 { $script:Watch = 'epix2pro51mm' }
+            }
+        }
+        3 {
+            $sub = Choose 'Which Venu or vívoactive model?' 'Choose your watch model:' @('Venu 2', 'Venu 2 Plus', 'Venu 2S', 'Venu 3', 'Venu 3S', 'vívoactive 5')
+            switch ($sub) {
+                1 { $script:Watch = 'venu2' }
+                2 { $script:Watch = 'venu2plus' }
+                3 { $script:Watch = 'venu2s' }
+                4 { $script:Watch = 'venu3' }
+                5 { $script:Watch = 'venu3s' }
+                6 { $script:Watch = 'vivoactive5' }
+            }
+        }
+        4 {
+            $sub = Choose 'Which specialty model?' 'Choose your watch model:' @('MARQ Gen 2', 'D2 Mach 1')
+            switch ($sub) {
+                1 { $script:Watch = 'marq2' }
+                2 { $script:Watch = 'd2mach1' }
+            }
+        }
     }
     Set-Prop 'WATCH' $script:Watch $STATE
     if (-not (Ask-Yes 'Is your phone an Android phone?' "NavBridge, the half that runs on the phone, is an Android app. There's no iPhone version.")) {
@@ -800,17 +856,14 @@ function Step-Watch {
 function Watch-Model([string]$Part) {
     if ($Part -like '006-B4432-*') { return 'fr165' }
     if ($Part -like '006-B4433-*') { return 'fr165m' }
-    return ''
+    return $script:Watch
 }
 
 # Checks the watch's own part number against the answer in step 1; the watch wins.
 function Check-Model([string]$Part) {
     if (-not $Part) { return }
     $model = Watch-Model $Part
-    if (-not $model) {
-        Die "This watch isn't a Forerunner 165 (its part number is $Part). NavMap only runs on the Forerunner 165 and 165 Music."
-    }
-    if ($model -ne $script:Watch) {
+    if ($model -and $model -ne $script:Watch) {
         Say "The watch says it's a $(Watch-Name $model), so that's the version it gets."
         $script:Watch = $model
     }
@@ -1033,7 +1086,7 @@ function Main([string[]]$Arguments) {
         return
     }
     Write-Host -ForegroundColor White 'NavMap setup'
-    Say 'This puts NavMap on your Garmin Forerunner 165 and NavBridge on your Android phone, so the watch shows'
+    Say 'This puts NavMap on your Garmin AMOLED smartwatch and NavBridge on your Android phone, so the watch shows'
     Say 'the map and the next turn while Google Maps navigates on the phone.'
     Say ''
     Say 'Have these at hand:'
