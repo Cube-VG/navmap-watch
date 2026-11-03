@@ -1,6 +1,6 @@
 # NavMap and NavBridge: everything we've planned (saved 2026-10-28)
 
-**Saved, not started.** On 2026-10-28 you asked for everything we discussed in one plan, kept for later. The only code change so far is one that isn't committed yet (see "Where things stand"). This file replaces the two earlier plans in `~/.claude/plans/`: `make-a-proper-plan-curried-hearth.md` (Garmin store, money, legal) and `this-conversation-continues-from-dazzling-blossom.md` (Play, and the small "Google" label).
+**Saved, not started.** On 2026-10-28 you asked for everything we discussed in one plan, kept for later. The only code change so far is one that isn't committed yet (see "Where things stand"). This file consolidates earlier planning for the Garmin store, monetization, legal, Google Play, and the map attribution label.
 
 **When you come back:** say which step to start. Step 0 (accounts) has the longest waits. Step 1 is a short README line. Step 2 is fully designed.
 
