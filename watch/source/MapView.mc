@@ -121,8 +121,8 @@ class MapView extends WatchUi.View {
     private var _sD2 as Float = -1.0;
 
     // Until when the credit strip shows (System.getTimer()), and whether it has shown on its own yet
-    private var _creditsUntil as Number = 0;
-    private var _creditsShown as Boolean = false;
+    (:creditsOn) private var _creditsUntil as Number = 0;
+    (:creditsOn) private var _creditsShown as Boolean = false;
 
     function initialize(model as NavModel) {
         View.initialize();
@@ -323,11 +323,7 @@ class MapView extends WatchUi.View {
                 _backoff = 0;
                 _retryAt = 0;
                 _mapErr = null;
-                // The first map shows its credit strip once by itself; after that, START shows it.
-                if (!_creditsShown) {
-                    _creditsShown = true;
-                    _creditsUntil = System.getTimer() + CREDITS_MS;
-                }
+                creditsOnFirstMap();
             } catch (e) {
                 stepDown();
                 retryLater();
@@ -428,15 +424,34 @@ class MapView extends WatchUi.View {
             // Higher than the ETA: the screen is wider there, and "NavBridge not answering" is long.
             drawPill(dc, 292, waitingText(), Graphics.FONT_XTINY);
         }
-        img = _img;   // drawMap drops an image the graphics pool purged
-        if (img != null && System.getTimer() < _creditsUntil) {
-            drawCredits(dc, img);
-        }
+        creditsShow(dc);
         perfShow(dc, t0);
     }
 
+    // ---- the credit strip (tools/build-watch.sh --publish) ---------------------------------------------
+    // Only the build for Garmin Connect has it. Every other build leaves it out, so nothing covers the map.
+
+    (:creditsOff) private function creditsOnFirstMap() as Void {}
+    (:creditsOff) private function creditsShow(dc as Graphics.Dc) as Void {}
+    (:creditsOff) function showCredits() as Void {}
+
+    // The first map shows its credit strip once by itself; after that, START shows it.
+    (:creditsOn) private function creditsOnFirstMap() as Void {
+        if (!_creditsShown) {
+            _creditsShown = true;
+            _creditsUntil = System.getTimer() + CREDITS_MS;
+        }
+    }
+
+    (:creditsOn) private function creditsShow(dc as Graphics.Dc) as Void {
+        var img = _img;   // drawMap drops an image the graphics pool purged
+        if (img != null && System.getTimer() < _creditsUntil) {
+            drawCredits(dc, img);
+        }
+    }
+
     // START shows the credit strip (MapDelegate).
-    function showCredits() as Void {
+    (:creditsOn) function showCredits() as Void {
         if (_img != null) {
             _creditsUntil = System.getTimer() + CREDITS_MS;
             WatchUi.requestUpdate();
@@ -625,7 +640,7 @@ class MapView extends WatchUi.View {
     // The map picture's own credit strip, Google's logo and "Map data ©…" with any other providers, unscaled and
     // cut into two rows so it fits the round screen. It shows by itself with the first map and then whenever START
     // is pressed: Google's suggestion where a screen is too small for the full credit is a "Data sources" control.
-    private function drawCredits(dc as Graphics.Dc, img as WatchUi.BitmapResource or Graphics.BitmapReference) as Void {
+    (:creditsOn) private function drawCredits(dc as Graphics.Dc, img as WatchUi.BitmapResource or Graphics.BitmapReference) as Void {
         var w = _imgHalfW;                 // each row is half the picture
         var top = 2 * _imgHalfH - STRIP;   // the strip's first row in the picture
         var x = HALF - w / 2;

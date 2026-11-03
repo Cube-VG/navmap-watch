@@ -55,7 +55,7 @@ Under **I travel by**, pick Motorbike, Car, Bicycle or Walking. It sets the rout
 - **Turns and the blue route line:** in Google Maps, open the destination, tap **Share** and pick **Navigate with NavMap**. NavBridge works out the route and starts Google Maps navigation for you. If you take another way, NavBridge draws a new line from where you are once you've been 60 m off the old one for 8 seconds.
 - **For rides longer than 2 minutes:** first open NavMap on the watch yourself (press **START** on the watch face and pick NavMap). When it says "Waiting for Google Maps", start navigating. Opened by the phone, NavMap is closed by the watch after about 2 minutes without a button press; opened from the watch's list, it stays open. If the watch does close it, NavBridge asks it to open NavMap again: press **START**.
 
-Press **START** on the watch to see the map's credits: Google's logo and the map data providers, as printed on the map picture. "Google Maps" stays under the map.
+"Google Maps" stays under the map. Nothing else covers it: the full map credits (Google's logo and the map data providers) are only in the Garmin Connect version.
 
 The watch buzzes twice before each turn, timed by your speed: one long buzz about 25 seconds before, and three short ones about 6 seconds before, when the turn banner turns blue. It lights up with each buzz and stays lit for the last 120 m before a turn. In between, the screen dims to the next turn's arrow and distance; raise your wrist or press a button to see the map. When you arrive it shows "Arrived" and closes.
 

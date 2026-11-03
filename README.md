@@ -49,7 +49,7 @@ For rides longer than 2 minutes, open NavMap on the watch first (press **START**
 - Before each turn the watch buzzes twice, timed by your speed: one long buzz about 25 seconds before, and three short ones about 6 seconds before, when the turn banner turns blue. It lights up with each buzz and stays lit for the last 120 m.
 - When the screen dims it shows just the next turn and the distance. Garmin lets an app keep the screen bright for only about a minute at a time.
 - When you arrive, it says "Arrived" and closes. It records no activity.
-- "Google Maps" under the map. Press **START** for the map's full credits: Google's logo and its map data providers.
+- "Google Maps" under the map. Nothing pops up over the map: the full map credits come back in the Garmin Connect version.
 
 GPS needs open sky: indoors, the watch may wait for it forever.
 

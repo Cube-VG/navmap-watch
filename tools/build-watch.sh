@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
-# Builds the NavMap watch app. Usage: tools/build-watch.sh [device] [--sim] [--perf]   (default fr165)
+# Builds the NavMap watch app. Usage: tools/build-watch.sh [device] [--sim] [--perf] [--publish]   (default fr165)
 # --sim writes dist/NavMap-sim.prg for the Connect IQ simulator. It receives phone messages but never
 # transmits, because the simulator segfaults on any transmit (Garmin bug CIQQA-4579).
 # --perf adds -perf to the name and shows frame times on the watch (map, route line, whole frame, frames a second).
+# --publish is the build for Garmin Connect: it keeps the map's credit strip (Google's logo and data credit,
+# with the first map and on START), which every other build leaves out. "Google Maps" under the map is in all.
 # Nothing secret goes in: the watch makes its own pairing token and gets the Google Maps key from NavBridge
 # (watch/source/Keys.mc), so the same .prg works for everyone and can be published.
 set -euo pipefail
@@ -11,10 +13,12 @@ DEVICE=fr165
 JUNGLE="$ROOT/watch/monkey.jungle"
 NAME=NavMap
 PERF=0
+PUBLISH=0
 for arg in "$@"; do
     case "$arg" in
         --sim) JUNGLE="$ROOT/watch/sim.jungle"; NAME="$NAME-sim" ;;
         --perf) PERF=1 ;;
+        --publish) PUBLISH=1 ;;
         *) DEVICE="$arg" ;;
     esac
 done
@@ -23,6 +27,12 @@ if [ "$PERF" = 1 ]; then
     sed 's/perfOn/perfOff/' "$JUNGLE" > "$ROOT/watch/perf.jungle"
     JUNGLE="$ROOT/watch/perf.jungle"
     NAME="$NAME-perf"
+fi
+if [ "$PUBLISH" = 1 ]; then
+    # The same build with the credit strip kept in: creditsOff left out instead of creditsOn.
+    sed 's/creditsOn/creditsOff/' "$JUNGLE" > "$ROOT/watch/publish.jungle"
+    JUNGLE="$ROOT/watch/publish.jungle"
+    NAME="$NAME-publish"
 fi
 OUT="$ROOT/dist/$NAME.prg"
 KEY_DER="$HOME/.config/navmap/developer_key.der"

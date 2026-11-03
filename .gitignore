@@ -13,4 +13,5 @@ android/local.properties
 *.apk
 __pycache__/
 watch/perf.jungle
+watch/publish.jungle
 verify-out/
