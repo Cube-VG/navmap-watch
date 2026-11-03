@@ -1,12 +1,13 @@
 # Setting up NavMap by hand
 
-`bash setup.sh` on a Mac or Linux computer, or `setup.ps1` on Windows, does all of this for you (see the [README](../README.md)). This page is for doing it yourself. You need the same things as the README lists.
+For a guided overview, see the [website setup guide](https://cube-vg.github.io/navmap-watch/setup.html). This page contains the detailed manual instructions. You need the same things as the [README](../README.md) lists.
+
+The older setup scripts expect precompiled watch files in GitHub releases. Those files are no longer included in the current release, so the default automatic download flow is unavailable. Developers should follow the [source-build guide](DEVELOPING.md).
 
 ## 1. Download the two apps
-From [the latest release](https://github.com/Cube-VG/navmap-watch/releases/latest), download:
-
-- `NavMap-fr165.prg` for the Forerunner 165, or `NavMap-fr165m.prg` for the Forerunner 165 Music. Garmin Connect's list of devices shows which one you have.
-- `NavBridge.apk`, the phone app.
+- Download `NavBridge.apk`, the free phone app, from [the latest release](https://github.com/Cube-VG/navmap-watch/releases/latest).
+- NavMap's Connect IQ release is planned at $1 for lifetime access. Check the [website](https://cube-vg.github.io/navmap-watch/#downloads) for the direct store listing when it is published.
+- Until the listing is available, developers can [build the watch app from source](DEVELOPING.md) for their supported device. Precompiled `.prg` and `.iq` watch packages are not offered in the current public release.
 
 ## 2. Make a Google Maps key
 The key lets NavMap get map pictures and route lines from Google, billed to you. Google asks for a payment card, but one person's use normally stays inside the free allowance (see [What it costs](../README.md#what-it-costs)).
@@ -18,6 +19,8 @@ The key lets NavMap get map pictures and route lines from Google, billed to you.
 5. Copy the key. It starts with `AIza`.
 
 ## 3. Put NavMap on the watch
+Once the Connect IQ listing is published, install through the store. The USB instructions below are for a watch package you built yourself for your device.
+
 1. Plug the watch into the computer with its charging cable. On Windows and Linux it shows up like a phone or a USB stick. On a Mac you need [OpenMTP](https://openmtp.ganeshrvel.com/) to open it.
 2. Copy the `.prg` file into the watch's **GARMIN** folder, then into **Apps**. If a NavMap file is there already, give the new file the same name so it replaces the old one (the setup scripts name it `NavMap.prg`). The watch takes a NavMap under a new name for a new app that must pair again, so delete any other NavMap file.
 3. Unplug the watch. NavMap is now in the watch's list of activities and apps (press **START** on the watch face).
@@ -64,7 +67,7 @@ The map can't stay on all the time: Garmin lets a Connect IQ app hold the screen
 For the longest bright screen, on the watch hold **Up → System → Display**, and in both **General Use** and **During Activity** set **Timeout** to the longest value, turn **Gesture** on, and leave **Always On Display** on.
 
 ## Troubleshooting
-First run the setup script again (`bash setup.sh` on a Mac or Linux computer, `powershell -ExecutionPolicy Bypass -File setup.ps1` on Windows): it checks every part and fixes what it can. Add `test` to run just the final test.
+First check that NavBridge's Setup items are complete and Garmin Connect is connected to the watch. The older scripts' default download flow expects watch files that are no longer in the current release; use the manual or source-build instructions above.
 
 - **Nothing on the watch:**
   1. Open NavBridge and check that every Setup step is green.

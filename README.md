@@ -2,10 +2,10 @@
 
 NavMap shows a map and the next turn on your **Garmin smartwatch** while **Google Maps** navigates on your **Android phone**.
 
-It's two small apps, NavMap on the watch and NavBridge on the phone, and one script sets up both.
+It's two small apps: NavMap on the watch and NavBridge on the phone.
 
 **Website & Guide:** [cube-vg.github.io/navmap-watch](https://cube-vg.github.io/navmap-watch/)  
-**Garmin Watch App:** Available on the [Garmin Connect IQ Store](https://apps.garmin.com/) ($1 one-time lifetime purchase).  
+**Garmin Watch App:** A Connect IQ release is planned at $1 for lifetime access. The direct listing will be added to the [website](https://cube-vg.github.io/navmap-watch/#downloads) when it is published.\
 **Phone App (Android):** [NavBridge.apk](https://github.com/Cube-VG/navmap-watch/releases/latest/download/NavBridge.apk) ([releases & checksums](https://github.com/Cube-VG/navmap-watch/releases/latest)).  
 *Note: Precompiled `.prg` and `.iq` watch packages are not distributed for free. Developers can compile from source using the Connect IQ SDK (`bash tools/build-watch.sh`).*
 
@@ -20,26 +20,16 @@ It's two small apps, NavMap on the watch and NavBridge on the phone, and one scr
   - **Specialty & Aviation**: MARQ Gen 2, D2 Mach 1
   *(Note: Memory-in-Pixel [MIP] models such as Fenix 7, FR 255/955, and Instinct are not compatible due to their 64-color palette limitation. NavMap requires Connect IQ 5.0+ and an AMOLED high-contrast circular display).*
 - An **Android phone** (Android 8 or newer) with **Garmin Connect** and **Google Maps**, and the watch paired in Garmin Connect. **iPhones (iOS) cannot run NavBridge** due to Apple notification sandbox restrictions.
-- A **Windows, Mac or Linux computer**, the watch's charging cable and a USB cable for the phone.
+- For a **source build**, a computer, the Connect IQ SDK and the watch's charging cable (see [the developer guide](docs/DEVELOPING.md)).
 - A **Google account and a payment card**. Google wants a card on file before it gives you a Maps key, but one person's use normally stays inside the free allowance (see [What it costs](#what-it-costs)).
 
 ## Set it up
 
-On a **Mac or Linux** computer, open Terminal and paste this line:
+Follow the [website setup guide](https://cube-vg.github.io/navmap-watch/setup.html) to install NavBridge, create your Google Maps key, grant permissions and pair the watch.
 
-```
-curl -fsSLO https://raw.githubusercontent.com/Cube-VG/navmap-watch/main/setup.sh && bash setup.sh
-```
+The Connect IQ listing is not linked yet. Until it is published, developers can [build NavMap from source](docs/DEVELOPING.md). Precompiled watch packages are not included in the current GitHub release.
 
-On **Windows** 10 or 11, open the Start menu, type **PowerShell**, open **Windows PowerShell** and paste this line:
-
-```
-irm https://raw.githubusercontent.com/Cube-VG/navmap-watch/main/setup.ps1 -OutFile setup.ps1; powershell -ExecutionPolicy Bypass -File setup.ps1
-```
-
-The script asks one thing at a time and does everything else. You sign in to Google, plug in the phone and the watch, and tap what it tells you on the phone. It takes about 20 minutes. If anything stops it, paste the same line again: it carries on from where it was.
-
-On Ubuntu, if it says `curl: command not found`, run `sudo apt install curl` first. On Windows, if the phone never shows up, it may need its maker's USB driver: the script says so. To set it up by hand instead, see [docs/SETUP.md](docs/SETUP.md).
+The older automatic setup scripts expect those watch packages, so their default download flow does not work with the current release. Use the source-build guide instead. Detailed manual instructions are in [docs/SETUP.md](docs/SETUP.md).
 
 ## Using it
 
@@ -65,7 +55,7 @@ GPS needs open sky: indoors, the watch may wait for it forever.
 
 ## What it costs
 
-NavMap is free. The map pictures and the route line come from Google Maps Platform, billed to your own Google Cloud account, which has a free allowance every month:
+NavBridge is free. NavMap's planned Connect IQ price is $1 for lifetime access to the watch app. Map pictures and route lines are billed separately by Google Maps Platform to your own Google Cloud account, which has a free allowance every month:
 
 | | Free each month | After that, per 1,000 |
 |---|---|---|
@@ -78,7 +68,7 @@ The watch loads about 100 to 200 map pictures per hour of riding, so the free al
 
 ## If something isn't working
 
-Paste the setup line again: it checks every part and fixes what it can. Then see the troubleshooting list in [docs/SETUP.md](docs/SETUP.md#troubleshooting).
+Check NavBridge's Setup list and the connection in Garmin Connect, then see the troubleshooting list in [docs/SETUP.md](docs/SETUP.md#troubleshooting).
 
 ## Privacy
 
