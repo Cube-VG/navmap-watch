@@ -68,22 +68,13 @@ What you asked between 2026-10-22 and 10-27:
 | Licence | No licence means all rights reserved | Missing | Choose one in step 0 |
 | India data law (DPDP Act 2023, Rules Nov 2025) | Main duties from about 13 May 2027 | No user data reaches you | Fine as long as you run no server |
 
-## Business model (recommended)
-Launch **free, with each user's own Maps key, plus a one-time "Pro" unlock sold in NavBridge through Play Billing**. Add a managed subscription that needs no Google Cloud setup later, and only if the costs below come down.
+## Business model
+Launch with **$1 one-time lifetime purchase on Garmin Connect IQ Store**, with users bringing their own free Google Maps key to avoid server/API operating costs.
 
-Why: each user's own key comes with Google's free monthly allowance, so you pay nothing per ride. If you used your own key for everyone, all users would share one allowance and it gets expensive:
-
-| Per hour of riding (~150 map pictures) | Worldwide price | India price |
-|---|---|---|
-| Map pictures after the free allowance | $0.30 | $0.09 |
-| Free pictures each month, per key | 10,000 (~66 h) | 70,000 (~466 h) |
-| Motorbike route line, per trip (~3 requests) | $0.045 | $0.0135 |
-
-For example, 100 subscribers each riding 20 hours a month on your key would cost about **$7.50 per user per month** worldwide. At India prices it would be about **$1.60**, but India pricing needs most of the use to be in India. That can't compete with dwMap at $9.99 a year.
-
-- **Pro:** unlocks the map and the route line, with the first 7 days free. Play has no free trials for one-time purchases, so the app counts the 7 days itself.
-  - Turns and buzzes stay free.
-  - Price: about ₹299 in India and $3.99–4.99 elsewhere. For comparison, Navigation Pro sells for $2.99 and dwMap for $29.99 lifetime.
+- **No precompiled watch binaries on public GitHub:** Do not upload `.prg` or `.iq` to GitHub releases or the website. General users must install via Garmin Connect IQ Store ($1). Developers who wish to use it without paying must clone the repo, install the Connect IQ SDK, and build it themselves from source (`bash tools/build-watch.sh`).
+- **Companion phone app:** NavBridge is distributed freely as an APK on the website/GitHub, and later via Google Play.
+- **Price:** $1 one-time lifetime unlock (₹89 in India / $0.99 worldwide).
+- **Pro Gating:** Turns, next maneuver text, distances, and haptic vibration buzzes remain accessible. Full live AMOLED map rendering and route polylines are unlocked with the $1 purchase.
 - **Play billing rules:**
   - A paid unlock must go through Play Billing.
   - Neither the app nor its listing may link or point people to pay elsewhere.

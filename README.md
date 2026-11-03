@@ -5,7 +5,9 @@ NavMap shows a map and the next turn on your **Garmin smartwatch** while **Googl
 It's two small apps, NavMap on the watch and NavBridge on the phone, and one script sets up both.
 
 **Website & Guide:** [cube-vg.github.io/navmap-watch](https://cube-vg.github.io/navmap-watch/)  
-**Download phone app update:** [NavBridge.apk](https://github.com/Cube-VG/navmap-watch/releases/latest/download/NavBridge.apk) ([releases & checksums](https://github.com/Cube-VG/navmap-watch/releases/latest)). New here? Run the setup script on a computer (it also puts NavMap on the watch). If Android says the app was blocked, use the computer setup; do not turn off Play Protect.
+**Garmin Watch App:** Available on the [Garmin Connect IQ Store](https://apps.garmin.com/) ($1 one-time lifetime purchase).  
+**Phone App (Android):** [NavBridge.apk](https://github.com/Cube-VG/navmap-watch/releases/latest/download/NavBridge.apk) ([releases & checksums](https://github.com/Cube-VG/navmap-watch/releases/latest)).  
+*Note: Precompiled `.prg` and `.iq` watch packages are not distributed for free. Developers can compile from source using the Connect IQ SDK (`bash tools/build-watch.sh`).*
 
 <img src="docs/navmap-on-wrist.jpg" alt="NavMap on a Forerunner 165 showing a right turn in 400 m, next to the same turn in Google Maps on the phone" width="480">
 
