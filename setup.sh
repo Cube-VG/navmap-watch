@@ -957,8 +957,8 @@ step_phone() {
     setup_call key "$MAPS_KEY" || die "NavBridge didn't take the key: $(setup_error)"
     choose "How do you usually travel?" \
         "Google plans the blue route line for this, and NavBridge starts Google Maps navigation in this mode." \
-        "Motorbike or scooter" "Car" "Bicycle" "Walking"
-    local modes=(MOTORBIKE CAR BICYCLE WALK)
+        "Auto (matches Google Maps)" "Car" "Motorbike or scooter" "Bicycle" "Walking"
+    local modes=(AUTO CAR MOTORBIKE BICYCLE WALK)
     setup_call mode "${modes[$((CHOICE - 1))]}" || die "NavBridge didn't take the travel mode: $(setup_error)"
     check_phone_settings
     wait_for_consent

@@ -7,6 +7,7 @@ import android.os.SystemClock
 import com.cubevg.navmap.core.ArrowEncoder
 import com.cubevg.navmap.core.Destination
 import com.cubevg.navmap.core.LatLng
+import com.cubevg.navmap.core.MapsNotificationParser
 import com.cubevg.navmap.core.NavCodec
 import com.cubevg.navmap.core.NavInfo
 import com.cubevg.navmap.core.NavKind
@@ -812,8 +813,9 @@ object NavSession : CiqBridge.Listener {
         routing = true
         rerouteWanted = false
         val mode = Prefs.travelMode(context)
-        DebugLog.log("Getting route ($mode)")
-        RoutesClient.computeRoute(key, origin, place, mode) { result ->
+        val detected = detectModeFromNav()
+        DebugLog.log("Getting route ($mode" + (if (detected != null) ", detected $detected" else "") + ")")
+        RoutesClient.computeRoute(key, origin, place, mode, detected) { result ->
             routing = false
             if (destination !== place) return@computeRoute
             lastRouteAt = SystemClock.elapsedRealtime()
@@ -829,10 +831,16 @@ object NavSession : CiqBridge.Listener {
                 rerouteWanted = true
                 routeRetryAt = lastRouteAt + (ROUTE_RETRY_MS shl minOf(routeFails, 3))
                 routeFails++
-                routeSummary = "Route failed: ${e.message}"
-                DebugLog.log("$routeSummary (trying again in ${(routeRetryAt - lastRouteAt) / 1000} s)")
+                routeSummary = "Route unavailable: ${e.message}"
+                DebugLog.log("Route failed: ${e.message} (trying again in ${(routeRetryAt - lastRouteAt) / 1000} s)")
             }
         }
+    }
+
+    private fun detectModeFromNav(): TravelMode? = when (MapsNotificationParser.detectTravelHint(latest?.instruction, latest?.trip)) {
+        "WALK" -> TravelMode.WALK
+        "BICYCLE" -> TravelMode.BICYCLE
+        else -> null
     }
 
     private fun describe(info: NavInfo) =

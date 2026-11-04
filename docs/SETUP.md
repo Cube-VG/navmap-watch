@@ -9,14 +9,13 @@ The older setup scripts expect precompiled watch files in GitHub releases. Those
 - NavMap's Connect IQ release is planned at $1.99 for lifetime access. Check the [website](https://cube-vg.github.io/navmap-watch/#downloads) for the direct store listing when it is published.
 - Until the listing is available, developers can [build the watch app from source](DEVELOPING.md) for their supported device. Precompiled `.prg` and `.iq` watch packages are not offered in the current public release.
 
-## 2. Make a Google Maps key
-The key lets NavMap get map pictures and route lines from Google, billed to you. Google asks for a payment card, but one person's use normally stays inside the free allowance (see [What it costs](../README.md#what-it-costs)).
+## 2. Make a Google Maps key (Optional)
+Turn arrows, road names, and vibration alerts work immediately without any key. The key is only required if you want visual map pictures and the blue route line from Google. Google provides a **$200 monthly free credit**, so normal personal use stays free.
 
-1. [Create a project](https://console.cloud.google.com/projectcreate) in the Google Cloud console. Any name will do, for example NavMap.
-2. Open [Billing](https://console.cloud.google.com/billing) and link a billing account to the project, creating one if you have none.
-3. Turn on the two services NavMap uses: open [Maps Static API](https://console.cloud.google.com/apis/library/static-maps-backend.googleapis.com) and [Routes API](https://console.cloud.google.com/apis/library/routes.googleapis.com), and click **Enable** on each.
-4. Open [Credentials](https://console.cloud.google.com/apis/credentials), click **Create credentials → API key**, then open the new key. Under **API restrictions** choose **Restrict key**, tick **Maps Static API** and **Routes API**, and save. Leave **Application restrictions** at **None**: the map pictures are fetched by Garmin's servers, so no single app or address fits.
-5. Copy the key. It starts with `AIza`.
+1. [Open Google Cloud Credentials](https://console.cloud.google.com/google/maps-apis/credentials).
+2. Click **Create credentials → API key**.
+3. Enable **Maps Static API** (for map pictures) and **Routes API** (for route lines).
+4. Copy the key (starts with `AIza`). When you switch to NavBridge, it automatically detects the key from your clipboard and prompts you to save it with one tap.
 
 ## 3. Put NavMap on the watch
 Once the Connect IQ listing is published, install through the store. The USB instructions below are for a watch package you built yourself for your device.
@@ -47,7 +46,7 @@ Then work down the **Setup** list. Each step turns green when it's done.
 | **Battery: Garmin Connect** | Also **Unrestricted**, so it keeps talking to the watch. |
 | **Location (optional)** | Lets the route line start from the phone's position before the watch has GPS. |
 
-Under **I travel by**, pick Motorbike, Car, Bicycle or Walking. It sets the route line's travel mode.
+Under **I travel by**, pick Auto (default), Car, Motorbike, Bicycle or Walking. Auto mode automatically synchronizes with your navigation mode in Google Maps.
 
 ## 6. Pair the watch, then test
 1. With NavBridge open on the phone, open NavMap on the watch. Within a few seconds NavBridge's **Watch** card says "Paired with NavMap", and NavBridge hands the watch your key. From then on NavBridge answers only this watch.

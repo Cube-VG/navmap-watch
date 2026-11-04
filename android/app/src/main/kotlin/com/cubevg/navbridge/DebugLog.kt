@@ -1,6 +1,7 @@
 package com.cubevg.navbridge
 
 import android.util.Log
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -16,8 +17,30 @@ object DebugLog {
         Log.i("NavBridge", message)
         lines.addLast("${time.format(Date())}  $message")
         while (lines.size > MAX) lines.removeFirst()
+
+        try {
+            val crashlytics = FirebaseCrashlytics.getInstance()
+            crashlytics.log(message)
+            val lower = message.lowercase(Locale.US)
+            if (lower.startsWith("couldn't") || lower.contains("failed") || lower.contains("crashed")) {
+                crashlytics.recordException(NavBridgeIssue(message))
+            }
+        } catch (_: Throwable) {
+            // Firebase Crashlytics not initialized or unavailable
+        }
+    }
+
+    fun record(throwable: Throwable, message: String? = null) {
+        if (message != null) log(message)
+        try {
+            FirebaseCrashlytics.getInstance().recordException(throwable)
+        } catch (_: Throwable) {
+            // Firebase Crashlytics not initialized or unavailable
+        }
     }
 
     @Synchronized
     fun lines(): List<String> = lines.toList()
+
+    class NavBridgeIssue(message: String) : Exception(message)
 }

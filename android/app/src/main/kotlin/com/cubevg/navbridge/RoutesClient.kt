@@ -50,14 +50,31 @@ object RoutesClient {
     @Volatile
     private var frontEnd: InetAddress? = null
 
-    fun computeRoute(key: String, origin: LatLng, destination: Destination, mode: TravelMode, done: (Result<Route>) -> Unit) {
+    fun computeRoute(
+        key: String,
+        origin: LatLng,
+        destination: Destination,
+        mode: TravelMode,
+        detectedMode: TravelMode? = null,
+        done: (Result<Route>) -> Unit,
+    ) {
         worker.execute {
             val result = runCatching {
+                val effectiveMode = when {
+                    mode != TravelMode.AUTO -> mode
+                    detectedMode != null && detectedMode != TravelMode.AUTO -> detectedMode
+                    else -> TravelMode.CAR
+                }
+                val targetRoutes = effectiveMode.routes ?: TravelMode.CAR.routes ?: "DRIVE"
                 try {
-                    request(key, origin, destination, mode.routes)
+                    request(key, origin, destination, targetRoutes)
                 } catch (e: IOException) {
-                    // Two-wheeler routing only exists in some countries; driving is the closest match elsewhere.
-                    if (mode == TravelMode.MOTORBIKE) request(key, origin, destination, TravelMode.CAR.routes) else throw e
+                    // Two-wheeler routing only exists in some countries/routes; driving is the universal fallback.
+                    if (targetRoutes == TravelMode.MOTORBIKE.routes) {
+                        request(key, origin, destination, TravelMode.CAR.routes ?: "DRIVE")
+                    } else {
+                        throw e
+                    }
                 }
             }
             main.post { done(result) }

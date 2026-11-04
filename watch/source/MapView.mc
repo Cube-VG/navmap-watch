@@ -416,18 +416,19 @@ class MapView extends WatchUi.View {
             drawRoute(dc, lat, lon, z);
             perfMark(t0, 1);
             drawAttribution(dc);
-            if (img == null) {
-                // The route line alone: say why there's no map, as the black screen did.
+            if (img == null && !_m.navActive) {
                 var err = _mapErr;
-                // Refused (403): a NavMap NavBridge doesn't know, such as one copied under another file name.
-                drawPill(dc, SCREEN * 160 / 390, Keys.mapsKey() == null ? (getApp().link.refused ? "Open NavBridge to pair" : "No map key yet")
-                    : err == null ? "Loading map" : "No map: error " + err, Graphics.FONT_XTINY);
+                if (Keys.mapsKey() != null) {
+                    drawPill(dc, SCREEN * 160 / 390, err == null ? "Loading map" : "No map: error " + err, Graphics.FONT_XTINY);
+                } else if (getApp().link.refused) {
+                    drawPill(dc, SCREEN * 160 / 390, "Open NavBridge to pair", Graphics.FONT_XTINY);
+                }
             }
         } else {
             dc.setColor(Graphics.COLOR_BLACK, Graphics.COLOR_BLACK);
             dc.clear();
             dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
-            dc.drawText(HALF, HALF + (SCREEN * 50 / 390), Graphics.FONT_SMALL, lat == null ? "Waiting for GPS" : Keys.mapsKey() == null ? "No map key yet" : "Loading map",
+            dc.drawText(HALF, HALF + (SCREEN * 50 / 390), Graphics.FONT_SMALL, lat == null ? "Waiting for GPS" : "Ready to navigate",
                 Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
         }
         drawMarker(dc, onMap);

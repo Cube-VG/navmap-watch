@@ -127,6 +127,18 @@ object MapsNotificationParser {
         val fields = Text.fields(sub)
         return if (fields.size >= 3) "${fields.first()} · ${etaSuffix.replace(fields.last(), "")}" else sub
     }
+
+    /** Detects walking or bicycle mode keywords from notification text to help auto mode routing. */
+    fun detectTravelHint(vararg sources: String?): String? {
+        val text = sources.filterNotNull().joinToString(" ").lowercase()
+        return when {
+            text.contains("walk") || text.contains("piéton") || text.contains("zu fuß") ||
+                text.contains("a piedi") || text.contains("camina") || text.contains("pedestrian") -> "WALK"
+            text.contains("bike") || text.contains("bicycle") || text.contains("vélo") ||
+                text.contains("fahrrad") || text.contains("bicicleta") || text.contains("ciclovia") -> "BICYCLE"
+            else -> null
+        }
+    }
 }
 
 /**

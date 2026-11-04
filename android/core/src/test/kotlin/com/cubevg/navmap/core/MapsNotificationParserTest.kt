@@ -47,6 +47,17 @@ class MapsNotificationParserTest {
     }
 
     @Test
+    fun detectTravelHint() {
+        assertEquals("WALK", MapsNotificationParser.detectTravelHint("Walk towards Market St", "Arrive 12:30"))
+        assertEquals("WALK", MapsNotificationParser.detectTravelHint("Take the pedestrian crossing"))
+        assertEquals("WALK", MapsNotificationParser.detectTravelHint("Camina hacia la plaza"))
+        assertEquals("BICYCLE", MapsNotificationParser.detectTravelHint("Ride bicycle on bike path"))
+        assertEquals("BICYCLE", MapsNotificationParser.detectTravelHint("Fahrradweg folgen"))
+        assertNull(MapsNotificationParser.detectTravelHint("Turn right onto Main Street", "5 min · 12:00"))
+        assertNull(MapsNotificationParser.detectTravelHint("Take exit 42 onto Highway 101"))
+    }
+
+    @Test
     fun noDistanceInStreetName() {
         val info = nav("Turn right onto 5 m Street", sub = "Arrive 12:00")!!
         assertNull(info.distance)

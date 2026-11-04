@@ -3,9 +3,10 @@ package com.cubevg.navbridge
 import android.content.Context
 
 /** How the user travels: picks the Routes API mode for the route line and the Google Maps navigation mode. */
-enum class TravelMode(val routes: String, val maps: Char, val urlMode: String) {
-    MOTORBIKE("TWO_WHEELER", 'l', "two-wheeler"),
+enum class TravelMode(val routes: String?, val maps: Char?, val urlMode: String?) {
+    AUTO(null, null, null),
     CAR("DRIVE", 'd', "driving"),
+    MOTORBIKE("TWO_WHEELER", 'l', "two-wheeler"),
     BICYCLE("BICYCLE", 'b', "bicycling"),
     WALK("WALK", 'w', "walking"),
 }
@@ -15,7 +16,7 @@ object Prefs {
 
     fun travelMode(context: Context): TravelMode =
         prefs(context).getString("travel_mode", null)?.let { name -> TravelMode.entries.firstOrNull { it.name == name } }
-            ?: TravelMode.MOTORBIKE
+            ?: TravelMode.AUTO
 
     fun setTravelMode(context: Context, mode: TravelMode) {
         prefs(context).edit().putString("travel_mode", mode.name).apply()
@@ -74,5 +75,12 @@ object Prefs {
 
     fun setBinderForgotten(context: Context) {
         prefs(context).edit().putBoolean("binder_forgotten", true).apply()
+    }
+
+    /** Only admin (developer) can see debug logs and raw error traces. */
+    fun isAdmin(context: Context): Boolean = prefs(context).getBoolean("admin_mode", false)
+
+    fun setAdmin(context: Context, admin: Boolean) {
+        prefs(context).edit().putBoolean("admin_mode", admin).apply()
     }
 }

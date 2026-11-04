@@ -761,8 +761,8 @@ function Step-Phone {
     if (-not (Setup-Call 'key' $script:MapsKey)) { Die "NavBridge didn't take the key: $(Setup-Error)" }
     $choice = Choose 'How do you usually travel?' `
         'Google plans the blue route line for this, and NavBridge starts Google Maps navigation in this mode.' `
-        @('Motorbike or scooter', 'Car', 'Bicycle', 'Walking')
-    $mode = @('MOTORBIKE', 'CAR', 'BICYCLE', 'WALK')[$choice - 1]
+        @('Auto (matches Google Maps)', 'Car', 'Motorbike or scooter', 'Bicycle', 'Walking')
+    $mode = @('AUTO', 'CAR', 'MOTORBIKE', 'BICYCLE', 'WALK')[$choice - 1]
     if (-not (Setup-Call 'mode' $mode)) { Die "NavBridge didn't take the travel mode: $(Setup-Error)" }
     Check-PhoneSettings
     Wait-ForConsent

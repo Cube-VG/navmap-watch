@@ -63,12 +63,14 @@ class ShareActivity : Activity() {
 
     private fun startNavigation(destination: Destination) {
         val mode = Prefs.travelMode(this)
+        val modeParam = mode.maps?.let { "&mode=$it" }.orEmpty()
+        val urlParam = mode.urlMode?.let { "&travelmode=$it" }.orEmpty()
         val uri = when (destination) {
-            is Destination.Point -> Uri.parse("google.navigation:q=${destination.lat},${destination.lng}&mode=${mode.maps}")
-            is Destination.Address -> Uri.parse("google.navigation:q=${Uri.encode(destination.query)}&mode=${mode.maps}")
+            is Destination.Point -> Uri.parse("google.navigation:q=${destination.lat},${destination.lng}$modeParam")
+            is Destination.Address -> Uri.parse("google.navigation:q=${Uri.encode(destination.query)}$modeParam")
             is Destination.Place -> Uri.parse(
                 "https://www.google.com/maps/dir/?api=1&destination=${Uri.encode(destination.name.orEmpty())}" +
-                    "&destination_place_id=${Uri.encode(destination.placeId)}&travelmode=${mode.urlMode}&dir_action=navigate",
+                    "&destination_place_id=${Uri.encode(destination.placeId)}$urlParam&dir_action=navigate",
             )
         }
         try {

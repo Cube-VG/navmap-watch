@@ -6,14 +6,17 @@ import android.content.ClipboardManager
 import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.ColorStateList
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.PowerManager
+import android.os.SystemClock
 import android.provider.Settings
 import android.view.View
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
@@ -52,14 +55,20 @@ class MainActivity : AppCompatActivity() {
     private lateinit var privacyStatus: TextView
     private lateinit var privacyButton: MaterialButton
     private lateinit var log: TextView
+    private lateinit var cardLastNotification: View
+    private lateinit var cardLog: View
 
     private lateinit var consent: Step
+    private lateinit var mapsKeyStep: Step
     private lateinit var access: Step
     private lateinit var restricted: Step
     private lateinit var notifications: Step
     private lateinit var battery: Step
     private lateinit var garminBattery: Step
     private lateinit var location: Step
+
+    private var titleClicks = 0
+    private var lastTitleClick = 0L
 
     private val askPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { render() }
 
@@ -93,9 +102,38 @@ class MainActivity : AppCompatActivity() {
         keyInput = findViewById(R.id.key_input)
         keySave = findViewById(R.id.key_save)
         lastNotification = findViewById(R.id.last_notification)
+        cardLastNotification = findViewById(R.id.card_last_notification)
+        cardLog = findViewById(R.id.card_log)
         privacyStatus = findViewById(R.id.privacy_status)
         privacyButton = findViewById(R.id.privacy_button)
         log = findViewById(R.id.log)
+
+        findViewById<View>(R.id.app_title).setOnClickListener {
+            val now = SystemClock.uptimeMillis()
+            if (now - lastTitleClick > 3500) titleClicks = 0
+            lastTitleClick = now
+            titleClicks++
+            val admin = Prefs.isAdmin(this)
+            if (titleClicks in 3..6) {
+                toast("${7 - titleClicks} taps to ${if (admin) "exit" else "enter"} admin mode")
+            } else if (titleClicks >= 7) {
+                titleClicks = 0
+                val newAdmin = !admin
+                Prefs.setAdmin(this, newAdmin)
+                toast(if (newAdmin) "Admin mode enabled: developer logs unlocked" else "Admin mode disabled")
+                render()
+            }
+        }
+
+        findViewById<View>(R.id.exit_admin).setOnClickListener {
+            Prefs.setAdmin(this, false)
+            toast("Admin mode disabled")
+            render()
+        }
+
+        findViewById<View>(R.id.key_help).setOnClickListener {
+            showApiKeyDialog()
+        }
 
         findViewById<TextView>(R.id.privacy_text).apply {
             text = Consent.text()
@@ -126,7 +164,7 @@ class MainActivity : AppCompatActivity() {
         }
         setUpModes()
         keySave.setOnClickListener {
-            val key = keyInput.text?.toString().orEmpty()
+            val key = keyInput.text?.toString().orEmpty().trim()
             if (Prefs.looksLikeMapsKey(key)) {
                 Prefs.setMapsKey(this, key)
                 keyInput.text = null
@@ -144,6 +182,12 @@ class MainActivity : AppCompatActivity() {
             "Read and agree first. Until then NavMap shows no map or turns.",
             "Read",
         ) { askConsent() }
+        mapsKeyStep = Step(
+            steps,
+            "Map picture (optional)",
+            "Turn arrows work without this. Add only if you want satellite/street map pictures on the watch.",
+            "Add map",
+        ) { showApiKeyDialog() }
         access = Step(steps, "Notification access", "Lets NavBridge read Google Maps' turn-by-turn notification.") { openListenerSettings() }
         restricted = Step(
             steps,
@@ -181,6 +225,35 @@ class MainActivity : AppCompatActivity() {
         CiqBridge.refresh()
         main.post(tick)
         if (!Prefs.consented(this) && !consentAsked) askConsent()
+        findViewById<View>(R.id.root).post { checkClipboardForKey() }
+    }
+
+    private fun getClipboardText(): String? = try {
+        val clipboard = getSystemService(ClipboardManager::class.java)
+        if (clipboard?.hasPrimaryClip() == true) {
+            clipboard.primaryClip?.getItemAt(0)?.text?.toString()?.trim()
+        } else {
+            null
+        }
+    } catch (e: Exception) {
+        null
+    }
+
+    private fun checkClipboardForKey() {
+        if (Prefs.mapsKey(this).isNotEmpty() || isFinishing) return
+        val clip = getClipboardText() ?: return
+        if (Prefs.looksLikeMapsKey(clip)) {
+            MaterialAlertDialogBuilder(this)
+                .setTitle("Google Maps Key Detected!")
+                .setMessage("Found API key from clipboard:\n\n…${clip.takeLast(6)}\n\nSave this key for NavMap?")
+                .setPositiveButton("Save Key") { _, _ ->
+                    Prefs.setMapsKey(this, clip)
+                    toast("Google Maps key saved! Map background enabled.")
+                    render()
+                }
+                .setNegativeButton("Not Now", null)
+                .show()
+        }
     }
 
     private fun askConsent() {
@@ -209,8 +282,9 @@ class MainActivity : AppCompatActivity() {
     private fun setUpModes() {
         val group = findViewById<ChipGroup>(R.id.modes)
         val ids = mapOf(
-            TravelMode.MOTORBIKE to R.id.mode_motorbike,
+            TravelMode.AUTO to R.id.mode_auto,
             TravelMode.CAR to R.id.mode_car,
+            TravelMode.MOTORBIKE to R.id.mode_motorbike,
             TravelMode.BICYCLE to R.id.mode_bicycle,
             TravelMode.WALK to R.id.mode_walk,
         )
@@ -221,11 +295,57 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun showApiKeyDialog() {
+        val current = Prefs.mapsKey(this)
+        val clip = getClipboardText()
+        val view = layoutInflater.inflate(R.layout.dialog_api_key, null)
+        val input = view.findViewById<TextInputEditText>(R.id.dialog_key_input)
+        val initialKey = if (current.isNotEmpty()) current else if (clip != null && Prefs.looksLikeMapsKey(clip)) clip else ""
+        input.setText(initialKey)
+        view.findViewById<View>(R.id.dialog_open_console).setOnClickListener {
+            startSafely(Intent(Intent.ACTION_VIEW, Uri.parse("https://console.cloud.google.com/google/maps-apis/credentials")))
+        }
+        view.findViewById<View>(R.id.dialog_paste).setOnClickListener {
+            val copied = getClipboardText()
+            if (copied != null && Prefs.looksLikeMapsKey(copied)) {
+                input.setText(copied)
+                toast("Key pasted from clipboard!")
+            } else if (copied.isNullOrEmpty()) {
+                toast("Clipboard is empty")
+            } else {
+                input.setText(copied)
+                toast("Pasted (ensure key starts with AIza...)")
+            }
+        }
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.maps_key_title)
+            .setView(view)
+            .setPositiveButton(R.string.save_key) { _, _ ->
+                val newKey = input.text?.toString().orEmpty().trim()
+                if (newKey.isEmpty()) {
+                    Prefs.setMapsKey(this, "")
+                    toast("Key removed")
+                    render()
+                } else if (Prefs.looksLikeMapsKey(newKey)) {
+                    Prefs.setMapsKey(this, newKey)
+                    toast("Saved. NavMap gets it the next time it asks for turns.")
+                    render()
+                } else {
+                    toast("That isn't a Google Maps key: they start with AIza and are 39 characters long")
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
     private fun render() {
         val agreedAt = Prefs.consentedAt(this)
         val agreed = agreedAt > 0
         val on = if (agreed) DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(agreedAt)) else ""
         consent.set(agreed, "Agreed on $on")
+        val key = Prefs.mapsKey(this)
+        val hasKey = key.isNotEmpty()
+        mapsKeyStep.set(hasKey, if (hasKey) "Map background enabled (…${key.takeLast(4)})" else null, optional = true)
         privacyStatus.text = if (agreed) "You agreed on $on." else "You haven’t agreed yet."
         privacyButton.text = if (agreed) "Withdraw consent" else "Agree"
         val accessOn = NotificationManagerCompat.getEnabledListenerPackages(this).contains(packageName)
@@ -239,13 +359,26 @@ class MainActivity : AppCompatActivity() {
         val gcInstalled = isInstalled(garminConnect)
         garminBattery.view.isVisible = gcInstalled
         if (gcInstalled) garminBattery.set(power.isIgnoringBatteryOptimizations(garminConnect))
-        location.set(Locator.hasPermission(this))
+        location.set(Locator.hasPermission(this), optional = true)
 
         renderSession()
         renderWatch(gcInstalled)
         renderRoute()
         renderLastNotification()
-        log.text = DebugLog.lines().takeLast(80).reversed().joinToString("\n")
+        val admin = Prefs.isAdmin(this)
+        cardLastNotification.isVisible = admin
+        cardLog.isVisible = admin
+        if (admin) {
+            log.text = DebugLog.lines().takeLast(80).reversed().joinToString("\n")
+        }
+
+        try {
+            val crashlytics = com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance()
+            crashlytics.setCustomKey("is_admin", admin)
+            crashlytics.setCustomKey("has_maps_key", hasKey)
+            crashlytics.setCustomKey("travel_mode", Prefs.travelMode(this).name)
+        } catch (_: Throwable) {
+        }
     }
 
     private fun renderSession() {
@@ -295,12 +428,18 @@ class MainActivity : AppCompatActivity() {
 
     private fun renderRoute() {
         val key = Prefs.mapsKey(this)
+        val admin = Prefs.isAdmin(this)
         keyLayout.hint = if (key.isEmpty()) getString(R.string.maps_key_hint) else "Google Maps key: …${key.takeLast(4)}"
         routeStatus.text = when {
             !Prefs.consented(this) -> "No map, turns or route line on the watch until you agree, under Privacy and terms."
-            key.isEmpty() -> "No Google Maps key yet, so no map pictures or route line. Turns still work. " +
-                "Run setup.sh again, or paste your key here."
-            NavSession.routeSummary.isNotEmpty() -> NavSession.routeSummary
+            key.isEmpty() -> "Turn-by-turn navigation is ready. (Add optional map key above if you want visual map pictures)."
+            NavSession.routeSummary.isNotEmpty() -> {
+                if (!admin && NavSession.routeSummary.startsWith("Route unavailable")) {
+                    "Route line unavailable right now. Turns still work on your watch."
+                } else {
+                    NavSession.routeSummary
+                }
+            }
             NavSession.destination != null -> "Destination: ${NavSession.destination?.name ?: "shared place"}"
             else -> "Ready"
         }
@@ -356,7 +495,7 @@ class MainActivity : AppCompatActivity() {
     /** One line of the setup checklist. */
     private inner class Step(parent: LinearLayout, title: String, private val detail: String, action: String = "Allow", onClick: () -> Unit) {
         val view: View = layoutInflater.inflate(R.layout.item_step, parent, false).also { parent.addView(it) }
-        private val icon: TextView = view.findViewById(R.id.step_icon)
+        private val icon: ImageView = view.findViewById(R.id.step_icon)
         private val detailView: TextView = view.findViewById(R.id.step_detail)
         private val button: MaterialButton = view.findViewById(R.id.step_button)
 
@@ -367,9 +506,14 @@ class MainActivity : AppCompatActivity() {
             button.setOnClickListener { onClick() }
         }
 
-        fun set(done: Boolean, doneDetail: String? = null) {
-            icon.text = if (done) "✓" else "!"
-            icon.setTextColor(getColor(if (done) R.color.step_done else R.color.step_todo))
+        fun set(done: Boolean, doneDetail: String? = null, optional: Boolean = false) {
+            val (drawableRes, colorRes) = when {
+                done -> R.drawable.ic_check_circle_24dp to R.color.step_done
+                optional -> R.drawable.ic_circle_outline_24dp to R.color.step_optional
+                else -> R.drawable.ic_error_outline_24dp to R.color.step_todo
+            }
+            icon.setImageResource(drawableRes)
+            icon.imageTintList = ColorStateList.valueOf(getColor(colorRes))
             detailView.text = if (done && doneDetail != null) doneDetail else detail
             button.isVisible = !done
         }

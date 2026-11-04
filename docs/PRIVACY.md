@@ -9,6 +9,7 @@ NavMap (the Connect IQ watch app) and NavBridge (the Android companion app) prov
 - **Your Location Data**: NavBridge asks for your express, prior, revocable consent before obtaining or transmitting your location coordinates. Location data is ephemeral and used solely to fetch static map images and route lines for your current navigation session.
 - **Where Data is Sent**: Location coordinates and route requests are sent directly to Google Maps Platform APIs using your own Google Cloud API key. NavBridge does not transmit your location, routes, destinations, or navigation history to any third-party servers, analytics providers, or to NavMap's developers.
 - **No Tracking or History**: NavBridge and NavMap do not store or track where you have been. No route history or location log is recorded on your device or externally.
+- **Diagnostics and Crash Reports**: To identify bugs and improve stability, anonymous crash reports and operational diagnostics (e.g., route request failures and connection drops) are collected through Google Firebase Crashlytics. No personal route destinations, names, or passwords are ever collected.
 - **Revocation**: You can withdraw your consent at any time inside NavBridge by opening the app and tapping **Withdraw consent** under *Privacy and terms*. NavBridge immediately clears all stored coordinates from memory, and the watch forgets your key and active route line.
 
 ## 2. Permissions
