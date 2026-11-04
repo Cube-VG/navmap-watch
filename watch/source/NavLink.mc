@@ -31,6 +31,31 @@ class NavLink {
         session = System.getTimer();
     }
 
+    // Adaptive polling: NavModel.liveMeters counts down from the watch's own GPS, so polls to the phone
+    // only need to happen often enough to detect turn transitions or rerouting. Backing off saves phone CPU/BLE wakeups.
+    private function pollIntervalMs() as Number {
+        if (!_m.navActive) {
+            return 5000;
+        }
+        var m = _m.liveMeters;
+        if (m < 0) {
+            return 3000;
+        }
+        if (_m.hasFix && _m.speed < 1.0) {
+            return 12000;
+        }
+        if (m > 1000) {
+            return 15000;
+        }
+        if (m > 300) {
+            return 6000;
+        }
+        if (m > 100) {
+            return 3000;
+        }
+        return 1500;
+    }
+
     // Called every second.
     function tick() as Void {
         var now = System.getTimer();
@@ -39,6 +64,9 @@ class NavLink {
                 return;
             }
             _inFlight = false;   // the answer was lost; ask again
+        }
+        if (_m.navActive && _m.liveMeters >= 0 && _m.liveMeters <= 100 && now >= _sentAt + 1200 && _nextAt > now) {
+            _nextAt = now;
         }
         if (now < _nextAt || !System.getDeviceSettings().phoneConnected) {
             return;
@@ -83,9 +111,7 @@ class NavLink {
                 _m.alertUser();
                 urgent = true;
             }
-            // Counted from the request, less a little, so the 1 s timer that sends it doesn't skip a beat.
-            var near = _m.liveMeters >= 0 && _m.liveMeters <= 500;
-            _nextAt = _sentAt + (_m.navActive ? (near ? 1000 : 2000) : 5000) - 300;
+            _nextAt = _sentAt + pollIntervalMs() - 300;
         } else {
             refused = code == 403;
             fails++;

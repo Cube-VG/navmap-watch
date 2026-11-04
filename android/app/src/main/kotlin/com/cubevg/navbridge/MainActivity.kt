@@ -66,6 +66,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var battery: Step
     private lateinit var garminBattery: Step
     private lateinit var location: Step
+    private lateinit var screenTip: Step
 
     private var titleClicks = 0
     private var lastTitleClick = 0L
@@ -216,6 +217,19 @@ class MainActivity : AppCompatActivity() {
             "Location (optional)",
             "Starts the route line where your phone is when you share a place. Without it, the watch's GPS is used.",
         ) { askPermission.launch(Manifest.permission.ACCESS_FINE_LOCATION) }
+        screenTip = Step(
+            steps,
+            "Battery tip: lock phone screen",
+            "Turn off your phone screen during rides! NavMap works with your phone locked in your pocket, saving up to 70% battery.",
+            action = "OK",
+        ) { toast("Lock your phone screen while riding to save battery.") }
+
+        val ecoSwitch = findViewById<com.google.android.material.materialswitch.MaterialSwitch>(R.id.eco_mode_switch)
+        ecoSwitch.isChecked = Prefs.ecoMode(this)
+        ecoSwitch.setOnCheckedChangeListener { _, isChecked ->
+            Prefs.setEcoMode(this, isChecked)
+            render()
+        }
     }
 
     override fun onResume() {
@@ -360,6 +374,7 @@ class MainActivity : AppCompatActivity() {
         garminBattery.view.isVisible = gcInstalled
         if (gcInstalled) garminBattery.set(power.isIgnoringBatteryOptimizations(garminConnect))
         location.set(Locator.hasPermission(this), optional = true)
+        screenTip.set(true, "Lock your phone screen while riding to save ~70% battery", optional = true)
 
         renderSession()
         renderWatch(gcInstalled)
@@ -429,9 +444,11 @@ class MainActivity : AppCompatActivity() {
     private fun renderRoute() {
         val key = Prefs.mapsKey(this)
         val admin = Prefs.isAdmin(this)
+        val eco = Prefs.ecoMode(this)
         keyLayout.hint = if (key.isEmpty()) getString(R.string.maps_key_hint) else "Google Maps key: …${key.takeLast(4)}"
         routeStatus.text = when {
             !Prefs.consented(this) -> "No map, turns or route line on the watch until you agree, under Privacy and terms."
+            eco -> "Battery Saver active: turn arrows & route polyline only. Map picture downloads disabled to save phone battery & data."
             key.isEmpty() -> "Turn-by-turn navigation is ready. (Add optional map key above if you want visual map pictures)."
             NavSession.routeSummary.isNotEmpty() -> {
                 if (!admin && NavSession.routeSummary.startsWith("Route unavailable")) {

@@ -137,6 +137,8 @@ class NavEndpointTest {
         // Nothing to hand over before the user has set one.
         mapsKey = ""
         assertFalse(JSONObject(get("/nav?k=$key&ah=555&rv=42&kf=none").body).has("mk"))
+        // When the key is cleared or in eco mode, tells a watch that still has a key to drop it.
+        assertEquals("none", JSONObject(get("/nav?k=$key&ah=555&rv=42&kf=YZ_789").body).getString("mk"))
         assertEquals(mapOf("t" to "idle"), NavEndpoint.withMapsKey(mapOf("t" to "idle"), "", ""))
     }
 

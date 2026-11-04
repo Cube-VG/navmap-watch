@@ -83,4 +83,11 @@ object Prefs {
     fun setAdmin(context: Context, admin: Boolean) {
         prefs(context).edit().putBoolean("admin_mode", admin).apply()
     }
+
+    /** Battery saver mode: turn arrows and route polyline only, no static map downloads to save phone battery & data. */
+    fun ecoMode(context: Context): Boolean = prefs(context).getBoolean("eco_mode", false)
+
+    fun setEcoMode(context: Context, enabled: Boolean) {
+        prefs(context).edit().putBoolean("eco_mode", enabled).apply()
+    }
 }

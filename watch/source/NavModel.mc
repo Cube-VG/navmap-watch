@@ -184,8 +184,12 @@ class NavModel {
         }
         // NavBridge's Google Maps key for the map pictures (see Keys), sent when the watch has none or an old one.
         var mk = data["mk"] as Object?;
-        if (mk instanceof String && mk.length() > 0) {
-            Keys.setMapsKey(mk);
+        if (mk instanceof String) {
+            if (mk.length() > 0 && !mk.equals("none")) {
+                Keys.setMapsKey(mk);
+            } else if (mk.equals("none")) {
+                Keys.clearMapsKey();
+            }
         }
         if (data["cw"] instanceof Number) {
             creditW = (data["cw"] as Number).toNumber();

@@ -85,7 +85,8 @@ object NavServer {
     private fun answer(method: String, target: String): Pair<Int, Any> {
         val consented = Prefs.consented(appContext)
         if (!consented) watchHasKey = false // NavMap drops its key when told to ask for consent
-        val (code, body) = NavEndpoint.answer(method, target, consented, pairing::accepts, Prefs.mapsKey(appContext), ::onMain)
+        val mapsKey = if (Prefs.ecoMode(appContext)) "" else Prefs.mapsKey(appContext)
+        val (code, body) = NavEndpoint.answer(method, target, consented, pairing::accepts, mapsKey, ::onMain)
         if (code == 403) {
             if (refusals.getAndIncrement() == 0) {
                 DebugLog.log("Refused a request for turns from a watch that isn't paired. Open NavBridge, or tap Pair again after changing watches.")
@@ -100,7 +101,8 @@ object NavServer {
     private fun onMain(poll: WatchProtocol.Poll): Map<String, Any>? {
         lastPollAt = SystemClock.elapsedRealtime()
         val tail = poll.keyTail
-        watchHasKey = !tail.isNullOrEmpty() && tail == Prefs.mapsKey(appContext).takeLast(6)
+        val effectiveKey = if (Prefs.ecoMode(appContext)) "" else Prefs.mapsKey(appContext)
+        watchHasKey = !tail.isNullOrEmpty() && tail == effectiveKey.takeLast(6)
         val task = FutureTask { NavSession.onPoll(poll) }
         main.post(task)
         return try {

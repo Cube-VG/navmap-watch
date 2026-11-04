@@ -29,7 +29,12 @@ object NavEndpoint {
      * has, "none" for none) and has none or another one. Its map pictures need it, and nothing is built into NavMap.
      */
     fun withMapsKey(reply: Map<String, Any>, tail: String?, mapsKey: String): Map<String, Any> =
-        if (tail == null || mapsKey.isEmpty() || tail == mapsKey.takeLast(6)) reply else reply + ("mk" to mapsKey)
+        when {
+            tail == null -> reply
+            mapsKey.isNotEmpty() && tail != mapsKey.takeLast(6) -> reply + ("mk" to mapsKey)
+            mapsKey.isEmpty() && tail != "none" && tail.isNotEmpty() -> reply + ("mk" to "none")
+            else -> reply
+        }
 
     /**
      * Compared in constant time, so the key can't be guessed from how long a refusal takes. An empty [expected]

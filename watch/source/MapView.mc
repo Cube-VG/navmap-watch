@@ -85,6 +85,7 @@ class MapView extends WatchUi.View {
     private const SIZES = [280, 240, 200];   // Static Maps points; image is 2x (scale=2)
     private var _sizeIdx as Number = 0;
     private var _fetchSecs as Float = 6.0;
+    private var _lastImageAt as Number = 0;
 
     // Zoom follows speed only; there are no zoom buttons.
     private var _autoZoom as Number = 16;
@@ -235,8 +236,9 @@ class MapView extends WatchUi.View {
         if (lat == null || lon == null || now < _retryAt || !System.getDeviceSettings().phoneConnected) {
             return;
         }
-        // While the screen is dimmed nobody is looking: only keep the map fresh during navigation.
-        if (isLowPower() && !_m.navActive && _img != null) {
+        // While the screen is dimmed nobody is looking (AMOLED burn-in rules show only turn text, no map):
+        // do not fetch map pictures over phone cellular data to save phone battery.
+        if (isLowPower() && _img != null) {
             return;
         }
         var z = desiredZoom();
@@ -261,6 +263,9 @@ class MapView extends WatchUi.View {
             // Near a turn keep Bluetooth free for the turn message unless the map no longer covers us.
             var nearTurn = _m.navActive && _m.distMeters >= 0 && _m.distMeters < 150;
             need = nowOut || (soonOut && !nearTurn);
+            if (!nowOut && now - _lastImageAt < 25000) {
+                need = false;
+            }
         }
         if (!need) {
             return;
@@ -313,6 +318,7 @@ class MapView extends WatchUi.View {
         System.println("map " + code + " z" + req.zoom + " " + secs.format("%.1f") + "s");
         if (code == 200 && data != null) {
             _fetchSecs = _fetchSecs * 0.5 + secs * 0.5;
+            _lastImageAt = System.getTimer();
             try {
                 var bmp = data as WatchUi.BitmapResource or Graphics.BitmapReference;
                 // Pin the image so the graphics pool can't purge it; keep the reference if that fails.

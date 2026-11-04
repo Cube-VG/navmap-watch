@@ -379,6 +379,21 @@
                         android:text="@string/save_key"
                         app:cornerRadius="8dp" />
                 </LinearLayout>
+
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/eco_mode_switch"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="Battery Saver (Turn arrows only)"
+                    android:textAppearance="?attr/textAppearanceBodyMedium" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Skips map picture downloads to save phone battery and mobile data."
+                    android:textAppearance="?attr/textAppearanceBodySmall"
+                    android:textColor="?android:attr/textColorSecondary" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
