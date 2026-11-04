@@ -1,12 +1,12 @@
 # Setting up NavMap by hand
 
-For a guided overview, see the [website setup guide](https://cube-vg.github.io/navmap-watch/setup.html). This page contains the detailed manual instructions. You need the same things as the [README](../README.md) lists.
+For a guided overview, see the [website setup guide](https://navmap.download/setup.html). This page contains the detailed manual instructions. You need the same things as the [README](../README.md) lists.
 
 The older setup scripts expect precompiled watch files in GitHub releases. Those files are no longer included in the current release, so the default automatic download flow is unavailable. Developers should follow the [source-build guide](DEVELOPING.md).
 
 ## 1. Download the two apps
 - Download `NavBridge.apk`, the free phone app, from [the latest release](https://github.com/Cube-VG/navmap-watch/releases/latest).
-- NavMap's Connect IQ release is planned at $1.99 for lifetime access. Check the [website](https://cube-vg.github.io/navmap-watch/#downloads) for the direct store listing when it is published.
+- NavMap's Connect IQ release is planned at $1.99 for lifetime access. Check the [website](https://navmap.download/#downloads) for the direct store listing when it is published.
 - Until the listing is available, developers can [build the watch app from source](DEVELOPING.md) for their supported device. Precompiled `.prg` and `.iq` watch packages are not offered in the current public release.
 
 ## 2. Make a Google Maps key (Optional)

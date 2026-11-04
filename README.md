@@ -4,8 +4,8 @@ NavMap shows a map and the next turn on your **Garmin smartwatch** while **Googl
 
 It's two small apps: NavMap on the watch and NavBridge on the phone.
 
-**Website & Guide:** [cube-vg.github.io/navmap-watch](https://cube-vg.github.io/navmap-watch/)  
-**Garmin Watch App:** A Connect IQ release is planned at $1.99 for lifetime access. The direct listing will be added to the [website](https://cube-vg.github.io/navmap-watch/#downloads) when it is published.\
+**Website & Guide:** [navmap.download](https://navmap.download/)  
+**Garmin Watch App:** A Connect IQ release is planned at $1.99 for lifetime access. The direct listing will be added to the [website](https://navmap.download/#downloads) when it is published.\
 **Phone App (Android):** [NavBridge.apk](https://github.com/Cube-VG/navmap-watch/releases/latest/download/NavBridge.apk) ([releases & checksums](https://github.com/Cube-VG/navmap-watch/releases/latest)).  
 *Note: Precompiled `.prg` and `.iq` watch packages are not distributed for free. Developers can compile from source using the Connect IQ SDK (`bash tools/build-watch.sh`).*
 
@@ -25,7 +25,7 @@ It's two small apps: NavMap on the watch and NavBridge on the phone.
 
 ## Set it up
 
-Follow the [website setup guide](https://cube-vg.github.io/navmap-watch/setup.html) to install NavBridge, create your Google Maps key, grant permissions and pair the watch.
+Follow the [website setup guide](https://navmap.download/setup.html) to install NavBridge, create your Google Maps key, grant permissions and pair the watch.
 
 The Connect IQ listing is not linked yet. Until it is published, developers can [build NavMap from source](docs/DEVELOPING.md). Precompiled watch packages are not included in the current GitHub release.
 

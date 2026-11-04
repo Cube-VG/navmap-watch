@@ -1,6 +1,6 @@
 # NavMap website
 
-The GitHub Pages site is served from `main` → `/docs` at https://cube-vg.github.io/navmap-watch/. The landing page, setup guide and privacy page use plain HTML, CSS and a small deferred JavaScript file. No package installation or application build is required. GitHub Pages' existing Jekyll build remains enabled so the original Markdown and uppercase documentation routes stay available.
+The GitHub Pages site is served from `main` → `/docs` at https://navmap.download (custom domain configured, with automatic fallback from https://cube-vg.github.io/navmap-watch/). The landing page, setup guide and privacy page use plain HTML, CSS and a small deferred JavaScript file. No package installation or application build is required. GitHub Pages' existing Jekyll build remains enabled so the original Markdown and uppercase documentation routes stay available.
 
 ## Design
 
