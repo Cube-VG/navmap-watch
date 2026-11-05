@@ -84,6 +84,16 @@ NavMap is an independent project, not made by, affiliated with or endorsed by Go
 
 The notification reader is tested against 174 Google Maps notifications in 17 languages from [PebbleNTN](https://github.com/optio/PebbleNTN) (MIT).
 
+## Licence
+
+NavMap and NavBridge are **source-available, not open source**, under the [PolyForm Noncommercial License 1.0.0](LICENSE).
+
+You may read, run, change and share the code for any noncommercial purpose: personal use, study, hobby projects, research, and use by charities, schools, public bodies and similar organisations. Building the watch app for yourself is allowed and documented in [docs/DEVELOPING.md](docs/DEVELOPING.md).
+
+You may **not** sell it, bundle it into a paid product, or otherwise use it commercially. The one-time price of the watch app is the only commercial use the author permits. If you pass a build on to someone else, keep `LICENSE` and the copyright notice with it.
+
+The PebbleNTN test data under `android/core/src/test/resources/pebblentn/` stays MIT, and so do the font and icon notices credited in [docs/SITE.md](docs/SITE.md).
+
 ## For developers
 
 Building the apps, testing in the simulator, and how the watch and phone talk: [docs/DEVELOPING.md](docs/DEVELOPING.md).
