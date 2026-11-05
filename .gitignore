@@ -13,6 +13,7 @@ android/local.properties
 *.apk
 *.aab
 *.iq
+*.prg
 __pycache__/
 watch/perf.jungle
 watch/publish.jungle
