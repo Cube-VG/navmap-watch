@@ -515,11 +515,15 @@ object NavSession : CiqBridge.Listener {
             poll.compact -> WatchProtocol.compactNavReply(info, arrow, arrowHash, routeText, routeVersion, poll)
             else -> WatchProtocol.navReply(info, arrow, arrowHash, route, routeVersion, poll)
         }
+        // Whether the map picture and route line are paid for (see Pro). Sent with every reply so NavMap 0.17+ can say
+        // so itself; older watches ignore keys they don't know. NavBridge also withholds the Maps key when this is 0
+        // (see NavServer), so the map is off whatever the watch does with it.
+        val withPro = reply + ("pro" to if (Pro.entitled(context)) 1 else 0)
         val cm = CreditProbe.get(poll.position, poll.zoom, Prefs.mapsKey(context))
         return if (cm != null && poll.creditW != cm.width) {
-            reply + mapOf("cw" to cm.width, "ch" to cm.height, "cs" to cm.split)
+            withPro + mapOf("cw" to cm.width, "ch" to cm.height, "cs" to cm.split)
         } else {
-            reply
+            withPro
         }
     }
 

@@ -90,4 +90,24 @@ object Prefs {
     fun setEcoMode(context: Context, enabled: Boolean) {
         prefs(context).edit().putBoolean("eco_mode", enabled).apply()
     }
+
+    /**
+     * Whether the user has bought NavMap Pro (see [Pro]). Read on every poll from NavMap, so it is a stored flag rather
+     * than a Play query: [Pro] refreshes it when NavBridge opens and after a purchase.
+     */
+    fun pro(context: Context): Boolean = prefs(context).getBoolean("pro_owned", false)
+
+    fun setPro(context: Context, owned: Boolean) {
+        prefs(context).edit().putBoolean("pro_owned", owned).apply()
+    }
+
+    /**
+     * When the free trial started (System.currentTimeMillis), or 0 until the first run with the unlock switched on.
+     * Kept apart from [pro] so that reinstalling, or a refund, does not hand out a second trial.
+     */
+    fun trialStartedAt(context: Context): Long = prefs(context).getLong("pro_trial_started", 0)
+
+    fun setTrialStartedAt(context: Context, at: Long) {
+        prefs(context).edit().putLong("pro_trial_started", at).apply()
+    }
 }

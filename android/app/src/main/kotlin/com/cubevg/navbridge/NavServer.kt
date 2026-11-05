@@ -85,7 +85,7 @@ object NavServer {
     private fun answer(method: String, target: String): Pair<Int, Any> {
         val consented = Prefs.consented(appContext)
         if (!consented) watchHasKey = false // NavMap drops its key when told to ask for consent
-        val mapsKey = if (Prefs.ecoMode(appContext)) "" else Prefs.mapsKey(appContext)
+        val mapsKey = mapsKeyForWatch()
         val (code, body) = NavEndpoint.answer(method, target, consented, pairing::accepts, mapsKey, ::onMain)
         if (code == 403) {
             if (refusals.getAndIncrement() == 0) {
@@ -98,10 +98,18 @@ object NavServer {
         return code to body
     }
 
+    /**
+     * The key NavMap gets for its map pictures, or "" for none. Empty in eco mode, where no picture is fetched at all,
+     * and without the Pro unlock (see [Pro]): NavMap draws the turns on a plain background until the user buys, which
+     * is exactly what it does when there is no key. Turns, arrows and distances are unaffected.
+     */
+    private fun mapsKeyForWatch(): String =
+        if (Prefs.ecoMode(appContext) || !Pro.entitled(appContext)) "" else Prefs.mapsKey(appContext)
+
     private fun onMain(poll: WatchProtocol.Poll): Map<String, Any>? {
         lastPollAt = SystemClock.elapsedRealtime()
         val tail = poll.keyTail
-        val effectiveKey = if (Prefs.ecoMode(appContext)) "" else Prefs.mapsKey(appContext)
+        val effectiveKey = mapsKeyForWatch()
         watchHasKey = !tail.isNullOrEmpty() && tail == effectiveKey.takeLast(6)
         val task = FutureTask { NavSession.onPoll(poll) }
         main.post(task)

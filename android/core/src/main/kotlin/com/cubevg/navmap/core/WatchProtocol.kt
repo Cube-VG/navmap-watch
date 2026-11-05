@@ -48,6 +48,9 @@ import kotlin.math.roundToInt
  *  - With c=1 (NavMap 0.6+) the answer while navigating is compact, see [NavCodec]: {"n":"dm|ah|rv|d|e|i"} with
  *    "A" (arrow runs) instead of "a" and "P" (encoded polyline) instead of "p", under the same rules; "" clears
  *    either. "end" and "idle" don't change.
+ *  - NavBridge 0.17+ adds "pro" (1 when the map picture and route line are paid for, 0 when the trial has run out) to
+ *    every reply, navigational or not. NavMap may ignore it: NavBridge also stops sending the key, so the map is off
+ *    either way.
  */
 object WatchProtocol {
     const val VERSION = 2

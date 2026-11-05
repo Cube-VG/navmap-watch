@@ -26,6 +26,9 @@ android {
         versionName = setting("NAVBRIDGE_VERSION_NAME") ?: "0.16"
         // Must match the id in watch/manifest.xml.
         buildConfigField("String", "WATCH_APP_ID", "\"ab20da3b6a6544eb8cf6feede0824f3f\"")
+        // The Pro unlock ([Pro]): off unless -PNAVBRIDGE_PRO_UNLOCK=true is passed, so a GitHub build keeps every map
+        // feature and only the Play build charges. Needs navmap_pro in Play Console before it can be turned on.
+        buildConfigField("boolean", "PRO_UNLOCK", setting("NAVBRIDGE_PRO_UNLOCK") ?: "false")
     }
 
     signingConfigs {
@@ -68,6 +71,7 @@ kotlin {
 
 dependencies {
     implementation(project(":core"))
+    implementation("com.android.billingclient:billing-ktx:7.1.1")
     implementation("com.garmin.connectiq:ciq-companion-app-sdk:2.4.0@aar")
     implementation("androidx.core:core-ktx:1.17.0")
     implementation("androidx.appcompat:appcompat:1.7.1")

@@ -67,6 +67,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var garminBattery: Step
     private lateinit var location: Step
     private lateinit var screenTip: Step
+    private lateinit var proStep: Step
 
     private var titleClicks = 0
     private var lastTitleClick = 0L
@@ -223,6 +224,16 @@ class MainActivity : AppCompatActivity() {
             "Turn off your phone screen during rides! NavMap works with your phone locked in your pocket, saving up to 70% battery.",
             action = "OK",
         ) { toast("Lock your phone screen while riding to save battery.") }
+        proStep = Step(
+            steps,
+            "NavMap Pro",
+            "The live map picture and the route line on the watch. ${Pro.TRIAL_DAYS} days free, then $1.99 once. " +
+                "Turns, arrows and distances stay free.",
+            "Buy",
+        ) { showProDialog() }
+        // Play answers off the main thread, usually a moment after the screen is up.
+        Pro.onChange = { render() }
+        Pro.start(this)
 
         val ecoSwitch = findViewById<com.google.android.material.materialswitch.MaterialSwitch>(R.id.eco_mode_switch)
         ecoSwitch.isChecked = Prefs.ecoMode(this)
@@ -238,6 +249,7 @@ class MainActivity : AppCompatActivity() {
         NavServer.pairing.openWindow()
         CiqBridge.refresh()
         main.post(tick)
+        Pro.start(this)
         if (!Prefs.consented(this) && !consentAsked) askConsent()
         findViewById<View>(R.id.root).post { checkClipboardForKey() }
     }
@@ -379,6 +391,7 @@ class MainActivity : AppCompatActivity() {
         renderSession()
         renderWatch(gcInstalled)
         renderRoute()
+        renderPro()
         renderLastNotification()
         val admin = Prefs.isAdmin(this)
         cardLastNotification.isVisible = admin
@@ -462,6 +475,39 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /** The Pro row: hidden entirely in builds that don't charge (see [Pro.enabled]). */
+    private fun renderPro() {
+        if (!Pro.enabled) {
+            proStep.view.isVisible = false
+            return
+        }
+        proStep.view.isVisible = true
+        val owned = Prefs.pro(this)
+        proStep.set(owned, Pro.statusText(this), optional = !owned)
+        proStep.note(Pro.statusText(this))
+    }
+
+    private fun showProDialog() {
+        val price = Pro.price
+        val message = buildString {
+            append("The live map picture and the route line on the watch. Turns, arrows and distances stay free.\n\n")
+            append(Pro.statusText(this@MainActivity))
+            if (price != null) append("\n\nGoogle Play price: $price, paid once.")
+        }
+        MaterialAlertDialogBuilder(this)
+            .setTitle("NavMap Pro")
+            .setMessage(message)
+            .setPositiveButton(if (price != null) "Buy $price" else "Buy") { _, _ ->
+                if (!Pro.buy(this)) toast("Google Play isn't ready yet. Try again in a moment.")
+            }
+            .setNeutralButton("Restore") { _, _ ->
+                Pro.restore(this)
+                toast("Checking Google Play for your purchase…")
+            }
+            .setNegativeButton("Not now", null)
+            .show()
+    }
+
     private fun renderLastNotification() {
         val raw = NavListenerService.lastRaw
         lastNotification.text = if (raw == null) {
@@ -533,6 +579,11 @@ class MainActivity : AppCompatActivity() {
             icon.imageTintList = ColorStateList.valueOf(getColor(colorRes))
             detailView.text = if (done && doneDetail != null) doneDetail else detail
             button.isVisible = !done
+        }
+
+        /** Replaces the detail line after [set], for a row whose second line changes (the Pro trial countdown). */
+        fun note(text: String) {
+            detailView.text = text
         }
     }
 }
