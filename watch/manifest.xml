@@ -22,6 +22,16 @@
             <iq:product id="venu3s"/>
             <iq:product id="vivoactive5"/>
         </iq:products>
+        <!-- Seven days free, then $1.99 through the Connect IQ Store's unlock flow (PLAN.md, step 6). The platform refuses
+             to run NavMap once NavMapApp.getTrialDaysRemaining() returns 0, so the countdown is enforced for us.
+
+             The unlock URL below is a PLACEHOLDER and must be replaced before this reaches the store: Garmin requires an
+             HTTPS endpoint that takes the payment and then calls Garmin's callbackUrl back with a one-legged OAuth1
+             request (see developer.garmin.com/connect-iq/articles/core-topics/Trial_Apps.html). Until that endpoint
+             exists, a user who reaches day 8 cannot unlock the app. -->
+        <iq:trialMode enable="true">
+            <iq:unlockURL>https://navmap.download/unlock</iq:unlockURL>
+        </iq:trialMode>
         <iq:permissions>
             <iq:uses-permission id="Communications"/>
             <iq:uses-permission id="Positioning"/>

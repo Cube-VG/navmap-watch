@@ -7,6 +7,9 @@ import Toybox.System;
 import Toybox.Time;
 import Toybox.WatchUi;
 
+const TRIAL_DAYS = 7;
+const SECONDS_PER_DAY = 86400;
+
 // NavMap does one thing: while Google Maps navigates on the phone, it shows the map with the next turn,
 // and closes when the navigation ends. A plain watch app (no activity session): nothing is recorded,
 // and leaving NavMap leaves the watch as it was.
@@ -26,6 +29,31 @@ class NavMapApp extends Application.AppBase {
         AppBase.initialize();
         model = new NavModel();
         link = new NavLink(model);
+    }
+
+    /**
+     * Seven days free, then the platform refuses to start NavMap until the app is unlocked in the Connect IQ Store
+     * (see the trialMode block in manifest.xml). The store asks this on every launch, and a return of 0 is what makes
+     * it refuse, so this function is the whole gate: no screen has to police it, and there is nothing in the app for
+     * the user to get round.
+     *
+     * The clock starts at the first launch and is kept in application storage, so it survives restarts and updates
+     * but not uninstalling, which clears storage. Garmin's own unlock state is what decides afterwards, not this.
+     */
+    function getTrialDaysRemaining() as Number or Null {
+        var start = Application.Storage.getValue("trial_start");
+        if (!(start instanceof Number)) {
+            start = Time.now().value();
+            try {
+                Application.Storage.setValue("trial_start", start);
+            } catch (e) {
+                // Storage full: the trial still counts down, it just can't remember when it began, so it restarts
+                // next launch rather than locking someone out early. The store keeps the real unlock state.
+            }
+        }
+        var elapsed = Time.now().value() - (start as Number);
+        var left = TRIAL_DAYS - (elapsed / SECONDS_PER_DAY);
+        return left > 0 ? left : 0;
     }
 
     function onStart(state as Dictionary?) as Void {
