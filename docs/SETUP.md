@@ -6,8 +6,8 @@ The older setup scripts expect precompiled watch files in GitHub releases. Those
 
 ## 1. Download the two apps
 - Download `NavBridge.apk`, the free phone app, from [the latest release](https://github.com/Cube-VG/navmap-watch/releases/latest).
-- NavMap's Connect IQ release is planned at $1.99 for lifetime access. Check the [website](https://navmap.download/#downloads) for the direct store listing when it is published.
-- Until the listing is available, developers can [build the watch app from source](DEVELOPING.md) for their supported device. Precompiled `.prg` and `.iq` watch packages are not offered in the current public release.
+- Install NavMap from the [Connect IQ Store](https://apps.garmin.com/apps/f18fe040-5bb7-41a0-afb0-f61edf418dab).
+- Developers can instead [build the watch app from source](DEVELOPING.md) for their supported device. Precompiled `.prg` and `.iq` watch packages are not offered in the public release.
 
 ## 2. Make a Google Maps key (Optional)
 Turn arrows, road names, and vibration alerts work immediately without any key. The key is only required if you want visual map pictures and the blue route line from Google. Google provides a **$200 monthly free credit**, so normal personal use stays free.
@@ -18,7 +18,7 @@ Turn arrows, road names, and vibration alerts work immediately without any key. 
 4. Copy the key (starts with `AIza`). When you switch to NavBridge, it automatically detects the key from your clipboard and prompts you to save it with one tap.
 
 ## 3. Put NavMap on the watch
-Once the Connect IQ listing is published, install through the store. The USB instructions below are for a watch package you built yourself for your device.
+Install it from the [Connect IQ Store](https://apps.garmin.com/apps/f18fe040-5bb7-41a0-afb0-f61edf418dab). The USB instructions below are for a watch package you built yourself for your device.
 
 1. Plug the watch into the computer with its charging cable. On Windows and Linux it shows up like a phone or a USB stick. On a Mac you need [OpenMTP](https://openmtp.ganeshrvel.com/) to open it.
 2. Copy the `.prg` file into the watch's **GARMIN** folder, then into **Apps**. If a NavMap file is there already, give the new file the same name so it replaces the old one (the setup scripts name it `NavMap.prg`). The watch takes a NavMap under a new name for a new app that must pair again, so delete any other NavMap file.
