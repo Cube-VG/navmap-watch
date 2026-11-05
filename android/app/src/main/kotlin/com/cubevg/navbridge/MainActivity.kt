@@ -43,6 +43,9 @@ class MainActivity : AppCompatActivity() {
     private val main = Handler(Looper.getMainLooper())
     private val garminConnect = "com.garmin.android.apps.connectmobile"
 
+    /** How often the "trial over, unlock NavMap Pro" dialog may appear: once a day. */
+    private val PAYWALL_EVERY_MS = 24L * 60 * 60 * 1000
+
     private lateinit var sessionStatus: TextView
     private lateinit var sessionDetail: TextView
     private lateinit var simulate: MaterialButton
@@ -227,8 +230,8 @@ class MainActivity : AppCompatActivity() {
         proStep = Step(
             steps,
             "NavMap Pro",
-            "The live map picture and the route line on the watch. ${Pro.TRIAL_DAYS} days free, then $1.99 once. " +
-                "Turns, arrows and distances stay free.",
+            "The live map picture and the route line on the watch. ${Pro.TRIAL_DAYS} days free from your first ride, " +
+                "then $1.99 once. Turns, arrows and distances stay free.",
             "Buy",
         ) { showProDialog() }
         // Play answers off the main thread, usually a moment after the screen is up.
@@ -485,6 +488,39 @@ class MainActivity : AppCompatActivity() {
         val owned = Prefs.pro(this)
         proStep.set(owned, Pro.statusText(this), optional = !owned)
         proStep.note(Pro.statusText(this))
+        askForProIfTrialOver()
+    }
+
+    /**
+     * The ask. Once the seven free days are over, offer the purchase instead of leaving the user to notice the map
+     * has gone quiet. At most once a day ([PAYWALL_EVERY_MS]), so "Not now" is a real answer rather than a loop.
+     */
+    private fun askForProIfTrialOver() {
+        if (!Pro.needsPurchase(this)) return
+        val now = System.currentTimeMillis()
+        if (now - Prefs.paywallShownAt(this) < PAYWALL_EVERY_MS) return
+        Prefs.setPaywallShownAt(this, now)
+        showPaywall()
+    }
+
+    private fun showPaywall() {
+        val price = Pro.price
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Your free trial has ended")
+            .setMessage(
+                "The map picture and the route line on the watch are off now. Turns, arrows and distances still work.\n\n" +
+                    "Unlock them for good with NavMap Pro" + (price?.let { " for $it" } ?: "") + ", paid once. " +
+                    "No subscription.",
+            )
+            .setPositiveButton(if (price != null) "Unlock $price" else "Unlock") { _, _ ->
+                if (!Pro.buy(this)) toast("Google Play isn't ready yet. Try again in a moment.")
+            }
+            .setNeutralButton("Restore purchase") { _, _ ->
+                Pro.restore(this)
+                toast("Checking Google Play for your purchase…")
+            }
+            .setNegativeButton("Not now", null)
+            .show()
     }
 
     private fun showProDialog() {

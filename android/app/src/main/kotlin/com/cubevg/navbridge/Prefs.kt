@@ -102,12 +102,23 @@ object Prefs {
     }
 
     /**
-     * When the free trial started (System.currentTimeMillis), or 0 until the first run with the unlock switched on.
-     * Kept apart from [pro] so that reinstalling, or a refund, does not hand out a second trial.
+     * When the free trial started (System.currentTimeMillis), or 0 until the first ride with the unlock switched on.
+     * Kept apart from [pro] so that a refund doesn't start a new trial. Uninstalling does: Android deletes app data,
+     * and a one-time Play product has no trial of its own, so there is nothing to ask.
      */
     fun trialStartedAt(context: Context): Long = prefs(context).getLong("pro_trial_started", 0)
 
     fun setTrialStartedAt(context: Context, at: Long) {
         prefs(context).edit().putLong("pro_trial_started", at).apply()
+    }
+
+    /**
+     * When the "your trial has ended" dialog was last shown (System.currentTimeMillis), so it asks for the purchase
+     * about once a day instead of on every launch.
+     */
+    fun paywallShownAt(context: Context): Long = prefs(context).getLong("pro_paywall_at", 0)
+
+    fun setPaywallShownAt(context: Context, at: Long) {
+        prefs(context).edit().putLong("pro_paywall_at", at).apply()
     }
 }

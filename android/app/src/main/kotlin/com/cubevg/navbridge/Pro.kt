@@ -57,8 +57,9 @@ object Pro {
      * Whether the map picture and the route line may be shown. True whenever the unlock is switched off, so the
      * default GitHub build behaves exactly as before.
      *
-     * With it on, a bought unlock is honoured, then the trial, which starts the first time this is asked. A refunded
-     * or absent purchase falls back to the trial, and the trial never restarts (see [Prefs.trialStartedAt]).
+     * With it on, a bought unlock is honoured, then the trial, which starts with the first ride. A refunded or absent
+     * purchase falls back to the trial, and a refund doesn't restart it (see [Prefs.trialStartedAt]; uninstalling does,
+     * since Android clears app data and a one-time Play product carries no trial of its own).
      */
     fun entitled(context: Context): Boolean {
         if (!enabled) return true
@@ -80,6 +81,13 @@ object Pro {
         val left = TRIAL_DAYS * DAY_MS - (System.currentTimeMillis() - started)
         return if (left <= 0) 0 else ((left + DAY_MS - 1) / DAY_MS).toInt()
     }
+
+    /**
+     * True once the seven days are over and nothing has been bought, so the screen should ask for the purchase rather
+     * than quietly turning the map off. Always false when the unlock is switched off.
+     */
+    fun needsPurchase(context: Context): Boolean =
+        enabled && !Prefs.pro(context) && trialDaysLeft(context) <= 0
 
     /** Connects to Play and refreshes the price and the entitlement. Main thread; cheap to call again. */
     fun start(context: Context) {
@@ -231,7 +239,11 @@ object Pro {
     fun statusText(context: Context): String = when {
         !enabled -> "Not in this build: the map and route line are free."
         Prefs.pro(context) -> "Unlocked. Thank you!"
-        trialDaysLeft(context) > 0 -> "Trial: ${trialDaysLeft(context)} day${if (trialDaysLeft(context) == 1) "" else "s"} left."
+        Prefs.trialStartedAt(context) == 0L -> "$TRIAL_DAYS days free, starting with your first ride."
+        trialDaysLeft(context) > 0 -> {
+            val days = trialDaysLeft(context)
+            "Trial: $days day${if (days == 1) "" else "s"} left."
+        }
         else -> "Trial over. Map and route line are off; turns still work."
     }
 }

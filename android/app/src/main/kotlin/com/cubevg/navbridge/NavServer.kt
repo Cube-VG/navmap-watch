@@ -102,9 +102,16 @@ object NavServer {
      * The key NavMap gets for its map pictures, or "" for none. Empty in eco mode, where no picture is fetched at all,
      * and without the Pro unlock (see [Pro]): NavMap draws the turns on a plain background until the user buys, which
      * is exactly what it does when there is no key. Turns, arrows and distances are unaffected.
+     *
+     * A ride that was already running when the seven days ran out keeps its map until it ends (see [NavSession.active]):
+     * taking the picture away mid-ride would be worse than the few extra hours it costs, and the next ride starts
+     * without it.
      */
-    private fun mapsKeyForWatch(): String =
-        if (Prefs.ecoMode(appContext) || !Pro.entitled(appContext)) "" else Prefs.mapsKey(appContext)
+    private fun mapsKeyForWatch(): String {
+        if (Prefs.ecoMode(appContext)) return ""
+        if (!Pro.entitled(appContext) && !NavSession.active) return ""
+        return Prefs.mapsKey(appContext)
+    }
 
     private fun onMain(poll: WatchProtocol.Poll): Map<String, Any>? {
         lastPollAt = SystemClock.elapsedRealtime()
