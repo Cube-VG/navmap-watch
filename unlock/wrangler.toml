@@ -1,0 +1,24 @@
+name = "navmap-unlock"
+main = "src/index.js"
+compatibility_date = "2026-11-01"
+
+# One KV namespace, on the free plan. Create it once with:
+#   wrangler kv namespace create ORDERS
+# and paste the id it prints here.
+[[kv_namespaces]]
+binding = "ORDERS"
+id = "PASTE_THE_KV_NAMESPACE_ID_HERE"
+
+[vars]
+# Price in minor units. 19900 = ₹199.00. Set PRICE_CURRENCY to USD and a value like 199 for $1.99.
+PRICE_AMOUNT = "19900"
+PRICE_CURRENCY = "INR"
+
+# Point navmap.download/unlock at this Worker with a route (needs the domain on the same Cloudflare account):
+#   [[routes]]
+#   pattern = "navmap.download/unlock"
+#   zone_name = "navmap.download"
+#
+# Everything secret is set with `wrangler secret put` and never written here:
+#   RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, RAZORPAY_WEBHOOK_SECRET,
+#   GARMIN_OAUTH_KEY, GARMIN_OAUTH_SECRET

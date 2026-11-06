@@ -154,7 +154,7 @@ So the trial path also pays better per sale — it just costs you a server to ru
 | NavBridge paywall | Removed from the plan; branch `feature/pro-unlock` closed |
 | Phone app | Free everywhere. Play `.aab` submitted, awaiting verification |
 | Website | Links the live Connect IQ listing |
-| Unlock service | **Doesn't exist — this is the work** |
+| Unlock service | **Built** in `unlock/` — Cloudflare Worker, 14 tests, needs Razorpay + Garmin keys to go live |
 
 ## 7. Open questions
 
