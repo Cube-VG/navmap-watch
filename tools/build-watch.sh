@@ -76,6 +76,28 @@ if [ ! -f "$KEY_DER" ]; then
     exit 1
 fi
 
+# A store build is harmful if the URL it sends buyers to doesn't answer: when the trial ends, Garmin redirects the
+# customer there to pay, and if it 404s they are locked out with no way to buy. Check it before producing something
+# that could be uploaded.
+if [ "$PUBLISH" = 1 ] || [ "$PACKAGE" = 1 ]; then
+    UNLOCK_URL="$(grep -o '<iq:unlockURL>[^<]*' "$ROOT/watch/manifest.xml" | head -1 | cut -d'>' -f2)"
+    if [ -z "$UNLOCK_URL" ]; then
+        echo "build-watch: watch/manifest.xml has no <iq:unlockURL>, so a trial app could never be unlocked." >&2
+        exit 1
+    fi
+    if [ "${NAVBRIDGE_SKIP_UNLOCK_CHECK:-0}" != "1" ]; then
+        CODE="$(curl -s -o /dev/null -m 10 -w '%{http_code}' "$UNLOCK_URL" 2>/dev/null || echo 000)"
+        case "$CODE" in
+            000|404|"")
+                echo "build-watch: $UNLOCK_URL answers '$CODE', so the unlock service is not live there." >&2
+                echo "  Uploading a store build with that URL locks every buyer out when the trial ends." >&2
+                echo "  Deploy it first (see unlock/README.md), or set NAVBRIDGE_SKIP_UNLOCK_CHECK=1 to build anyway." >&2
+                exit 1
+                ;;
+        esac
+    fi
+fi
+
 # Older builds generated this file with the keys in it. Remove it so they can never end up in a .prg again.
 rm -f "$ROOT/watch/source/Secrets.mc"
 

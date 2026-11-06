@@ -59,9 +59,17 @@ bash tools/build-watch.sh fr165 --publish --package
 # → dist/NavMap-publish.iq
 ```
 
+The script refuses to build a store package while `<iq:unlockURL>` doesn't answer, because uploading one would lock
+buyers out. `NAVBRIDGE_SKIP_UNLOCK_CHECK=1` overrides that for an offline build.
+
+**Every device in the manifest needs its files installed**, not just `fr165`: `--package` exports one `.iq` covering
+all 19 products, and `monkeyc` fails with `Device ids … are not recognized` if any is missing. Add the rest in the
+Connect IQ SDK Manager first.
+
 - [ ] `dist/NavMap-publish.iq` exists
 - [ ] Built with the release key, not `NAVBRIDGE_WATCH_KEY` pointing at a temporary one
 - [ ] Version in the package is higher than what is live
+- [ ] The unlock URL answered during the build (the guard did not fire, or was knowingly skipped)
 
 ## 5. Upload
 
