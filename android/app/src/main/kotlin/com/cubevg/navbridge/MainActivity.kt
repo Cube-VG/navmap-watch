@@ -43,6 +43,13 @@ class MainActivity : AppCompatActivity() {
     private val main = Handler(Looper.getMainLooper())
     private val garminConnect = "com.garmin.android.apps.connectmobile"
 
+    /** How often [tick] redraws: every second while a ride, a simulator run or a connection is live, else slower. */
+    private val TICK_LIVE_MS = 1_000L
+    private val TICK_IDLE_MS = 5_000L
+
+    /** The Crashlytics custom keys last sent, so the redraw loop doesn't rewrite values that haven't changed. */
+    private var crashKeys: Triple<Boolean, Boolean, String>? = null
+
     private lateinit var sessionStatus: TextView
     private lateinit var sessionDetail: TextView
     private lateinit var simulate: MaterialButton
@@ -77,12 +84,21 @@ class MainActivity : AppCompatActivity() {
     private var consentAsked = false
     private var consentDialog: AlertDialog? = null
 
+    /**
+     * Redraws the parts of the screen that can change on their own. The interval is adaptive: a ride in progress or a
+     * simulator run needs a new picture every second, while an idle setup screen does not. NavBridge can sit open for
+     * a whole ride, so ticking once a second forever is a battery cost for a screen nobody is reading.
+     */
     private val tick = object : Runnable {
         override fun run() {
             render()
-            main.postDelayed(this, 1_000)
+            main.postDelayed(this, if (isLive()) TICK_LIVE_MS else TICK_IDLE_MS)
         }
     }
+
+    /** Something on this screen is moving by itself and worth a redraw every second. */
+    private fun isLive(): Boolean =
+        NavSession.active || NavSession.polling || Simulator.running || CiqBridge.state == CiqBridge.State.STARTING
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
@@ -387,12 +403,18 @@ class MainActivity : AppCompatActivity() {
             log.text = DebugLog.lines().takeLast(80).reversed().joinToString("\n")
         }
 
-        try {
-            val crashlytics = com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance()
-            crashlytics.setCustomKey("is_admin", admin)
-            crashlytics.setCustomKey("has_maps_key", hasKey)
-            crashlytics.setCustomKey("travel_mode", Prefs.travelMode(this).name)
-        } catch (_: Throwable) {
+        // Only when they actually change: render() runs on every tick, and writing custom keys once a second gave
+        // Crashlytics thousands of no-op writes an hour for values that change once a session.
+        val keys = Triple(admin, hasKey, Prefs.travelMode(this).name)
+        if (keys != crashKeys) {
+            crashKeys = keys
+            try {
+                val crashlytics = com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance()
+                crashlytics.setCustomKey("is_admin", admin)
+                crashlytics.setCustomKey("has_maps_key", hasKey)
+                crashlytics.setCustomKey("travel_mode", keys.third)
+            } catch (_: Throwable) {
+            }
         }
     }
 
