@@ -54,7 +54,7 @@ export function paymentPage({ keyId, orderId, amount, currency, requestId, appPa
     `<h1>Unlock NavMap</h1>
 <p class="sub">One payment, yours for good. No subscription.</p>
 <p class="price">${escapeHtml(price)}</p>
-<p class="sub">Your seven-day trial has ended. Turns keep working either way.</p>
+<p class="sub">Pay any time — on day 2 or on day 200. Turns keep working either way.</p>
 <button id="pay">Pay ${escapeHtml(price)}</button>
 <p class="note">Secure payment by Razorpay. By paying you agree to the <a href="https://navmap.download/refunds.html">refund policy</a>.</p>
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
