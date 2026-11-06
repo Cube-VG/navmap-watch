@@ -1,0 +1,12 @@
+{
+  "name": "navmap-unlock",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Garmin trial unlock + Razorpay payment endpoint for NavMap",
+  "scripts": {
+    "test": "node --test",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  }
+}

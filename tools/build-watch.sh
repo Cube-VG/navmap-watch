@@ -36,11 +36,45 @@ if [ "$PUBLISH" = 1 ]; then
     JUNGLE="$ROOT/watch/publish.jungle"
     NAME="$NAME-publish"
 fi
-KEY_DER="$HOME/.config/navmap/developer_key.der"
-export JAVA_HOME="${JAVA_HOME:-$(ls -d "$HOME"/opt/jdk-17* | head -1)}"
+# The signing key. NAVBRIDGE_WATCH_KEY overrides it, for a throwaway key on a machine that isn't the release one.
+KEY_DER="${NAVBRIDGE_WATCH_KEY:-$HOME/.config/navmap/developer_key.der}"
+if [ -z "${JAVA_HOME:-}" ]; then
+    # JDK 17 is what the Connect IQ SDK and the Android build are both tested against.
+    JAVA_HOME="$(/usr/libexec/java_home -v 17 2>/dev/null || true)"
+fi
+if [ -z "${JAVA_HOME:-}" ] || [ ! -x "$JAVA_HOME/bin/java" ]; then
+    echo "build-watch: no JDK 17 found. Set JAVA_HOME or install one (brew install --cask temurin@17)." >&2
+    exit 1
+fi
+export JAVA_HOME
 export PATH="$JAVA_HOME/bin:$PATH"
-# setup.sh --from-source points CIQ_SDK_MANAGER at the copy it downloaded.
-SDK_BIN="$("${CIQ_SDK_MANAGER:-$HOME/bin/connect-iq-sdk-manager}" sdk current-path --bin)"
+# setup.sh --from-source points CIQ_SDK_MANAGER at the copy it downloaded. Otherwise a Mac that already has the SDK
+# from the Connect IQ SDK Manager app records which one in current-sdk.cfg, so read that instead.
+SDK_BIN=""
+for manager in "${CIQ_SDK_MANAGER:-}" "$HOME/bin/connect-iq-sdk-manager"; do
+    if [ -n "$manager" ] && [ -x "$manager" ]; then
+        SDK_BIN="$("$manager" sdk current-path --bin 2>/dev/null || true)"
+        [ -n "$SDK_BIN" ] && break
+    fi
+done
+if [ -z "$SDK_BIN" ] || [ ! -x "$SDK_BIN/monkeyc" ]; then
+    SDK_CFG="$HOME/Library/Application Support/Garmin/ConnectIQ/current-sdk.cfg"
+    if [ -f "$SDK_CFG" ]; then
+        SDK_BIN="$(tr -d '\r\n' < "$SDK_CFG")/bin"
+    fi
+fi
+if [ ! -x "$SDK_BIN/monkeyc" ]; then
+    echo "build-watch: no Connect IQ SDK. Install the SDK Manager from developer.garmin.com/connect-iq/sdk/," >&2
+    echo "or set CIQ_SDK_MANAGER to a connect-iq-sdk-manager binary." >&2
+    exit 1
+fi
+if [ ! -f "$KEY_DER" ]; then
+    echo "build-watch: no developer key at $KEY_DER. Make one with:" >&2
+    echo "  mkdir -p \"$(dirname "$KEY_DER")\"" >&2
+    echo "  openssl genrsa -out developer_key.pem 4096" >&2
+    echo "  openssl pkcs8 -topk8 -inform PEM -outform DER -in developer_key.pem -out \"$KEY_DER\" -nocrypt" >&2
+    exit 1
+fi
 
 # Older builds generated this file with the keys in it. Remove it so they can never end up in a .prg again.
 rm -f "$ROOT/watch/source/Secrets.mc"
