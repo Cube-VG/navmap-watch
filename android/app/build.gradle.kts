@@ -5,6 +5,7 @@ plugins {
     id("org.jetbrains.kotlin.android")
     id("com.google.gms.google-services")
     id("com.google.firebase.crashlytics")
+    id("com.google.firebase.firebase-perf")
 }
 
 // Signing details come from -P properties or the environment, never from the repo. No keys are built in: the user's
@@ -74,4 +75,5 @@ dependencies {
     implementation("com.google.android.material:material:1.13.0")
     implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
     implementation("com.google.firebase:firebase-crashlytics")
+    implementation("com.google.firebase:firebase-perf")
 }
