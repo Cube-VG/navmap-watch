@@ -30,8 +30,11 @@ Only the
 feature is time-based, and it works by sending the buyer to **your** HTTPS endpoint. That endpoint is where the
 payment happens.
 
-> **If your Developer Dashboard turns out to offer "trial" on a Garmin-priced app, take it.** It removes everything
-> in section 3 and 4 below. Check that first — it is one screen and saves you a server.
+> **Checked 2026-11-06: Garmin has no in-app purchase API.** The Developer Dashboard banner says approved accounts can
+> publish apps "that are for sale or offer in-app purchases", but the Connect IQ SDK 9.2.0 has no `Purchase`, `Store`
+> or `Billing` namespace in `Toybox` at all, and the monetization docs cover only Merchant Onboarding, App Sales,
+> Account Management and Price Points — no IAP page. The two mechanisms are therefore the paid app and the trial, as
+> described above. Treat the banner's "in-app purchases" wording as not something you can call from code.
 
 ## 2. What the user sees
 
@@ -155,7 +158,7 @@ So the trial path also pays better per sale — it just costs you a server to ru
 
 ## 7. Open questions
 
-1. Does your dashboard offer a trial on a Garmin-priced app, or only the unlock-URL flow?
+1. Answered: no. Garmin cannot take the $1.99 itself while a trial is running — see the note in section 1.
 2. Where will the service run — Cloudflare Workers, Vercel, or a VPS?
 3. Razorpay, or a merchant-of-record like Paddle?
 4. Is `navmap.download/unlock` the final URL, or should the manifest point at a separate host?
