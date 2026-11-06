@@ -1,0 +1,49 @@
+# Publishes docs/ to navmap.download.
+#
+# GitHub's "legacy" Pages builder (the one that runs Jekyll for you) failed twice and then hung for twenty minutes on
+# what is now a plain file copy, so the site is deployed as an artifact instead. No build step: docs/ is hand-written
+# HTML, so the workflow only has to upload it.
+#
+# This needs Settings -> Pages -> Source set to "GitHub Actions". With the legacy builder selected, the deploy step
+# fails with "Pages is not configured for Actions".
+name: Deploy site
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deploy at a time, but never cancel one that is already publishing.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload docs/
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
