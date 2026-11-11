@@ -1,8 +1,8 @@
 # Selling NavMap: the watch app pays, the phone app doesn't
 
 NavBridge stays **free** — on the website, on GitHub, and on Google Play once Play finishes verifying it. The
-money comes from the **watch app on the Connect IQ Store**: seven days free, then US$1.99 outside India or ₹199 in
-India, once.
+money comes from the **watch app on the Connect IQ Store**: seven days free, then ₹199 in India, or US$1.99 outside
+India once PayPal opens — one payment.
 
 This file is the plan for that. It records how the trial works, how the unlock and payment are wired, what it
 costs, and what has to be true before anything is uploaded.
@@ -173,14 +173,14 @@ merchant route — it just costs you a server to run.
    your refund policy. Both go in the listing description.
 7. **Publish a refund policy** on navmap.download and link it from the listing. Without one, the first unhappy buyer
    has nothing to point at.
-8. **Update the copy.** The site shows "planned" until the Worker is live; it already lists US$1.99 and ₹199, and the
-   checkout must charge the matching currency. Remove "planned" in the release that enables the unlock page.
+8. **Update the copy when the USD provider opens.** The site now says ₹199 in India is live and US$1.99 outside India
+   is coming soon. Change that to the live international price when PayPal is wired in.
 
 ## 6. What already exists
 
 | Piece | State |
 |---|---|
-| Seven-day trial, enforced by the platform | Built, compiles (`PR #2`), waiting on the unlock URL |
+| Seven-day trial, enforced by the platform | Built, compiles, unlock URL live |
 | `build-watch.sh` finds an installed SDK | Fixed (`PR #2`) |
 | NavBridge paywall | Removed from the plan; branch `feature/pro-unlock` closed |
 | Phone app | Free everywhere. Play `.aab` submitted, awaiting verification |
@@ -192,6 +192,6 @@ merchant route — it just costs you a server to run.
 
 1. Answered: no. Garmin cannot take the payment itself while a trial is running — see the note in section 1.
 2. Answered: the service runs as the Cloudflare Worker in `unlock/`.
-3. Answered for India: Razorpay/INR. Open for the rest of the world: PayPal, Paddle/Lemon Squeezy, or Stripe, because
-   Razorpay cannot take international cards here.
-4. Is `navmap.download/unlock` the final URL, or should the manifest point at a separate host?
+3. Answered for India: Razorpay/INR. Open for the rest of the world: waiting on PayPal approval, then integrate it
+   behind `INTERNATIONAL_CHECKOUT`.
+4. Answered: `navmap.download/unlock` is live and is the manifest's unlock URL.

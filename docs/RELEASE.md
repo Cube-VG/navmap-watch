@@ -5,7 +5,9 @@ permanently, with no way to pay. This checklist exists to make that impossible t
 
 **Current state (2026-11-11):** the Worker is deployed with live Razorpay keys, the Garmin OAuth keys and the live
 webhook. All four routes are live. India/₹199 works; countries outside India see an "international checkout is being
-set up" page because Razorpay cannot take international cards for this account.
+set up" page because Razorpay cannot take international cards for this account. The signed **0.17** package is at
+`dist/NavMap-publish.iq`, built on the signing server; it still has to be uploaded and submitted. PayPal approval is
+pending.
 
 ## 0. Before any of this
 
@@ -44,12 +46,13 @@ wrangler deploy
       GitHub Pages `404`)
 - [ ] Open it with Garmin-style parameters and check the payment page renders:
       `/unlock?appUnlockRequestId=test-1&callbackUrl=https%3A%2F%2Fapps.garmin.com%2FappUnlock%3FappUnlockRequestId%3Dtest-1&appPageUrl=https%3A%2F%2Fapps.garmin.com%2Fapps%2Ff18fe040-5bb7-41a0-afb0-f61edf418dab`
-- [ ] The page shows **US$1.99** for a non-Indian visitor and **₹199** with `CF-IPCountry: IN`
-- [ ] `POST /api/create-order` returns `order_id`, `amount`, `currency` and `key_id` for that request, and a second
-      call returns the same order instead of creating another
+- [ ] An Indian visitor sees **₹199** and a non-Indian visitor sees the **international checkout is being set up**
+      page while `INTERNATIONAL_CHECKOUT=off`
+- [ ] `POST /api/create-order` returns `order_id`, `amount`, `currency` and `key_id` for an Indian request, and a
+      second call returns the same order instead of creating another
 - [ ] `POST /api/verify-payment` returns `400` for a bad signature and `{ "success": true }` for the correct one
-- [ ] A **test-mode** payment completes end to end in **both** currencies: checkout → webhook → Garmin callback
-      returns 200/202 → `/return` says unlocked
+- [ ] An **INR test payment** completes end to end: checkout → webhook → Garmin callback returns 200/202 →
+      `/return` says unlocked. Repeat for USD only after PayPal is live and the gate is on
 
 **STOP if this is not green.** Do not go to step 3.
 
@@ -60,8 +63,8 @@ wrangler deploy
 
 ## 4. Build the store package
 
-The package must be signed with **your real developer key**. A build signed with a throwaway key may be rejected or
-treated as a different identity.
+The 0.17 package is already built with the real key on the signing server. Rebuild only on that server; a build
+signed with a throwaway key will be rejected or treated as a different identity.
 
 ```bash
 # the real key, not a test one
@@ -80,7 +83,7 @@ Connect IQ SDK Manager first.
 
 - [ ] `dist/NavMap-publish.iq` exists
 - [ ] Built with the release key, not `NAVBRIDGE_WATCH_KEY` pointing at a temporary one
-- [ ] Version in the package is higher than what is live
+- [ ] The dashboard upload version is higher than the live 0.16 (use 0.17)
 - [ ] The unlock URL answered during the build (the guard did not fire, or was knowingly skipped)
 
 ## 5. Upload

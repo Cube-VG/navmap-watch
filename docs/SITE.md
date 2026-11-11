@@ -18,7 +18,7 @@ The site makes no network calls for analytics or product data. Images, icons and
 
 Supported watch products are listed with `data-product` identifiers in `index.html`. Keep that list equal to the product IDs in `watch/manifest.xml`; the current set contains 19 models. Filters group them into Forerunner, fēnix/epix, Venu/vívoactive, and MARQ/D2.
 
-NavMap is listed on the Connect IQ Store at `f18fe040-5bb7-41a0-afb0-f61edf418dab`, and the download section, setup guide and README all link to it. If that listing is ever unpublished or replaced, update those four places together. The store lists NavMap as free because it uses a trial; the price is charged by the unlock service. The site shows both prices (US$1.99 outside India, ₹199 in India) and the checkout must charge the matching one. The NavBridge APK link resolves to the latest GitHub release. Do not publish watch binaries here.
+NavMap is listed on the Connect IQ Store at `f18fe040-5bb7-41a0-afb0-f61edf418dab`, and the download section, setup guide and README all link to it. If that listing is ever unpublished or replaced, update those four places together. The store lists NavMap as free because it uses a trial; the price is charged by the unlock service. The site says ₹199 in India is live and US$1.99 outside India is coming soon; change that once PayPal opens. The NavBridge APK link resolves to the latest GitHub release. Do not publish watch binaries here.
 
 Maps API billing is separate from the watch app purchase. The site links to Google's current pricing and cost-control documentation instead of promising a number of free navigation hours. The old default setup-script flow expects watch binaries that are no longer in the current release; the new guide points developers to source builds.
 
