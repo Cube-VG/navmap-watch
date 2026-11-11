@@ -14,6 +14,14 @@ referenced by the website in `docs/` — that site uses the WebP derivatives in
 | `navmap_studio_showcase.jpg` | 1000×1000 JPEG | Showcase / screenshot |
 | `watch-map.gif` | 390×390 GIF | Watch map screen animation |
 
+## Listing copy
+
+| File | Purpose |
+|---|---|
+| `description.txt` | Paste-ready full description for the Connect IQ Store |
+| `whats-new.txt` | Paste-ready release notes |
+| `listing.md` | Title/publisher notes and the claims that were corrected |
+
 ## Before submitting
 
 Confirm each slot against Garmin's current requirements at

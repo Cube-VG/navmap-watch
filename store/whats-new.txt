@@ -1,0 +1,6 @@
+- Added support for 19 circular Garmin AMOLED watches across Forerunner, fēnix 8, epix, Venu, vívoactive, MARQ, and D2.
+- Resolution-aware layout for 360, 390, 416, and 454 px circular AMOLED displays.
+- Speed-adaptive dual haptic alerts: an advance buzz around 25 seconds before a turn, and a short urgent buzz around 6 seconds before.
+- High-contrast road palette with heading-up rotation.
+- Turn guidance and the current route line continue when mobile data drops; new map images and rerouting need a connection.
+- Updated companion pairing with NavBridge on Android.

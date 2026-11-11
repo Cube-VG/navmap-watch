@@ -1,0 +1,45 @@
+NavMap puts Google Maps turn-by-turn guidance and a live map view on your Garmin watch while Google Maps navigates on your Android phone.
+
+Glance at your wrist for the next turn arrow, street name, distance, ETA, and a high-contrast map that rotates with your direction of travel. Keep your hands on the bars and your phone in your pocket.
+
+FREE TRIAL AND PRICE
+NavMap is free for seven days. After the trial, one payment unlocks the watch app for your Garmin account. NavBridge, the Android companion app, is free. The price is shown before payment: US$1.99 outside India, or ₹199 in India.
+
+FEATURES
+- High-contrast, sunlight-readable map view built for circular AMOLED displays, with a warm paper ground, crisp roads, and clear water.
+- Google Maps turn arrows, street names, remaining distance, and ETA on your wrist.
+- Speed-timed haptics: an advance buzz about 25 seconds before a turn, and a short urgent buzz about 6 seconds before.
+- Blue route line ahead of you. Start from Google Maps' Share menu and choose Navigate with NavMap.
+- Rerouting: leave the route and the line updates within seconds when the phone has a connection.
+- Data-drop guidance: turns, distances, and the route line already received keep working if mobile data drops. New map images and rerouting need a connection.
+- Battery-aware display: dims to a simple turn view between maneuvers.
+- Arrival detection: shows Arrived and closes.
+- Resolution-aware layout for 360, 390, 416, and 454 px circular AMOLED screens.
+
+COMPATIBILITY (19 GARMIN AMOLED MODELS)
+- Forerunner: 165, 165 Music, 265, 265S, 965
+- fēnix and epix: fēnix 8 AMOLED (43 mm, 47 mm), epix Gen 2, epix Pro (42 mm, 47 mm, 51 mm)
+- Venu and vívoactive: Venu 2, Venu 2 Plus, Venu 2S, Venu 3, Venu 3S, vívoactive 5
+- Specialty and aviation: MARQ Gen 2, D2 Mach 1
+
+Memory-in-Pixel (MIP) watches such as fēnix 7, Forerunner 255/955, and Instinct are not supported because of their 64-color hardware palette. NavMap requires Connect IQ 5.0 or newer and a circular AMOLED display.
+
+REQUIREMENTS
+- An Android phone (Android 8.0 or newer) with Google Maps and Garmin Connect installed.
+- The NavBridge companion app, free from navmap.download.
+- Your own Google Cloud Maps Static API and Routes API key. Google's current free monthly allowance applies; usage beyond it is billed by Google to your account.
+- iOS is not supported: Apple does not allow an app to read another app's navigation notifications.
+
+SETUP
+1. Install NavBridge on Android, then install NavMap from the Connect IQ Store.
+2. Open both apps to pair them.
+3. Start navigation in Google Maps, then open NavMap on the watch.
+4. For the blue route line, open a place in Google Maps, tap Share, and choose Navigate with NavMap.
+
+PRIVACY
+NavMap and NavBridge have no NavMap servers and no NavMap analytics. Location and route requests go directly from your phone to Google Maps Platform using your own API key. Anonymous crash and diagnostic reports are sent through Google Firebase Crashlytics. NavMap and NavBridge do not store your route history.
+
+Website and setup guide: https://navmap.download
+Privacy policy: https://navmap.download/privacy.html
+
+NavMap is an independent project and is not affiliated with, sponsored by, or endorsed by Google LLC or Garmin Ltd. Google Maps and Android are trademarks of Google LLC. Garmin, Forerunner, Venu, and Connect IQ are trademarks of Garmin Ltd. or its subsidiaries.
