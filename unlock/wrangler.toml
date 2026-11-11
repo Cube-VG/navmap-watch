@@ -2,22 +2,42 @@ name = "navmap-unlock"
 main = "src/index.js"
 compatibility_date = "2026-11-01"
 
+# Do not expose the test/live Worker on workers.dev while the production routes are being brought up.
+workers_dev = false
+preview_urls = false
+
 # One KV namespace, on the free plan. Create it once with:
 #   wrangler kv namespace create ORDERS
 # and paste the id it prints here.
 [[kv_namespaces]]
 binding = "ORDERS"
-id = "PASTE_THE_KV_NAMESPACE_ID_HERE"
+id = "7eae4c13a60f4148a71eae9c324ece07"
 
 [vars]
-# Price in minor units. 19900 = ₹199.00. Set PRICE_CURRENCY to USD and a value like 199 for $1.99.
-PRICE_AMOUNT = "19900"
-PRICE_CURRENCY = "INR"
+# Prices in minor units. India is charged ₹199 (so UPI works); every other country is charged US$1.99.
+# The Worker picks by Cloudflare's country code (IN -> INR, everyone else -> USD).
+PRICE_INR = "19900"
+PRICE_USD = "199"
 
-# Point navmap.download/unlock at this Worker with a route (needs the domain on the same Cloudflare account):
-#   [[routes]]
-#   pattern = "navmap.download/unlock"
-#   zone_name = "navmap.download"
+# Razorpay's live account cannot take international cards. Keep USD checkout off until a second provider is wired
+# in; setting this to "on" re-enables the existing Razorpay USD path, which will fail at card entry.
+INTERNATIONAL_CHECKOUT = "off"
+
+# Every path the Worker owns must be routed (needs the domain on the same Cloudflare account). Routing only /unlock
+# makes the page's /api/... calls fall through to GitHub Pages and 404.
+# The trailing * matters: Cloudflare's exact route does not match /unlock?query or /return?rid=….
+[[routes]]
+pattern = "navmap.download/unlock*"
+zone_name = "navmap.download"
+[[routes]]
+pattern = "navmap.download/api/*"
+zone_name = "navmap.download"
+[[routes]]
+pattern = "navmap.download/return*"
+zone_name = "navmap.download"
+[[routes]]
+pattern = "navmap.download/razorpay/*"
+zone_name = "navmap.download"
 #
 # Everything secret is set with `wrangler secret put` and never written here:
 #   RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, RAZORPAY_WEBHOOK_SECRET,

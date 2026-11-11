@@ -1,6 +1,17 @@
-// The two Razorpay calls this service needs: create the order, and check that a webhook really came from Razorpay.
+// The Razorpay calls this service needs: create the order, verify Checkout's payment signature, and check that a
+// webhook really came from Razorpay.
 
 const API = "https://api.razorpay.com/v1";
+
+/** Carries the gateway's HTTP status so the API route can tell an auth failure from an outage. */
+export class RazorpayError extends Error {
+  constructor(message, status, detail) {
+    super(message);
+    this.name = "RazorpayError";
+    this.status = status;
+    this.detail = detail;
+  }
+}
 
 /**
  * Creates a Razorpay order. `payment_capture: 1` asks Razorpay to capture the payment automatically, so a successful
@@ -25,7 +36,7 @@ export async function createOrder({ keyId, keySecret, amount, currency, receipt,
   });
   if (!response.ok) {
     const detail = await response.text();
-    throw new Error(`Razorpay order failed: ${response.status} ${detail}`);
+    throw new RazorpayError(`Razorpay order failed: ${response.status}`, response.status, detail);
   }
   return response.json();
 }
@@ -49,6 +60,16 @@ export function timingSafeEqual(a, b) {
   let diff = 0;
   for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
   return diff === 0;
+}
+
+/**
+ * Razorpay Checkout signs `order_id|payment_id` with the account's key secret. This is the check the browser sends
+ * back after a successful payment; the webhook remains the source of truth for unlocking.
+ */
+export async function verifyPaymentSignature({ orderId, paymentId, signature, secret }) {
+  if (!orderId || !paymentId || !signature || !secret) return false;
+  const expected = await hmacSha256Hex(secret, `${orderId}|${paymentId}`);
+  return timingSafeEqual(expected, String(signature).trim().toLowerCase());
 }
 
 /**

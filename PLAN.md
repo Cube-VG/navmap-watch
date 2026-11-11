@@ -20,23 +20,25 @@ run Android 8 or newer. iOS cannot work (see `KNOWN-ISSUES.md` §4).
 | Phone app | Free. APK from the website and GitHub releases; a Play `.aab` is submitted and awaiting verification |
 | Versions | NavMap 0.16 / NavBridge 0.16 (versionCode 16) |
 | Website | `navmap.download` — static HTML in `docs/`, Cloudflare in front, deployed by a GitHub Actions workflow |
+| Unlock service | Production Worker deployed with **live** Razorpay keys; `/unlock`, `/api/*`, `/return` and `/razorpay/*` are routed |
 | Licence | PolyForm Noncommercial 1.0.0 — source-available, not open source |
 
 ## How the money works
 
-**NavBridge is free, permanently.** The watch app is where money is made: **seven days free, then a one-time $1.99
-unlock**, collected through Garmin's trial flow rather than Garmin's merchant system.
+**NavBridge is free, permanently.** The watch app is where money is made: **seven days free, then a one-time US$1.99
+outside India (₹199 in India) unlock**, collected through Garmin's trial flow rather than Garmin's merchant system.
 
 That distinction is forced, not chosen: Garmin's merchant sells a paid app *before* download and has no trial, so a
-trial requires an unlock endpoint we run. The service exists in `unlock/` (Cloudflare Worker + Razorpay) and is not
-deployed yet. Full reasoning and costs: `docs/MONETIZATION.md`.
+trial requires an unlock endpoint we run. The service exists in `unlock/` (Cloudflare Worker + Razorpay): INR checkout
+is live. Razorpay will not accept international cards for this account, so the USD side needs a second provider before
+it can be sold. Full reasoning and costs: `docs/MONETIZATION.md`.
 
 ## Decisions made
 
 | Decision | Date | State |
 |---|---|---|
 | NavBridge free; the watch app is the paid product | 2026-11-06 | Done — the Play Billing work is abandoned |
-| Seven-day trial then $1.99, via Garmin trial mode + our unlock service | 2026-11-06 | Built, not deployed |
+| Seven-day trial then US$1.99 / ₹199, via Garmin trial mode + our unlock service | 2026-11-06 | INR live; USD provider still to choose |
 | PolyForm Noncommercial 1.0.0 | 2026-11-05 | Done, on `main` |
 | Website as the phone-app channel until Play verifies | 2026-11-06 | Live |
 
@@ -44,17 +46,19 @@ deployed yet. Full reasoning and costs: `docs/MONETIZATION.md`.
 
 The ordered version, with stop-gates, is `docs/RELEASE.md`. In short:
 
-1. Razorpay account + KYC; Garmin OAuth key and secret from the Developer Dashboard.
-2. Deploy the unlock Worker, and **prove `https://navmap.download/unlock` answers**.
-3. Install all 19 device files in the SDK Manager, then build `--publish --package` with the real developer key.
-4. Upload, flag **Payment Required**, add the support email and the refund-policy URL, submit for review.
-5. Fix the listing title and publisher name before that review (see open questions).
-6. Play verification, then a closed test with 12 testers for 14 days.
+1. Choose and integrate an international checkout provider (PayPal, Paddle/Lemon Squeezy, or Stripe if eligible).
+   Razorpay international cards are not available for this account.
+2. Build `--publish --package` with the real developer key. JDK 17 and all 19 official device profiles are now
+   installed; the only missing piece is the existing signing key.
+3. Upload the package, flag **Payment Required**, add the support email and refund-policy URL, submit for review.
+4. Fix the listing title and publisher name before that review (see open questions).
+5. Play verification, then a closed test with 12 testers for 14 days.
 
 ## Known limitations
 
 `docs/KNOWN-ISSUES.md` — the trial resets on reinstall, duplicate purchases are possible, refunds don't revoke
-unlocks, the store package needs every device file, and the site still says "$1.99 planned".
+unlocks, the site still says "planned", the store signing key is not on this machine, and USD checkout needs a second
+provider because Razorpay international cards are unavailable.
 
 ## Considered and dropped
 
@@ -68,8 +72,9 @@ unlocks, the store package needs every device file, and the site still says "$1.
 
 ## Open questions for you
 
-1. **What does the Connect IQ Store charge right now?** The site still says "$1.99 planned" and that word has to go,
-   but the number should match reality.
+1. **Is the USD checkout live?** The Worker now prices by country: ₹199 in India, US$1.99 everywhere else. Razorpay
+   international payments still have to be enabled, the Worker deployed, and the site's "planned" wording removed in
+   the same release.
 2. **The listing reads "NavMap: Googl…" published by "Gmaps".** Google's brand rules and this project's own policy say
    no "Google" in a title, and a publisher that reads as "Gmaps" invites an impersonation report. Rename before the
    next review.

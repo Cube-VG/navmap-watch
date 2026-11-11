@@ -38,6 +38,10 @@ if [ "$PUBLISH" = 1 ]; then
 fi
 # The signing key. NAVBRIDGE_WATCH_KEY overrides it, for a throwaway key on a machine that isn't the release one.
 KEY_DER="${NAVBRIDGE_WATCH_KEY:-$HOME/.config/navmap/developer_key.der}"
+if [ -z "${JAVA_HOME:-}" ] && [ -x "$ROOT/.jdk17/Contents/Home/bin/java" ]; then
+    # A workspace-local Temurin 17, used when the Mac only has a newer system JDK.
+    JAVA_HOME="$ROOT/.jdk17/Contents/Home"
+fi
 if [ -z "${JAVA_HOME:-}" ]; then
     # JDK 17 is what the Connect IQ SDK and the Android build are both tested against.
     JAVA_HOME="$(/usr/libexec/java_home -v 17 2>/dev/null || true)"

@@ -58,7 +58,20 @@ stops the build, because uploading it would lock every buyer out on day 8.
 **Mitigation:** deploy the unlock service first; `NAVBRIDGE_SKIP_UNLOCK_CHECK=1` overrides when you know what you are
 doing (an offline build, say).
 
-## 7. The site still says "$1.99 planned"
+## 7. The site still says "planned"
 
-`docs/index.html` shows "planned one-time price". Once the store charges, "planned" has to go — but the real price
-hasn't been confirmed yet, and publishing a number that isn't charged is worse than an out-of-date word.
+`docs/index.html` shows "planned one-time price" next to US$1.99 and ₹199. The unlock service already creates those
+two prices by country, but until the Worker is deployed and Razorpay's international payments are enabled, the word
+"planned" stays. Remove it in the same release that makes the unlock page live.
+
+## 8. USD checkout is gated; Razorpay cannot take international cards
+
+The Worker creates an **INR** order for India and a **USD** order everywhere else. Razorpay's risk policy does not
+allow international card acceptance for this account, so a USD checkout would fail at card entry. The Worker therefore
+sets `INTERNATIONAL_CHECKOUT=off` and shows an honest "international checkout is being set up" page outside India
+instead of creating an order that cannot be paid.
+
+A second provider — PayPal, Paddle/Lemon Squeezy, or Stripe if eligible — has to be integrated for the USD side.
+After that, set `INTERNATIONAL_CHECKOUT=on` only if the provider's checkout actually works.
+
+UPI only works on the INR order, so India must stay on Razorpay/INR.

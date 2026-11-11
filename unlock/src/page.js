@@ -6,6 +6,9 @@ const escapeHtml = (value) =>
     (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c],
   );
 
+/** JSON for an inline script; escaping `<` prevents a crafted request id from closing the script tag. */
+const scriptJson = (value) => JSON.stringify(value).replace(/</g, "\\u003c");
+
 const SYMBOLS = { INR: "₹", USD: "$", EUR: "€", GBP: "£" };
 
 export function formatMoney(amount, currency) {
@@ -32,6 +35,8 @@ function shell(title, body) {
   .sub { color: #6b6b70; margin: 0 0 1.4rem; font-size: .95rem; }
   button { width: 100%; border: 0; border-radius: 12px; padding: 15px 18px; font: inherit; font-weight: 650; background: #1a73e8; color: #fff; cursor: pointer; }
   button:disabled { opacity: .55; cursor: default; }
+  .status { min-height: 1.2em; margin: .6rem 0 0; color: #6b6b70; font-size: .85rem; }
+  .status.error { color: #b3261e; }
   .note { color: #6b6b70; font-size: .82rem; margin-top: 1rem; }
   ul { padding-left: 1.1rem; color: #333; }
   a { color: #1a73e8; }
@@ -47,7 +52,7 @@ function shell(title, body) {
 </html>`;
 }
 
-export function paymentPage({ keyId, orderId, amount, currency, requestId, appPageUrl }) {
+export function paymentPage({ amount, currency, requestId }) {
   const price = formatMoney(amount, currency);
   return shell(
     "Unlock NavMap",
@@ -55,35 +60,118 @@ export function paymentPage({ keyId, orderId, amount, currency, requestId, appPa
 <p class="sub">One payment, yours for good. No subscription.</p>
 <p class="price">${escapeHtml(price)}</p>
 <p class="sub">Pay any time — on day 2 or on day 200. Turns keep working either way.</p>
-<button id="pay">Pay ${escapeHtml(price)}</button>
+<button id="pay" type="button">Pay ${escapeHtml(price)}</button>
+<p id="status" class="status" role="status" aria-live="polite"></p>
 <p class="note">Secure payment by Razorpay. By paying you agree to the <a href="https://navmap.download/refunds.html">refund policy</a>.</p>
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 <script>
-  var options = {
-    key: ${JSON.stringify(keyId)},
-    order_id: ${JSON.stringify(orderId)},
-    amount: ${JSON.stringify(String(amount))},
-    currency: ${JSON.stringify(currency)},
-    name: "NavMap",
-    description: "NavMap unlock",
-    theme: { color: "#1a73e8" },
-    handler: function () {
-      window.location.href = "/return?rid=" + encodeURIComponent(${JSON.stringify(requestId)});
-    },
-    modal: {
-      ondismiss: function () { document.getElementById("pay").disabled = false; }
+  var requestId = ${scriptJson(requestId)};
+  var payButton = document.getElementById("pay");
+  var statusLine = document.getElementById("status");
+  var completed = false;
+
+  function setStatus(message, isError) {
+    statusLine.textContent = message || "";
+    statusLine.classList.toggle("error", Boolean(isError));
+  }
+
+  function setBusy(busy) {
+    payButton.disabled = busy;
+  }
+
+  async function createOrder() {
+    var response = await fetch("/api/create-order", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ requestId: requestId })
+    });
+    var data = await response.json().catch(function () { return {}; });
+    if (!response.ok || !data.order_id) {
+      throw new Error(data.error || "Could not start the payment.");
     }
-  };
-  var rzp = new Razorpay(options);
-  rzp.on("payment.failed", function (response) {
-    document.getElementById("pay").disabled = false;
-    alert("Payment failed: " + (response.error && response.error.description ? response.error.description : "please try again"));
-  });
-  document.getElementById("pay").addEventListener("click", function () {
-    this.disabled = true;
-    rzp.open();
+    return data;
+  }
+
+  async function verifyPayment(response) {
+    setStatus("Verifying payment…");
+    try {
+      var result = await fetch("/api/verify-payment", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          razorpay_order_id: response.razorpay_order_id,
+          razorpay_payment_id: response.razorpay_payment_id,
+          razorpay_signature: response.razorpay_signature
+        })
+      });
+      var data = await result.json().catch(function () { return {}; });
+      if (!result.ok || !data.success) {
+        throw new Error(data.error || "We couldn't verify the payment.");
+      }
+      window.location.href = "/return?rid=" + encodeURIComponent(requestId);
+    } catch (error) {
+      setBusy(false);
+      setStatus(error.message || "We couldn't verify the payment.", true);
+    }
+  }
+
+  function openCheckout(order) {
+    if (typeof Razorpay === "undefined") {
+      setBusy(false);
+      setStatus("The payment window could not load. Check your connection and try again.", true);
+      return;
+    }
+    var checkout = new Razorpay({
+      key: order.key_id,
+      order_id: order.order_id,
+      amount: order.amount,
+      currency: order.currency,
+      name: "NavMap",
+      description: "NavMap unlock",
+      theme: { color: "#1a73e8" },
+      handler: function (response) {
+        completed = true;
+        verifyPayment(response);
+      },
+      modal: {
+        ondismiss: function () {
+          if (completed) return;
+          setBusy(false);
+          setStatus("Payment cancelled. You can try again.");
+        }
+      }
+    });
+    checkout.on("payment.failed", function (response) {
+      setBusy(false);
+      var description = response && response.error && response.error.description;
+      setStatus(description ? "Payment failed: " + description : "Payment failed. Please try again.", true);
+    });
+    checkout.open();
+  }
+
+  payButton.addEventListener("click", async function () {
+    setBusy(true);
+    setStatus("Opening secure checkout…");
+    try {
+      var order = await createOrder();
+      openCheckout(order);
+    } catch (error) {
+      setBusy(false);
+      setStatus(error.message || "Could not start the payment.", true);
+    }
   });
 </script>`,
+  );
+}
+
+export function internationalPage({ appPageUrl }) {
+  return shell(
+    "International checkout",
+    `<h1>International checkout is being set up</h1>
+<p class="sub">NavMap's India checkout is live. Card payments from outside India are not available yet, so nothing has been charged.</p>
+<p class="sub">When the international checkout is ready, open the Unlock button in the Connect IQ Store again.</p>
+<p class="note">Questions: <a href="mailto:support@navmap.download">support@navmap.download</a></p>
+<p class="note"><a href="${escapeHtml(appPageUrl ?? "https://apps.garmin.com/apps/f18fe040-5bb7-41a0-afb0-f61edf418dab")}">Back to NavMap in the Connect IQ Store</a></p>`,
   );
 }
 
@@ -93,13 +181,18 @@ export function thanksPage({ appPageUrl, unlocked }) {
     `<h1>${unlocked ? "NavMap is unlocked" : "Payment received"}</h1>
 <p class="sub">${
       unlocked
-        ? "Open the Connect IQ Store and download NavMap again — it will run without the trial now."
-        : "We're still confirming the payment with Garmin. This usually takes a few seconds: reopen the store, or check the app again shortly."
+        ? "Garmin has unlocked NavMap for your account. Open it on your watch."
+        : "We've verified the payment and are waiting for Garmin to mark the app unlocked. This usually takes a few seconds."
+    }</p>
+<p class="sub">${
+      unlocked
+        ? "If the watch still shows the trial, update NavMap from the Connect IQ Store. Reinstalling only refreshes the entitlement; the unlock belongs to your Garmin account, not to the install."
+        : "Wait a moment, then reopen NavMap. If it still shows the trial, update or reinstall it to refresh the unlock. You will not be charged again."
     }</p>
 <ul>
   <li>Open the Connect IQ Store on your phone.</li>
-  <li>Go to NavMap and reinstall or update it.</li>
-  <li>The trial countdown is gone.</li>
+  <li>Open NavMap, or update it if the trial screen still appears.</li>
+  <li>The trial countdown should be gone.</li>
 </ul>
 <p class="note"><a href="${escapeHtml(appPageUrl ?? "https://apps.garmin.com/apps/f18fe040-5bb7-41a0-afb0-f61edf418dab")}">Back to NavMap in the Connect IQ Store</a></p>`,
   );
