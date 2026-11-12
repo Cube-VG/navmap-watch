@@ -63,6 +63,7 @@ export function paymentPage({ amount, currency, requestId }) {
 <button id="pay" type="button">Pay ${escapeHtml(price)}</button>
 <p id="status" class="status" role="status" aria-live="polite"></p>
 <p class="note">Secure payment by Razorpay. By paying you agree to the <a href="https://navmap.download/refunds.html">refund policy</a>.</p>
+<p class="note"><strong>Already paid?</strong> Don't pay again. Reopen NavMap from the Connect IQ Store; if it still asks for payment, email support@navmap.download and we will sort it out.</p>
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 <script>
   var requestId = ${scriptJson(requestId)};
@@ -175,6 +176,7 @@ export function paypalPage({ amount, currency, requestId, clientId, appPageUrl }
 <div id="paypal-button-container"></div>
 <p id="status" class="status" role="status" aria-live="polite"></p>
 <p class="note">Secure payment by PayPal. By paying you agree to the <a href="https://navmap.download/refunds.html">refund policy</a>.</p>
+<p class="note"><strong>Already paid?</strong> Don't pay again. Reopen NavMap from the Connect IQ Store; if it still asks for payment, email support@navmap.download and we will sort it out.</p>
 <p class="note"><a href="${escapeHtml(appPageUrl ?? "https://apps.garmin.com/apps/f18fe040-5bb7-41a0-afb0-f61edf418dab")}">Back to NavMap in the Connect IQ Store</a></p>
 <script src="https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(clientId)}&currency=USD&intent=capture&components=buttons"></script>
 <script>
