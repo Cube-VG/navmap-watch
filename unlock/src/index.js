@@ -2,17 +2,23 @@
 //
 // Flow (see docs/MONETIZATION.md):
 //   Garmin redirects a buyer here with appUnlockRequestId, callbackUrl and appPageUrl.
-//   We take the payment with Razorpay, and when the money is definitely ours we call Garmin's callbackUrl back with a
-//   one-legged OAuth1 signature. Garmin then marks NavMap unlocked for that account.
+//   India pays with Razorpay; the rest of the world pays with PayPal. When the money is definitely ours we call
+//   Garmin's callbackUrl back with a one-legged OAuth1 signature. Garmin then marks NavMap unlocked for that account.
 //
 // Two rules this file exists to enforce:
-//   1. Unlock only on a *verified webhook*, never on the browser landing back here. The return URL is attacker
-//      controlled; Razorpay's signature is not.
+//   1. Unlock only after a verified provider signature/capture, never on the browser landing back here.
 //   2. Never unlock the same request twice. Retries and webhook redelivery are normal, and Garmin answers 409.
 
 import { sign } from "./oauth1.js";
 import { createOrder, verifyPaymentSignature, verifyWebhook } from "./razorpay.js";
-import { errorPage, internationalPage, paymentPage, thanksPage } from "./page.js";
+import {
+  captureFromOrder,
+  capturePayPalOrder,
+  createPayPalOrder,
+  getPayPalOrder,
+  verifyPayPalWebhook,
+} from "./paypal.js";
+import { errorPage, internationalPage, paymentPage, paypalPage, thanksPage } from "./page.js";
 
 const KV_TTL = 60 * 60 * 24 * 90; // 90 days: long enough to answer "where is my unlock" questions
 
@@ -56,6 +62,15 @@ export default {
       if (url.pathname === "/api/verify-payment" && request.method === "POST") {
         return await handleVerifyPayment(request, env);
       }
+      if (url.pathname === "/api/paypal/create-order" && request.method === "POST") {
+        return await handlePayPalCreateOrder(request, env);
+      }
+      if (url.pathname === "/api/paypal/capture-order" && request.method === "POST") {
+        return await handlePayPalCaptureOrder(request, env);
+      }
+      if (url.pathname === "/api/paypal/webhook" && request.method === "POST") {
+        return await handlePayPalWebhook(request, env);
+      }
       if (url.pathname === "/razorpay/webhook" && request.method === "POST") return await handleWebhook(request, env);
       if (url.pathname === "/return" && request.method === "GET") return await handleReturn(url, env);
       return new Response("Not found", { status: 404 });
@@ -95,23 +110,28 @@ async function handleUnlock(request, url, env) {
   if (!isGarminUrl(callbackUrl) || !isGarminUrl(appPageUrl)) {
     return page(errorPage("This link didn't come from the Connect IQ Store."), 400);
   }
-  if (!env.RAZORPAY_KEY_ID || !env.RAZORPAY_KEY_SECRET) {
-    return page(
-      errorPage("Payments aren't switched on yet.", "Razorpay keys are missing from this deployment."),
-      503,
-    );
-  }
-
   const country = countryFrom(request, env);
   const price = priceForCountry(country, env);
   if (!Number.isInteger(price.amount) || price.amount <= 0) {
     return page(errorPage("The price isn't configured correctly."), 500);
   }
 
-  // Razorpay's live account cannot take international cards yet. Do not create a USD checkout that would fail at
-  // the card step; show an honest page until a second provider is wired in.
+  // Razorpay cannot take international cards on this account. Keep USD behind the international gate until PayPal
+  // is actually configured.
   if (country !== "IN" && env.INTERNATIONAL_CHECKOUT !== "on") {
     return page(internationalPage({ appPageUrl }));
+  }
+  if (country === "IN" && (!env.RAZORPAY_KEY_ID || !env.RAZORPAY_KEY_SECRET)) {
+    return page(
+      errorPage("Payments aren't switched on yet.", "Razorpay keys are missing from this deployment."),
+      503,
+    );
+  }
+  if (country !== "IN" && (!env.PAYPAL_CLIENT_ID || !env.PAYPAL_CLIENT_SECRET)) {
+    return page(
+      errorPage("International payments aren't switched on yet.", "PayPal keys are missing from this deployment."),
+      503,
+    );
   }
 
   let record;
@@ -145,6 +165,18 @@ async function handleUnlock(request, url, env) {
   // existing record here: another tab may have just attached an order id to it.
   if (shouldSave) {
     await env.ORDERS.put(`req:${requestId}`, JSON.stringify(record), { expirationTtl: KV_TTL });
+  }
+
+  if (country !== "IN") {
+    return page(
+      paypalPage({
+        amount: record.amount,
+        currency: record.currency,
+        requestId,
+        clientId: env.PAYPAL_CLIENT_ID,
+        appPageUrl,
+      }),
+    );
   }
 
   return page(
@@ -202,8 +234,11 @@ async function handleCreateOrder(request, env) {
   if (record.status === "unlocked") {
     return json({ error: "This unlock is already complete." }, 409);
   }
-  if (record.currency === "USD" && env.INTERNATIONAL_CHECKOUT !== "on") {
-    return json({ error: "International checkout is not available yet." }, 503);
+  if (record.currency === "USD") {
+    if (env.INTERNATIONAL_CHECKOUT !== "on") {
+      return json({ error: "International checkout is not available yet." }, 503);
+    }
+    return json({ error: "Use the PayPal checkout for USD payments." }, 400);
   }
 
   try {
@@ -254,6 +289,187 @@ async function handleVerifyPayment(request, env) {
   if (!requestId) return json({ success: false, error: "Unknown order." }, 404);
 
   return json({ success: true });
+}
+
+async function handlePayPalCreateOrder(request, env) {
+  if (!env.PAYPAL_CLIENT_ID || !env.PAYPAL_CLIENT_SECRET) {
+    return json({ error: "PayPal isn't configured yet." }, 503);
+  }
+  if (env.INTERNATIONAL_CHECKOUT !== "on") {
+    return json({ error: "International checkout is not available yet." }, 503);
+  }
+
+  const body = await readJson(request);
+  const requestId = body?.requestId ?? body?.appUnlockRequestId;
+  if (typeof requestId !== "string" || !requestId) {
+    return json({ error: "Missing requestId." }, 400);
+  }
+
+  const raw = await env.ORDERS.get(`req:${requestId}`);
+  if (!raw) return json({ error: "Unknown unlock request." }, 404);
+
+  const record = JSON.parse(raw);
+  if (record.status === "unlocked") {
+    return json({ error: "This unlock is already complete." }, 409);
+  }
+  if (record.currency !== "USD") {
+    return json({ error: "PayPal is only used for USD payments." }, 400);
+  }
+
+  // Reuse an order that is still open; PayPal orders expire, so fall back to a new one.
+  if (record.paypalOrderId) {
+    try {
+      const existing = await getPayPalOrder(env, record.paypalOrderId);
+      if (["CREATED", "APPROVED", "PAYER_ACTION_REQUIRED"].includes(existing?.status)) {
+        return json({ order_id: existing.id, amount: record.amount, currency: record.currency });
+      }
+      if (existing?.status === "COMPLETED") {
+        return json({ error: "This payment is already complete." }, 409);
+      }
+    } catch (error) {
+      console.warn("could not reuse PayPal order", requestId, error?.status ?? error);
+    }
+  }
+
+  try {
+    const order = await createPayPalOrder({ env, amount: record.amount, requestId });
+    if (!order?.id) throw new Error("PayPal returned no order id");
+    record.paypalOrderId = order.id;
+    record.paypalCreatedAt = Date.now();
+    await env.ORDERS.put(`req:${requestId}`, JSON.stringify(record), { expirationTtl: KV_TTL });
+    await env.ORDERS.put(`paypal:${order.id}`, requestId, { expirationTtl: KV_TTL });
+    return json({ order_id: order.id, amount: record.amount, currency: record.currency });
+  } catch (error) {
+    console.error("create PayPal order failed", requestId, error?.stack ?? error);
+    if (error?.status === 401 || error?.status === 403) {
+      return json({ error: "PayPal authentication failed." }, 502);
+    }
+    if (error?.status === 429) {
+      return json({ error: "Too many payment attempts. Wait a moment and try again." }, 429);
+    }
+    return json({ error: "Could not create the PayPal order." }, 502);
+  }
+}
+
+async function handlePayPalCaptureOrder(request, env) {
+  if (!env.PAYPAL_CLIENT_ID || !env.PAYPAL_CLIENT_SECRET) {
+    return json({ success: false, error: "PayPal isn't configured yet." }, 503);
+  }
+  if (env.INTERNATIONAL_CHECKOUT !== "on") {
+    return json({ success: false, error: "International checkout is not available yet." }, 503);
+  }
+
+  const body = await readJson(request);
+  const requestId = body?.requestId;
+  const orderId = body?.orderId;
+  if (typeof requestId !== "string" || typeof orderId !== "string" || !requestId || !orderId) {
+    return json({ success: false, error: "Missing requestId or orderId." }, 400);
+  }
+
+  const raw = await env.ORDERS.get(`req:${requestId}`);
+  if (!raw) return json({ success: false, error: "Unknown unlock request." }, 404);
+  const record = JSON.parse(raw);
+  if (record.status === "unlocked" || (await env.ORDERS.get(`done:${requestId}`))) {
+    return json({ success: true, already: true });
+  }
+  if (record.paypalOrderId !== orderId) {
+    return json({ success: false, error: "That PayPal order does not match this unlock." }, 409);
+  }
+
+  let order;
+  try {
+    order = await capturePayPalOrder(env, orderId);
+  } catch (error) {
+    // A retry after the browser lost the capture response gets 422 from PayPal. Read the order instead.
+    if (error?.status === 422) {
+      try {
+        order = await getPayPalOrder(env, orderId);
+      } catch (lookupError) {
+        console.error("PayPal capture already done but order lookup failed", requestId, lookupError?.stack ?? lookupError);
+        return json({ success: false, error: "PayPal could not confirm the payment." }, 502);
+      }
+    } else {
+      console.error("capture PayPal order failed", requestId, error?.stack ?? error);
+      if (error?.status === 401 || error?.status === 403) {
+        return json({ success: false, error: "PayPal authentication failed." }, 502);
+      }
+      if (error?.status === 429) {
+        return json({ success: false, error: "Too many payment attempts. Wait a moment and try again." }, 429);
+      }
+      return json({ success: false, error: "PayPal could not capture the payment." }, 502);
+    }
+  }
+
+  const unit = order?.purchase_units?.[0];
+  const capture = captureFromOrder(order);
+  if (order?.status !== "COMPLETED" || !capture) {
+    return json({ success: false, error: "PayPal did not complete the payment." }, 400);
+  }
+  if (unit?.custom_id && unit.custom_id !== requestId) {
+    console.error("PayPal order custom_id mismatch", requestId, unit.custom_id);
+    return json({ success: false, error: "That PayPal order does not match this unlock." }, 400);
+  }
+  const capturedAmount = Math.round(Number(capture.amount?.value) * 100);
+  if (capturedAmount !== record.amount || capture.amount?.currency_code !== record.currency) {
+    console.error("PayPal amount/currency mismatch", requestId, capturedAmount, capture.amount);
+    return json({ success: false, error: "The PayPal amount did not match the order." }, 400);
+  }
+
+  const result = await completeUnlock(record, env, { paymentId: capture.id, source: "paypal" });
+  if (!result.ok) {
+    console.error("PayPal payment captured but Garmin refused the unlock", requestId, result.garminStatus);
+    return json({ success: false, error: "Payment received, but Garmin has not confirmed the unlock." }, 500);
+  }
+  return json({ success: true, already: result.already });
+}
+
+async function handlePayPalWebhook(request, env) {
+  const rawBody = await request.text();
+  let event;
+  try {
+    event = JSON.parse(rawBody);
+  } catch {
+    return new Response("bad payload", { status: 400 });
+  }
+
+  if (!(await verifyPayPalWebhook({ env, headers: request.headers, event }))) {
+    console.warn("rejected a PayPal webhook with a bad signature");
+    return new Response("bad signature", { status: 400 });
+  }
+  if (event.event_type !== "PAYMENT.CAPTURE.COMPLETED") {
+    return json({ ok: true, note: "ignored" });
+  }
+
+  const capture = event.resource;
+  const orderId = capture?.supplementary_data?.related_ids?.order_id;
+  let requestId = capture?.custom_id;
+  if (!requestId && orderId) requestId = await env.ORDERS.get(`paypal:${orderId}`);
+  if (!requestId) {
+    console.warn("PayPal webhook for an unknown order", orderId);
+    return json({ ok: true, note: "unknown order" });
+  }
+  if (await env.ORDERS.get(`done:${requestId}`)) {
+    return json({ ok: true, note: "already unlocked" });
+  }
+
+  const raw = await env.ORDERS.get(`req:${requestId}`);
+  if (!raw) {
+    console.error("PayPal order points at a missing request", requestId);
+    return new Response("request record missing", { status: 500 });
+  }
+  const record = JSON.parse(raw);
+  const amount = Math.round(Number(capture?.amount?.value) * 100);
+  if (amount !== record.amount || capture?.amount?.currency_code !== record.currency) {
+    console.error("PayPal webhook amount/currency mismatch", requestId, amount, capture?.amount);
+    return json({ ok: true, note: "amount mismatch" });
+  }
+
+  const result = await completeUnlock(record, env, { paymentId: capture?.id, source: "paypal-webhook" });
+  if (!result.ok) {
+    console.error("PayPal webhook: Garmin refused", requestId, result.garminStatus);
+    return new Response(`garmin returned ${result.garminStatus}`, { status: 500 });
+  }
+  return json({ ok: true, garminStatus: result.garminStatus, already: result.already });
 }
 
 async function readJson(request) {
@@ -319,21 +535,37 @@ async function handleWebhook(request, env) {
     return json({ ok: true, note: "currency mismatch" });
   }
 
+  const result = await completeUnlock(record, env, { paymentId: payment?.id, source: "razorpay-webhook" });
+  if (!result.ok) {
+    // Deliberately a 500: Razorpay retries failed webhooks, and the customer has paid already.
+    console.error("garmin refused the unlock", requestId, "status", result.garminStatus);
+    return new Response(`garmin returned ${result.garminStatus}`, { status: 500 });
+  }
+  return json({ ok: true, garminStatus: result.garminStatus, already: result.already });
+}
+
+/**
+ * The single place that calls Garmin. Both payment providers and their webhooks use it, so a retry cannot unlock
+ * twice and a duplicate delivery is harmless.
+ */
+async function completeUnlock(record, env, { paymentId = null, source = "unknown" } = {}) {
+  if (await env.ORDERS.get(`done:${record.requestId}`)) {
+    return { ok: true, already: true, garminStatus: 200 };
+  }
+
   const status = await callGarmin(record.callbackUrl, env);
   // 200 unlocked, 202 accepted in Garmin's test mode, 409 already unlocking. Anything else is ours to retry.
   if (status === 200 || status === 202 || status === 409) {
     record.status = "unlocked";
-    record.paymentId = payment?.id ?? null;
+    record.paymentId = paymentId ?? record.paymentId ?? null;
+    record.source = source;
     record.unlockedAt = Date.now();
-    await env.ORDERS.put(`req:${requestId}`, JSON.stringify(record), { expirationTtl: KV_TTL });
-    await env.ORDERS.put(`done:${requestId}`, "1", { expirationTtl: KV_TTL });
-    console.log("unlocked", requestId, "garmin status", status);
-    return json({ ok: true, garminStatus: status });
+    await env.ORDERS.put(`req:${record.requestId}`, JSON.stringify(record), { expirationTtl: KV_TTL });
+    await env.ORDERS.put(`done:${record.requestId}`, "1", { expirationTtl: KV_TTL });
+    console.log("unlocked", record.requestId, source, "garmin status", status);
+    return { ok: true, already: false, garminStatus: status };
   }
-
-  // Deliberately a 500: Razorpay retries failed webhooks, and the customer has paid already.
-  console.error("garmin refused the unlock", requestId, "status", status);
-  return new Response(`garmin returned ${status}`, { status: 500 });
+  return { ok: false, already: false, garminStatus: status };
 }
 
 async function callGarmin(callbackUrl, env) {

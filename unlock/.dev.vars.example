@@ -3,8 +3,15 @@ RAZORPAY_KEY_ID=rzp_test_your_key_id
 RAZORPAY_KEY_SECRET=your_key_secret
 RAZORPAY_WEBHOOK_SECRET=your_webhook_secret
 
-# Local testing only: lets ?country=US force the USD price. Never set this in production.
+# PayPal: sandbox by default. The live deployment needs PAYPAL_ENV=live and a webhook id.
+PAYPAL_CLIENT_ID=your_paypal_client_id
+PAYPAL_CLIENT_SECRET=your_paypal_client_secret
+PAYPAL_ENV=sandbox
+# PAYPAL_WEBHOOK_ID=your_paypal_webhook_id
+
+# Local testing only: lets ?country=US force the USD price, and turns the PayPal path on.
 ALLOW_COUNTRY_OVERRIDE=1
+INTERNATIONAL_CHECKOUT=on
 
 # Only needed for the Garmin unlock callback, not for checkout or signature verification.
 # GARMIN_OAUTH_KEY=your_garmin_consumer_key

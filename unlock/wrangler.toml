@@ -41,4 +41,6 @@ zone_name = "navmap.download"
 #
 # Everything secret is set with `wrangler secret put` and never written here:
 #   RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, RAZORPAY_WEBHOOK_SECRET,
+#   PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET, PAYPAL_WEBHOOK_ID,
 #   GARMIN_OAUTH_KEY, GARMIN_OAUTH_SECRET
+# PAYPAL_ENV is "sandbox" or "live"; INTERNATIONAL_CHECKOUT stays "off" until PayPal is approved.

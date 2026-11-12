@@ -28,21 +28,27 @@ Watch trial ends ──▶ Connect IQ Store ──▶ GET /unlock?appUnlockReque
 
 ## Checkout endpoints
 
-`/unlock` renders the payment page and stores the Garmin request in KV. The button then uses Razorpay Standard
-Checkout through two JSON endpoints:
+`/unlock` renders the payment page and stores the Garmin request in KV. India uses Razorpay Standard Checkout;
+everyone else uses PayPal Orders v2:
 
 | Route | Purpose |
 |---|---|
-| `POST /api/create-order` | Body `{ "requestId": "…" }`. Creates the Razorpay order once, or returns the existing one, as `{ order_id, amount, currency, key_id }`. |
-| `POST /api/verify-payment` | Body `{ razorpay_order_id, razorpay_payment_id, razorpay_signature }`. Checks `HMAC-SHA256(order_id + "|" + payment_id, key_secret)`. Returns `{ success: true }`. |
-| `POST /razorpay/webhook` | Razorpay's server-to-server event. This is still the **only** path that calls Garmin and unlocks the app. |
+| `POST /api/create-order` | Razorpay only. Body `{ "requestId": "…" }`. Creates or reuses the INR order, returns `{ order_id, amount, currency, key_id }`. |
+| `POST /api/verify-payment` | Razorpay only. Checks `HMAC-SHA256(order_id + "|" + payment_id, key_secret)` and returns `{ success: true }`. |
+| `POST /api/paypal/create-order` | PayPal only. Body `{ "requestId": "…" }`. Creates or reuses a USD order and returns `{ order_id, amount, currency }`. |
+| `POST /api/paypal/capture-order` | PayPal only. Body `{ "requestId": "…", "orderId": "…" }`. Captures the order, verifies the amount/currency, and calls Garmin. |
+| `POST /api/paypal/webhook` | PayPal's server-to-server `PAYMENT.CAPTURE.COMPLETED` event. Verifies the signature through PayPal's verify-webhook API, then calls Garmin. |
+| `POST /razorpay/webhook` | Razorpay's server-to-server event. Verifies the HMAC, then calls Garmin. |
 
 `create-order` returns `400` for a missing request id, `404` for an unknown request, `409` if the unlock is already
 complete, `503` if Razorpay keys are missing, `401` if Razorpay rejects the credentials, and `500` for other gateway
 or network failures.
 
 `verify-payment` returns `400` for missing fields or a bad signature and `404` for an unknown order. It does **not**
-mark anything paid and does **not** unlock; the webhook remains authoritative.
+mark anything paid and does **not** unlock; Razorpay's webhook remains authoritative for INR.
+
+Both PayPal capture and either provider's webhook go through one `completeUnlock()` function, so a retry cannot
+unlock twice and a duplicate delivery is harmless.
 
 ## Pricing by country
 
@@ -54,14 +60,13 @@ The first open of an `appUnlockRequestId` fixes the amount and currency in KV. T
 presses Pay; later loads and button presses reuse the same order, so changing network or country mid-flow cannot
 create a second charge at a different price.
 
-Razorpay cannot take international cards for this account, so the Worker sets `INTERNATIONAL_CHECKOUT=off` and shows
-an "international checkout is being set up" page outside India. UPI is offered only on the INR order, which is why
-India must not be switched to USD. A second provider is needed for the $1.99 side.
+Razorpay cannot take international cards for this account, so the deployed Worker keeps `INTERNATIONAL_CHECKOUT=off`
+and shows an "international checkout is being set up" page outside India until PayPal is live. Local testing sets the
+flag to `on` in `.dev.vars`. UPI is offered only on the INR order, which is why India must not be switched to USD.
 
 ## Setup
 
-You need a Cloudflare account (free) and a Razorpay account for INR/UPI. The USD side needs a second provider because
-Razorpay cannot take international cards here.
+You need a Cloudflare account (free), a Razorpay account for INR/UPI, and a PayPal app for USD.
 
 ```bash
 cd unlock
@@ -70,7 +75,7 @@ wrangler login
 
 # 0. Local secrets. Workers read .dev.vars, not .env; the real file is gitignored.
 cp .dev.vars.example .dev.vars
-#    fill RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET and RAZORPAY_WEBHOOK_SECRET
+#    fill RAZORPAY_*, PAYPAL_*, GARMIN_*, and set INTERNATIONAL_CHECKOUT=on for local testing
 
 # 1. KV namespace for the order/request mapping
 wrangler kv namespace create ORDERS
@@ -80,6 +85,9 @@ wrangler kv namespace create ORDERS
 wrangler secret put RAZORPAY_KEY_ID          # rzp_test_… while testing
 wrangler secret put RAZORPAY_KEY_SECRET
 wrangler secret put RAZORPAY_WEBHOOK_SECRET  # set this same value in the Razorpay webhook
+wrangler secret put PAYPAL_CLIENT_ID         # public client id is also rendered on the page
+wrangler secret put PAYPAL_CLIENT_SECRET
+wrangler secret put PAYPAL_WEBHOOK_ID        # from the PayPal webhook you create
 wrangler secret put GARMIN_OAUTH_KEY         # Connect IQ Developer Dashboard
 wrangler secret put GARMIN_OAUTH_SECRET
 
@@ -103,10 +111,22 @@ In the Razorpay dashboard, add a webhook:
 
 The signature is checked against the raw request body, so the route must receive the body untouched.
 
+## PayPal webhook
+
+In the PayPal app, add a webhook:
+
+- **URL:** `https://<your-worker>/api/paypal/webhook`
+- **Event:** `PAYMENT.CAPTURE.COMPLETED`
+- Copy the webhook id into `PAYPAL_WEBHOOK_ID`.
+
+The Worker verifies each delivery through PayPal's `verify-webhook-signature` API before it calls Garmin. The
+`capture-order` endpoint already unlocks after a successful capture; the webhook is the backup for a buyer who closes
+the tab before the capture response arrives.
+
 ## Local testing
 
 ```bash
-npm test          # 27 tests, no network: signature checks, geo pricing, routing, idempotency, errors
+npm test          # 31 tests, no network: signatures, PayPal capture/webhook, geo pricing, idempotency
 wrangler dev      # then open http://localhost:8787/unlock?…
 ```
 
@@ -118,26 +138,28 @@ unlock URL to exercise both prices without a VPN. A real Cloudflare deployment m
 
 - **India / ₹199:** choose UPI and use Razorpay's test UPI id `success@razorpay` (or `failure@razorpay`). This avoids
   the international-card restriction on the test account. See [Razorpay's test UPI details](https://razorpay.com/docs/payments/payments/test-upi-details/).
-- **Outside India / US$1.99:** currently gated off. Razorpay cannot take international cards for this account, so the
-  page shows the "being set up" message instead of opening a checkout. Wire in a second provider and set
-  `INTERNATIONAL_CHECKOUT=on` to test it.
+- **Outside India / US$1.99:** set `PAYPAL_ENV=sandbox`, `INTERNATIONAL_CHECKOUT=on`, and a sandbox
+  `PAYPAL_CLIENT_ID`/`PAYPAL_CLIENT_SECRET` in `.dev.vars`. Open the unlock URL with `&country=US`, click the PayPal
+  button, and approve with a PayPal sandbox buyer account. The capture endpoint then calls Garmin.
+- **PayPal webhook:** set `PAYPAL_WEBHOOK_ID` to a sandbox webhook pointing at `/api/paypal/webhook` if you want to
+  test the signature/capture-retry path; a tunnel is needed for PayPal to reach localhost.
 
 The OAuth1 tests include the published OAuth 1.0a worked example (the Twitter vector), so the signature
 implementation is checked against a known-good value rather than against itself.
 
-The service calls Razorpay's REST API with `fetch`; no Node Razorpay SDK is installed because the SDK uses Node
-APIs that are not available in a Worker. With the test keys in `.dev.vars`, use Razorpay's test card/UPI details
-from the dashboard to exercise the modal.
+The service calls Razorpay and PayPal REST APIs with `fetch`; no Node SDKs are installed because they use Node APIs
+that are not available in a Worker. With test keys in `.dev.vars`, use Razorpay's test UPI/card details and a PayPal
+sandbox buyer to exercise the checkouts.
 
-To exercise the flow without Razorpay, set `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` to dummy values and stub
-the calls; the service fails closed (503 "Payments aren't switched on") if either is missing.
+To exercise the flow without live providers, stub the calls in tests; the service fails closed (503
+"Payments aren't switched on") when a provider's keys are missing.
 
 ## Rules this service enforces
 
-- **Unlock only on a verified webhook.** The `/return` page is cosmetic; anyone can open it. Razorpay's webhook
-  HMAC signature is the only thing that unlocks anything.
-- **Checkout signatures are checked but do not unlock.** `/api/verify-payment` proves the browser's payment id and
-  order id came from Razorpay, then redirects to `/return`; it never calls Garmin or marks the record paid.
+- **Unlock only after a verified payment.** The `/return` page is cosmetic; anyone can open it. Razorpay's webhook
+  HMAC, PayPal's capture response, or PayPal's verified webhook is what unlocks anything.
+- **Razorpay checkout signatures are checked but do not unlock.** `/api/verify-payment` proves the browser's payment
+  id and order id came from Razorpay, then redirects to `/return`; the Razorpay webhook remains authoritative.
 - **Never unlock twice.** `done:<requestId>` is checked before calling Garmin; a redelivered webhook is a no-op.
   Garmin's `409 Conflict` ("already being marked as unlocked") is treated as success.
 - **Only call Garmin.** `callbackUrl` must be an `https://*.garmin.com` URL, otherwise `/unlock` would be an open

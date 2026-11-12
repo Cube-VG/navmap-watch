@@ -3,11 +3,11 @@
 The order matters. Uploading the watch package before the unlock service answers locks every buyer out on day 8,
 permanently, with no way to pay. This checklist exists to make that impossible to do by accident.
 
-**Current state (2026-11-11):** the Worker is deployed with live Razorpay keys, the Garmin OAuth keys and the live
+**Current state (2026-11-12):** the Worker is deployed with live Razorpay keys, the Garmin OAuth keys and the live
 webhook. All four routes are live. India/₹199 works; countries outside India see an "international checkout is being
-set up" page because Razorpay cannot take international cards for this account. The signed **0.17** package is at
-`dist/NavMap-publish.iq`, built on the signing server; it still has to be uploaded and submitted. PayPal approval is
-pending.
+set up" page because Razorpay cannot take international cards for this account. PayPal Orders v2 is built and
+sandbox-tested; live approval is pending. The signed **0.17** package is at `dist/NavMap-publish.iq`, built on the
+signing server; it still has to be uploaded and submitted.
 
 ## 0. Before any of this
 
@@ -27,6 +27,9 @@ wrangler kv namespace create ORDERS          # paste the id into wrangler.toml
 wrangler secret put RAZORPAY_KEY_ID
 wrangler secret put RAZORPAY_KEY_SECRET
 wrangler secret put RAZORPAY_WEBHOOK_SECRET
+wrangler secret put PAYPAL_CLIENT_ID
+wrangler secret put PAYPAL_CLIENT_SECRET
+wrangler secret put PAYPAL_WEBHOOK_ID
 wrangler secret put GARMIN_OAUTH_KEY
 wrangler secret put GARMIN_OAUTH_SECRET
 wrangler deploy
@@ -35,7 +38,9 @@ wrangler deploy
 - [ ] Production uses **live** `rzp_live_…` keys, not the `rzp_test_…` keys used on staging
 - [ ] Razorpay webhook points at `https://<worker>/razorpay/webhook`, events `payment.captured`, with the same
       secret as `RAZORPAY_WEBHOOK_SECRET`
-- [ ] A second provider is live for USD (Razorpay cannot take international cards here); an INR order still offers UPI
+- [ ] PayPal is live for USD: `PAYPAL_ENV=live`, live client id/secret, a live `PAYPAL_WEBHOOK_ID`, and
+      `INTERNATIONAL_CHECKOUT=on`; an INR order still offers UPI
+- [ ] PayPal webhook points at `https://navmap.download/api/paypal/webhook`, event `PAYMENT.CAPTURE.COMPLETED`
 
 ## 2. Prove it answers before touching the manifest
 

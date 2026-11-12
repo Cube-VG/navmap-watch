@@ -25,4 +25,4 @@ Do not lead the title with Google or Garmin branding, and do not publish under a
 
 ## Before submitting
 
-The international checkout is currently gated because Razorpay cannot take international cards on this account. Do not submit the listing as globally purchasable until a second USD provider is live, or non-India buyers will see "international checkout is being set up" after starting the unlock flow.
+The international checkout is currently gated because Razorpay cannot take international cards on this account. PayPal Orders v2 is built and sandbox-tested, but live approval and a live webhook are still pending. Do not submit the listing as globally purchasable until the PayPal checkout is live, or non-India buyers will see "international checkout is being set up" after starting the unlock flow.

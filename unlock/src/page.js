@@ -164,6 +164,74 @@ export function paymentPage({ amount, currency, requestId }) {
   );
 }
 
+export function paypalPage({ amount, currency, requestId, clientId, appPageUrl }) {
+  const price = formatMoney(amount, currency);
+  return shell(
+    "Unlock NavMap",
+    `<h1>Unlock NavMap</h1>
+<p class="sub">One payment, yours for good. No subscription.</p>
+<p class="price">${escapeHtml(price)}</p>
+<p class="sub">Pay with PayPal or a card. The price is charged in US dollars.</p>
+<div id="paypal-button-container"></div>
+<p id="status" class="status" role="status" aria-live="polite"></p>
+<p class="note">Secure payment by PayPal. By paying you agree to the <a href="https://navmap.download/refunds.html">refund policy</a>.</p>
+<p class="note"><a href="${escapeHtml(appPageUrl ?? "https://apps.garmin.com/apps/f18fe040-5bb7-41a0-afb0-f61edf418dab")}">Back to NavMap in the Connect IQ Store</a></p>
+<script src="https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(clientId)}&currency=USD&intent=capture&components=buttons"></script>
+<script>
+  var requestId = ${scriptJson(requestId)};
+  var statusLine = document.getElementById("status");
+
+  function setStatus(message, isError) {
+    statusLine.textContent = message || "";
+    statusLine.classList.toggle("error", Boolean(isError));
+  }
+
+  if (typeof paypal === "undefined") {
+    setStatus("PayPal could not load. Check your connection and try again.", true);
+  } else {
+    paypal.Buttons({
+      style: { layout: "vertical", color: "blue", shape: "pill", label: "paypal", height: 45 },
+      createOrder: async function () {
+        setStatus("Opening PayPal…");
+        var response = await fetch("/api/paypal/create-order", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ requestId: requestId })
+        });
+        var data = await response.json().catch(function () { return {}; });
+        if (!response.ok || !data.order_id) {
+          throw new Error(data.error || "Could not start the PayPal payment.");
+        }
+        return data.order_id;
+      },
+      onApprove: async function (data) {
+        setStatus("Capturing payment…");
+        var response = await fetch("/api/paypal/capture-order", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ requestId: requestId, orderId: data.orderID })
+        });
+        var result = await response.json().catch(function () { return {}; });
+        if (!response.ok || !result.success) {
+          throw new Error(result.error || "PayPal captured the payment, but the unlock is still being confirmed.");
+        }
+        window.location.href = "/return?rid=" + encodeURIComponent(requestId);
+      },
+      onCancel: function () {
+        setStatus("Payment cancelled. You can try again.");
+      },
+      onError: function (error) {
+        console.error(error);
+        setStatus("PayPal could not complete the payment. Please try again.", true);
+      }
+    }).render("#paypal-button-container").catch(function () {
+      setStatus("PayPal could not start. Check your connection and try again.", true);
+    });
+  }
+</script>`,
+  );
+}
+
 export function internationalPage({ appPageUrl }) {
   return shell(
     "International checkout",

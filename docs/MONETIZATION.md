@@ -71,8 +71,11 @@ Watch (trial)  ──day 8──▶  Connect IQ Store  ──▶  GET /unlock?ap
 | Route | Purpose |
 |---|---|
 | `GET /unlock` | Garmin redirects here with `appUnlockRequestId`, `callbackUrl`, `appPageUrl` (both URL-encoded). Validate, store the locked price, and render the price page. |
-| `POST /api/create-order` | JSON `{ requestId }`. Idempotently creates/reuses the order and returns `{ order_id, amount, currency, key_id }`. |
-| `POST /api/verify-payment` | JSON with Razorpay's three checkout fields. Checks `HMAC-SHA256(order_id + "\|" + payment_id, key_secret)` and returns success; it does not unlock. |
+| `POST /api/create-order` | Razorpay/INR. JSON `{ requestId }`. Idempotently creates/reuses the order and returns `{ order_id, amount, currency, key_id }`. |
+| `POST /api/verify-payment` | Razorpay/INR. Checks `HMAC-SHA256(order_id + "\|" + payment_id, key_secret)` and returns success; it does not unlock. |
+| `POST /api/paypal/create-order` | PayPal/USD. JSON `{ requestId }`. Idempotently creates/reuses the PayPal order and returns `{ order_id, amount, currency }`. |
+| `POST /api/paypal/capture-order` | PayPal/USD. JSON `{ requestId, orderId }`. Captures, checks amount/currency, and calls Garmin. |
+| `POST /api/paypal/webhook` | Verify PayPal's webhook through its verify-signature API. On `PAYMENT.CAPTURE.COMPLETED`, call Garmin. |
 | `POST /razorpay/webhook` | Verify `X-Razorpay-Signature` against the raw body with your webhook secret. On `payment.captured`, call Garmin and mark the order unlocked. |
 | `GET /return` | Thank-you page, then link/redirect to `appPageUrl`. |
 | `GET /health` | For your own monitoring. |
@@ -128,9 +131,10 @@ Handle the responses honestly:
 International card acceptance is not available on this account.
 
 - **India:** the ₹199 order stays in INR, so UPI, netbanking and domestic cards work normally.
-- **Outside India:** Razorpay's risk policy blocks international cards here. The Worker therefore shows an
-  "international checkout is being set up" page instead of a doomed USD order. A second provider — PayPal,
-  Paddle/Lemon Squeezy, or Stripe if eligible — is needed for the $1.99 side.
+- **Outside India:** Razorpay's risk policy blocks international cards here. PayPal Orders v2 is implemented,
+  sandbox-tested, and waiting for live approval; until then the Worker shows the "international checkout is being set
+  up" page. PayPal charges roughly 4.4% + a fixed fee, so a $1.99 sale nets about $1.55–1.60 before any FX cost.
+  Paddle/Lemon Squeezy or Stripe remain alternatives if PayPal is rejected or the fee is too high.
 - Fees are roughly **2% + GST** for domestic cards and a bit more for international; check the current schedule before
   you set the price.
 - **Merchant of record:** you are the seller, so you're responsible for GST on the sale. Below ₹20 lakh a year you're
@@ -185,13 +189,13 @@ merchant route — it just costs you a server to run.
 | NavBridge paywall | Removed from the plan; branch `feature/pro-unlock` closed |
 | Phone app | Free everywhere. Play `.aab` submitted, awaiting verification |
 | Website | Links the live Connect IQ listing |
-| Unlock service | **Built and deployed** — Cloudflare Worker, 27 tests; INR checkout live, USD checkout gated for a second provider |
-| Geo pricing | Built — ₹199 INR in India; USD checkout gated until a second provider is integrated |
+| Unlock service | **Built and deployed** — Cloudflare Worker, 31 tests; INR checkout live, PayPal sandbox checkout built |
+| Geo pricing | Built — ₹199 INR in India; PayPal USD checkout gated until live approval |
 
 ## 7. Open questions
 
 1. Answered: no. Garmin cannot take the payment itself while a trial is running — see the note in section 1.
 2. Answered: the service runs as the Cloudflare Worker in `unlock/`.
-3. Answered for India: Razorpay/INR. Open for the rest of the world: waiting on PayPal approval, then integrate it
-   behind `INTERNATIONAL_CHECKOUT`.
+3. Answered for India: Razorpay/INR. For the rest of the world, PayPal Orders v2 is built and sandbox-tested; live
+   approval, a live `PAYPAL_WEBHOOK_ID`, and `INTERNATIONAL_CHECKOUT=on` are still required.
 4. Answered: `navmap.download/unlock` is live and is the manifest's unlock URL.

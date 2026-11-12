@@ -30,6 +30,10 @@ function newEnv() {
     PRICE_INR: "19900",
     PRICE_USD: "199",
     INTERNATIONAL_CHECKOUT: "on",
+    PAYPAL_CLIENT_ID: "paypal_client",
+    PAYPAL_CLIENT_SECRET: "paypal_secret",
+    PAYPAL_ENV: "sandbox",
+    PAYPAL_WEBHOOK_ID: "paypal_webhook_id",
   };
 }
 
@@ -71,6 +75,83 @@ function apiRequest(path, body) {
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   });
+}
+
+function jsonResponse(body, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "content-type": "application/json" },
+  });
+}
+
+/** PayPal's token, order, capture and webhook-verification calls, plus the Garmin callback. */
+function paypalMock({
+  orderId = "PP_1",
+  requestId = "req-1",
+  orderStatus = "CREATED",
+  captureValue = "1.99",
+  captureCurrency = "USD",
+  verification = "SUCCESS",
+  garminStatus = 200,
+} = {}) {
+  return async (url, init = {}) => {
+    if (url.endsWith("/v1/oauth2/token")) {
+      return jsonResponse({ access_token: "paypal_token", expires_in: 3600 });
+    }
+    if (url.endsWith("/v1/notifications/verify-webhook-signature")) {
+      return jsonResponse({ verification_status: verification });
+    }
+    if (url.endsWith("/v2/checkout/orders") && init.method === "POST") {
+      return jsonResponse({ id: orderId, status: "CREATED", links: [] });
+    }
+    if (url.endsWith(`/v2/checkout/orders/${orderId}/capture`) && init.method === "POST") {
+      return jsonResponse({
+        id: orderId,
+        status: "COMPLETED",
+        purchase_units: [
+          {
+            custom_id: requestId,
+            payments: {
+              captures: [
+                {
+                  id: "CAPTURE_1",
+                  status: "COMPLETED",
+                  amount: { currency_code: captureCurrency, value: captureValue },
+                },
+              ],
+            },
+          },
+        ],
+      });
+    }
+    if (url.endsWith(`/v2/checkout/orders/${orderId}`) && init.method === "GET") {
+      return jsonResponse({
+        id: orderId,
+        status: orderStatus,
+        purchase_units: [
+          {
+            custom_id: requestId,
+            payments:
+              orderStatus === "COMPLETED"
+                ? {
+                    captures: [
+                      {
+                        id: "CAPTURE_1",
+                        status: "COMPLETED",
+                        amount: { currency_code: captureCurrency, value: captureValue },
+                      },
+                    ],
+                  }
+                : undefined,
+          },
+        ],
+      });
+    }
+    if (url.startsWith("https://apps.garmin.com/")) {
+      return new Response("", { status: garminStatus });
+    }
+    throw new Error(`unexpected fetch: ${url}`);
+  };
 }
 
 async function putRequest(env, id, overrides = {}) {
@@ -189,36 +270,173 @@ test("India gets a ₹199 INR order and the checkout API returns it", async () =
   assert.equal(await env.ORDERS.get("order:order_in"), "req-1");
 });
 
-test("everyone outside India gets a US$1.99 USD order", async () => {
+test("outside India gets the PayPal checkout page", async () => {
   const env = newEnv();
+  const response = await worker.fetch(unlockRequest("US"), env);
+  assert.equal(response.status, 200);
+  const html = await response.text();
+  assert.match(html, /\$1\.99/);
+  assert.match(html, /paypal-button-container/);
+  assert.match(html, /paypal_client/);
+  assert.match(html, /\/api\/paypal\/create-order/);
+  assert.match(html, /\/api\/paypal\/capture-order/);
+  assert.doesNotMatch(html, /paypal_secret/i, "the PayPal secret must never reach the page");
+
+  const record = JSON.parse(await env.ORDERS.get("req:req-1"));
+  assert.equal(record.currency, "USD");
+  assert.equal(record.country, "US");
+  assert.equal(record.paypalOrderId, undefined, "opening the page must not create an order");
+});
+
+test("PayPal creates a USD order, reuses it, and maps it back to the request", async () => {
+  const env = newEnv();
+  await worker.fetch(unlockRequest("US"), env);
+
+  await withFetch(paypalMock({ orderId: "PP_1" }), async (calls) => {
+    const response = await worker.fetch(
+      apiRequest("/api/paypal/create-order", { requestId: "req-1" }),
+      env,
+    );
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { order_id: "PP_1", amount: 199, currency: "USD" });
+
+    const createCalls = calls.filter(
+      (call) => call.url.endsWith("/v2/checkout/orders") && call.init?.method === "POST",
+    );
+    assert.equal(createCalls.length, 1);
+    const body = JSON.parse(createCalls[0].init.body);
+    assert.equal(body.intent, "CAPTURE");
+    assert.equal(body.purchase_units[0].amount.value, "1.99");
+    assert.equal(body.purchase_units[0].amount.currency_code, "USD");
+    assert.equal(body.purchase_units[0].custom_id, "req-1");
+
+    const again = await worker.fetch(
+      apiRequest("/api/paypal/create-order", { requestId: "req-1" }),
+      env,
+    );
+    assert.equal(again.status, 200);
+    assert.equal((await again.json()).order_id, "PP_1");
+    assert.equal(
+      calls.filter((call) => call.url.endsWith("/v2/checkout/orders") && call.init?.method === "POST").length,
+      1,
+      "the open PayPal order must be reused",
+    );
+  });
+
+  const record = JSON.parse(await env.ORDERS.get("req:req-1"));
+  assert.equal(record.paypalOrderId, "PP_1");
+  assert.equal(await env.ORDERS.get("paypal:PP_1"), "req-1");
+});
+
+test("PayPal capture unlocks once and rejects a mismatched amount", async () => {
+  const env = newEnv();
+  const id = "req-pp";
+  await putRequest(env, id, {
+    amount: 199,
+    currency: "USD",
+    country: "US",
+  });
+  const record = JSON.parse(await env.ORDERS.get(`req:${id}`));
+  record.paypalOrderId = "PP_1";
+  await env.ORDERS.put(`req:${id}`, JSON.stringify(record));
+  await env.ORDERS.put("paypal:PP_1", id);
+
+  await withFetch(paypalMock({ orderId: "PP_1", requestId: id }), async (calls) => {
+    const response = await worker.fetch(
+      apiRequest("/api/paypal/capture-order", { requestId: id, orderId: "PP_1" }),
+      env,
+    );
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { success: true, already: false });
+    assert.equal(calls.filter((call) => call.url.startsWith("https://apps.garmin.com/")).length, 1);
+
+    const again = await worker.fetch(
+      apiRequest("/api/paypal/capture-order", { requestId: id, orderId: "PP_1" }),
+      env,
+    );
+    assert.equal(again.status, 200);
+    assert.equal((await again.json()).already, true);
+  });
+
+  assert.equal(await env.ORDERS.get(`done:${id}`), "1");
+
+  const bad = newEnv();
+  await putRequest(bad, "req-bad", { amount: 199, currency: "USD", country: "US" });
+  const badRecord = JSON.parse(await bad.ORDERS.get("req:req-bad"));
+  badRecord.paypalOrderId = "PP_BAD";
+  await bad.ORDERS.put("req:req-bad", JSON.stringify(badRecord));
   await withFetch(
-    async () => new Response(JSON.stringify({ id: "order_us", amount: 199, currency: "USD" }), { status: 200 }),
+    paypalMock({ orderId: "PP_BAD", requestId: "req-bad", captureValue: "2.99" }),
     async (calls) => {
-      const response = await worker.fetch(unlockRequest("US"), env);
-      assert.equal(response.status, 200);
-      const html = await response.text();
-      assert.match(html, /\$1\.99/);
-      assert.match(html, /\/api\/create-order/);
-      assert.equal(calls.length, 0, "opening the page must not create an order");
-
-      const orderResponse = await worker.fetch(
-        apiRequest("/api/create-order", { requestId: "req-1" }),
-        env,
+      const response = await worker.fetch(
+        apiRequest("/api/paypal/capture-order", { requestId: "req-bad", orderId: "PP_BAD" }),
+        bad,
       );
-      assert.equal(orderResponse.status, 200);
-      const order = await orderResponse.json();
-      assert.equal(order.order_id, "order_us");
-      assert.equal(order.amount, 199);
-      assert.equal(order.currency, "USD");
-
-      assert.equal(calls.length, 1);
-      const body = JSON.parse(calls[0].init.body);
-      assert.equal(body.amount, 199);
-      assert.equal(body.currency, "USD");
-      assert.equal(body.notes.country, "US");
+      assert.equal(response.status, 400);
+      assert.equal(calls.filter((call) => call.url.startsWith("https://apps.garmin.com/")).length, 0);
     },
   );
-  assert.equal(await env.ORDERS.get("order:order_us"), "req-1");
+  assert.equal(await bad.ORDERS.get("done:req-bad"), null);
+});
+
+test("PayPal webhook verifies its signature and unlocks", async () => {
+  const env = newEnv();
+  const id = "req-hook";
+  await putRequest(env, id, { amount: 199, currency: "USD", country: "US" });
+  const record = JSON.parse(await env.ORDERS.get(`req:${id}`));
+  record.paypalOrderId = "PP_HOOK";
+  await env.ORDERS.put(`req:${id}`, JSON.stringify(record));
+  await env.ORDERS.put("paypal:PP_HOOK", id);
+
+  const body = JSON.stringify({
+    event_type: "PAYMENT.CAPTURE.COMPLETED",
+    resource: {
+      id: "CAPTURE_1",
+      custom_id: id,
+      amount: { currency_code: "USD", value: "1.99" },
+      supplementary_data: { related_ids: { order_id: "PP_HOOK" } },
+    },
+  });
+  const request = new Request("https://unlock.test/api/paypal/webhook", {
+    method: "POST",
+    headers: {
+      "paypal-transmission-id": "t-id",
+      "paypal-transmission-time": "t-time",
+      "paypal-cert-url": "https://example.test/cert",
+      "paypal-auth-algo": "SHA256withRSA",
+      "paypal-transmission-sig": "t-sig",
+      "content-type": "application/json",
+    },
+    body,
+  });
+
+  await withFetch(paypalMock({ orderId: "PP_HOOK", requestId: id }), async (calls) => {
+    const response = await worker.fetch(request, env);
+    assert.equal(response.status, 200);
+    assert.equal(calls.filter((call) => call.url.startsWith("https://apps.garmin.com/")).length, 1);
+  });
+  assert.equal(await env.ORDERS.get(`done:${id}`), "1");
+});
+
+test("PayPal webhook rejects a bad signature", async () => {
+  const env = newEnv();
+  const body = JSON.stringify({ event_type: "PAYMENT.CAPTURE.COMPLETED", resource: {} });
+  const request = new Request("https://unlock.test/api/paypal/webhook", {
+    method: "POST",
+    headers: {
+      "paypal-transmission-id": "t-id",
+      "paypal-transmission-time": "t-time",
+      "paypal-cert-url": "https://example.test/cert",
+      "paypal-auth-algo": "SHA256withRSA",
+      "paypal-transmission-sig": "t-sig",
+      "content-type": "application/json",
+    },
+    body,
+  });
+  await withFetch(paypalMock({ verification: "FAILURE" }), async () => {
+    const response = await worker.fetch(request, env);
+    assert.equal(response.status, 400);
+  });
 });
 
 test("international checkout can be gated off without creating an order", async () => {
@@ -245,7 +463,7 @@ test("international checkout can be gated off without creating an order", async 
   assert.match((await blocked.json()).error, /not available/i);
 });
 
-test("an existing order keeps the price it was created with", async () => {
+test("an existing PayPal order keeps the price it was created with", async () => {
   const env = newEnv();
   await env.ORDERS.put(
     "req:req-9",
@@ -253,37 +471,36 @@ test("an existing order keeps the price it was created with", async () => {
       requestId: "req-9",
       callbackUrl: "https://apps.garmin.com/appUnlock?appUnlockRequestId=req-9",
       appPageUrl: "https://apps.garmin.com/apps/abc",
-      orderId: "order_old",
-      amount: 19900,
-      currency: "INR",
+      paypalOrderId: "PP_OLD",
+      amount: 199,
+      currency: "USD",
+      country: "US",
       status: "pending",
     }),
   );
 
-  await withFetch(
-    async () => {
-      throw new Error("must not create a second order");
-    },
-    async (calls) => {
-      const response = await worker.fetch(unlockRequest("US", "req-9"), env);
-      assert.equal(response.status, 200);
-      const html = await response.text();
-      assert.match(html, /₹199/);
-      assert.doesNotMatch(html, /\$1\.99/);
-      assert.equal(calls.length, 0);
+  await withFetch(paypalMock({ orderId: "PP_OLD", requestId: "req-9", orderStatus: "CREATED" }), async (calls) => {
+    const response = await worker.fetch(unlockRequest("US", "req-9"), env);
+    assert.equal(response.status, 200);
+    const html = await response.text();
+    assert.match(html, /\$1\.99/);
+    assert.equal(calls.length, 0, "opening the page must not call PayPal");
 
-      const orderResponse = await worker.fetch(
-        apiRequest("/api/create-order", { requestId: "req-9" }),
-        env,
-      );
-      assert.equal(orderResponse.status, 200);
-      const order = await orderResponse.json();
-      assert.equal(order.order_id, "order_old");
-      assert.equal(order.amount, 19900);
-      assert.equal(order.currency, "INR");
-      assert.equal(calls.length, 0);
-    },
-  );
+    const orderResponse = await worker.fetch(
+      apiRequest("/api/paypal/create-order", { requestId: "req-9" }),
+      env,
+    );
+    assert.equal(orderResponse.status, 200);
+    const order = await orderResponse.json();
+    assert.equal(order.order_id, "PP_OLD");
+    assert.equal(order.amount, 199);
+    assert.equal(order.currency, "USD");
+    assert.equal(
+      calls.filter((call) => call.url.endsWith("/v2/checkout/orders") && call.init?.method === "POST").length,
+      0,
+      "the existing PayPal order must be reused",
+    );
+  });
 });
 
 test("create-order validates the request id", async () => {

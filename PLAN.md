@@ -30,16 +30,17 @@ run Android 8 or newer. iOS cannot work (see `KNOWN-ISSUES.md` §4).
 Garmin's trial flow rather than Garmin's merchant system.
 
 That distinction is forced, not chosen: Garmin's merchant sells a paid app *before* download and has no trial, so a
-trial requires an unlock endpoint we run. The service exists in `unlock/` (Cloudflare Worker + Razorpay): INR checkout
-is live. Razorpay will not accept international cards for this account, so the USD side needs a second provider before
-it can be sold. Full reasoning and costs: `docs/MONETIZATION.md`.
+trial requires an unlock endpoint we run. The service exists in `unlock/` (Cloudflare Worker + Razorpay for INR,
+PayPal Orders v2 for USD): the INR checkout is live, and the PayPal checkout is built and sandbox-tested. Razorpay
+will not accept international cards for this account, so the USD side waits on PayPal approval. Full reasoning and
+costs: `docs/MONETIZATION.md`.
 
 ## Decisions made
 
 | Decision | Date | State |
 |---|---|---|
 | NavBridge free; the watch app is the paid product | 2026-11-06 | Done — the Play Billing work is abandoned |
-| Seven-day trial then US$1.99 / ₹199, via Garmin trial mode + our unlock service | 2026-11-06 | INR live; USD provider still to choose |
+| Seven-day trial then US$1.99 / ₹199, via Garmin trial mode + our unlock service | 2026-11-06 | INR live; PayPal sandbox built, live approval pending |
 | PolyForm Noncommercial 1.0.0 | 2026-11-05 | Done, on `main` |
 | Website as the phone-app channel until Play verifies | 2026-11-06 | Live |
 
@@ -47,8 +48,8 @@ it can be sold. Full reasoning and costs: `docs/MONETIZATION.md`.
 
 The ordered version, with stop-gates, is `docs/RELEASE.md`. In short:
 
-1. Choose and integrate an international checkout provider (PayPal, Paddle/Lemon Squeezy, or Stripe if eligible).
-   Razorpay international cards are not available for this account.
+1. Finish PayPal go-live: approval, live client id/secret, live webhook id, and `INTERNATIONAL_CHECKOUT=on`.
+   The code and sandbox tests are already done.
 2. Upload the signed package at `dist/NavMap-publish.iq` as version **0.17**. It was built on the signing server;
    JDK 17 and all 19 device profiles are installed here too.
 3. Flag **Payment Required**, add the support email and refund-policy URL, submit for review.
@@ -58,7 +59,7 @@ The ordered version, with stop-gates, is `docs/RELEASE.md`. In short:
 ## Known limitations
 
 `docs/KNOWN-ISSUES.md` — the trial resets on reinstall, duplicate purchases are possible, refunds don't revoke
-unlocks, and USD checkout needs a second provider because Razorpay international cards are unavailable.
+unlocks, and USD checkout waits on PayPal live approval because Razorpay international cards are unavailable.
 
 ## Considered and dropped
 
@@ -72,8 +73,8 @@ unlocks, and USD checkout needs a second provider because Razorpay international
 
 ## Open questions for you
 
-1. **PayPal approval** — waiting for the account to be approved, then integrate it as the USD provider behind
-   `INTERNATIONAL_CHECKOUT`.
+1. **PayPal approval** — the sandbox integration is complete; live client id/secret, a live `PAYPAL_WEBHOOK_ID`,
+   and `INTERNATIONAL_CHECKOUT=on` are still needed.
 2. **The listing reads "NavMap: Googl…" published by "Gmaps".** Google's brand rules and this project's own policy say
    no "Google" in a title, and a publisher that reads as "Gmaps" invites an impersonation report. Rename before the
    review; use `NavMap: Turn-by-turn for Garmin`, publisher `NavMap`.
