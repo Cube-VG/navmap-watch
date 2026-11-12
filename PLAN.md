@@ -73,8 +73,9 @@ unlocks, and USD checkout waits on PayPal live approval because Razorpay interna
 
 ## Open questions for you
 
-1. **PayPal approval** — the sandbox integration is complete; live client id/secret, a live `PAYPAL_WEBHOOK_ID`,
-   and `INTERNATIONAL_CHECKOUT=on` are still needed.
+1. **PayPal account approval** — the sandbox integration is complete and the live OAuth credentials work, but live
+   order creation currently returns `PAYEE_ACCOUNT_RESTRICTED`. Wait for PayPal to finish its review; do not set
+   `INTERNATIONAL_CHECKOUT=on` until a live $1.99 order can be created.
 2. **The listing reads "NavMap: Googl…" published by "Gmaps".** Google's brand rules and this project's own policy say
    no "Google" in a title, and a publisher that reads as "Gmaps" invites an impersonation report. Rename before the
    review; use `NavMap: Turn-by-turn for Garmin`, publisher `NavMap`.
