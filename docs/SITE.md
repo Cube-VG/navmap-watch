@@ -1,22 +1,49 @@
 # NavMap website
 
-The GitHub Pages site is served from `main` → `/docs` at https://navmap.download (custom domain configured, with automatic fallback from https://cube-vg.github.io/navmap-watch/). The landing page, setup guide and privacy page use plain HTML, CSS and a small deferred JavaScript file. No package installation or application build is required. GitHub Pages' existing Jekyll build remains enabled so the original Markdown and uppercase documentation routes stay available.
+The GitHub Pages site is served from `main` → `/docs` at https://navmap.download (custom domain configured, with automatic fallback from https://cube-vg.github.io/navmap-watch/). The landing page, setup guide and legal pages are plain HTML, CSS and deferred JavaScript. No package installation or application build is required. GitHub Pages' existing Jekyll build remains enabled so the original Markdown and uppercase documentation routes stay available.
 
 ## Design
 
-A product-focused redesign with a cobalt navigation accent, cool neutral surfaces, DM Sans, a studio watch illustration and actual product screenshots. The existing NavMap wordmark, navigation labels and section anchors are preserved. Dark appearance follows the operating system unless a visitor chooses otherwise. Motion respects reduced-motion preferences.
+**Direction: "Instrument."** The site is built to look like the thing it sells — a navigation
+display — rather than like a landing-page template. The palette is taken from the watch's own
+screen: green-black, signal lime, map-paper cream and route blue. Mono telemetry labels, hairlines
+and tight display type carry the rest. `PLAN-DESIGN.md` in the repository root records the
+direction, the token table and which ideas came from where.
 
-- `index.html`: product, screenshots, watch-family filters, installation overview, downloads and FAQs.
-- `setup.html`: complete browser-readable installation guide and source-build links.
-- `privacy.html`: the existing `PRIVACY.md` text, unchanged, presented in the shared page design. Keep both versions in sync when the policy is updated.
-- `assets/site.css`: shared responsive layouts, appearance tokens and icon masks.
-- `assets/site.js`: accessible tabs, mobile navigation, watch filters, appearance toggle, scroll reveals and copy-button feedback.
+- Dark is the primary treatment; the light theme is a warm map-paper counterpart, not an
+  afterthought. Both are driven by the same tokens in `assets/site.css`. Appearance follows the
+  operating system until a visitor chooses otherwise (`navmap-theme` in local storage).
+- Type: **Archivo** (variable, width axis — display at 112%, body at 100%) and **JetBrains Mono**
+  for labels. Both are self-hosted, subset to Latin + punctuation + ₹, about 64 KB together.
+- Other pieces: a header that folds into a glass pill on scroll, masked line reveals, a spotlight
+  hover on cards, a scroll-driven "how it works" rail, a waypoint minimap on the right edge,
+  count-up statistics and a paper-coloured compatibility band.
+- Motion is mechanical and quiet, and every animation is skipped under
+  `prefers-reduced-motion: reduce`. Nothing is hidden from a visitor without JavaScript: the
+  `html.js` class is only added when scripts run, and a watchdog removes it if they never start.
 
-The site makes no network calls for analytics or product data. Images, icons and fonts are hosted with the site. Appearance is the only value saved in browser local storage.
+Files:
+
+- `index.html`: hero, capabilities bento, real-ride section, scroll rail,
+  compatibility band, downloads, FAQs.
+- `setup.html`: the complete browser-readable installation guide, with a quick-start card, sticky
+  contents and build-from-source instructions.
+- `privacy.html`, `refunds.html`: the existing `PRIVACY.md` / refund text, unchanged, presented as
+  a paper document on the shared site chrome. Keep both versions in sync when the policy changes.
+- `assets/site.css`: tokens, primitives, header, footer, guide and prose styles.
+- `assets/home.css`: homepage sections only.
+- `assets/site.js`: appearance, floating header, mobile drawer, reveals, waypoints, guide
+  contents, copy buttons, magnetic buttons and card spotlights.
+- `assets/home.js`: watch-view tabs, watch filters, counters, scroll rail,
+  pointer tilt and parallax, FAQ accordion.
+
+The site makes no network calls for analytics or product data, and no third-party scripts are
+loaded — every effect is CSS plus about 26 KB of vanilla JavaScript. Images, icons and fonts are
+hosted with the site. Appearance is the only value saved in browser local storage.
 
 ## Content updates
 
-Supported watch products are listed with `data-product` identifiers in `index.html`. Keep that list equal to the product IDs in `watch/manifest.xml`; the current set contains 19 models. Filters group them into Forerunner, fēnix/epix, Venu/vívoactive, and MARQ/D2.
+Supported watch products are listed with `data-product` identifiers in `index.html`. Keep that list equal to the product IDs in `watch/manifest.xml`; the current set contains 19 models. Filters group them into Forerunner, fēnix/epix, Venu/vívoactive, and MARQ/D2. The count shown in the lede, the "19" stat and the filter status all need to change together with that list.
 
 NavMap is listed on the Connect IQ Store at `f18fe040-5bb7-41a0-afb0-f61edf418dab`, and the download section, setup guide and README all link to it. If that listing is ever unpublished or replaced, update those four places together. The store lists NavMap as free because it uses a trial; the price is charged by the unlock service. The site says ₹199 in India is live and US$1.99 outside India is coming soon; change that once PayPal opens. The NavBridge APK link resolves to the latest GitHub release. Do not publish watch binaries here.
 
@@ -26,9 +53,13 @@ Maps API billing is separate from the watch app purchase. The site links to Goog
 
 - `assets/navmap-studio.webp`, `assets/navmap-studio-500.webp`, and `assets/navmap-studio.jpg`: generated with the built-in image generation tool for this website, then resized and compressed with FFmpeg. The visible caption identifies it as a product illustration. The generation prompt appears below.
 - `assets/navmap-on-wrist-810.webp` and `assets/navmap-on-wrist-540.webp`: optimized versions of the project's existing `navmap-on-wrist.jpg`. The original is retained.
-- `assets/watch-map.png`, `assets/watch-turn.png`, `assets/watch-dimmed.png`: existing NavMap simulator captures, copied without alteration. They are identified as simulator screenshots on the page.
-- DM Sans: self-hosted Latin variable font from Google Fonts; SIL Open Font License in `assets/fonts/OFL.txt`.
+- `assets/watch-map.webp`, `assets/watch-turn.webp`, `assets/watch-dimmed.webp`: existing NavMap simulator captures, copied without alteration. They are identified as simulator screenshots on the page.
+- Archivo and JetBrains Mono: self-hosted subset variable fonts from the upstream OFL projects; the licence and the subsetting note are in `assets/fonts/OFL.txt`.
 - Tabler outline icons: self-hosted SVG files; MIT license in `assets/icons/LICENSE.txt`.
+- The design brief also takes pattern inspiration from the Annnimate starter pack (floating
+  navbar, text reveal, accordion, process rail), React Bits (spotlight card,
+  marquee, magnetic button, count-up, dot grid) and dqnamo's Kitchen (tactile, mechanical detail).
+  Every component is re-implemented in the NavMap system; no third-party code ships.
 
 ### Final image prompt
 
@@ -40,6 +71,14 @@ From the repository root, run `python3 -m http.server 4178 --bind 127.0.0.1 --di
 
 ## Verification for this redesign
 
-Checked the landing page and both guides in Chromium, including viewport widths from 320 to 1920 pixels, light and dark appearances, system appearance defaults, reduced motion, keyboard tab controls, the mobile menu, every family filter, FAQs, clipboard success and denied-access feedback, local links, and the no-JavaScript path. All 19 `data-product` values were checked against the current watch manifest. Existing privacy text was compared with the rendered policy.
+Checked in Chromium at 320, 360, 390, 768, 1024, 1440 and 1920 pixels, in both appearances, with
+system appearance defaults, with reduced motion, and with JavaScript disabled. The watch tabs were
+driven by pointer and by keyboard; the header docked, hid on scroll-down and returned on scroll-up; the
+mobile drawer opened, closed on Escape and on link click, and trapped nothing behind it; every
+family filter was exercised; the FAQ accordion opened, closed and set `inert` on closed panels;
+the copy button was checked for success and denial. All 19 `data-product` values were checked
+against the current watch manifest, every internal link and anchor resolves, and the privacy text
+was compared with the rendered policy.
 
-Automated WCAG A/AA checks reported no violations on the three pages in either appearance. A local mobile Lighthouse audit scored 98 performance, 100 accessibility, 100 best practices and 100 SEO, with 2.4 s LCP, 0 layout shift and 0 ms total blocking time. These are local lab results, not field measurements. Safari was not verified in the local Python Playwright installation.
+Automated WCAG A/AA checks (axe-core) report no violations on all four pages in both appearances.
+JavaScript throws no console errors on any page.

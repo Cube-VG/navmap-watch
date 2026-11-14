@@ -1,4 +1,9 @@
-Copyright 2014 The DM Sans Project Authors (https://github.com/googlefonts/dm-fonts)
+Copyright 2019 The Archivo Project Authors (https://github.com/Omnibus-Type/Archivo)
+Copyright 2020 The JetBrains Mono Project Authors (https://github.com/JetBrains/JetBrainsMono)
+
+Both families are licensed under the SIL Open Font License, Version 1.1.
+The files here are subsets (Latin, punctuation, ₹) generated from the upstream
+variable font sources; the glyph outlines are unchanged.
 
 This Font Software is licensed under the SIL Open Font License, Version 1.1.
 This license is copied below, and is also available with a FAQ at:
