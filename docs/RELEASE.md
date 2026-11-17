@@ -49,8 +49,7 @@ wrangler deploy
       GitHub Pages `404`)
 - [ ] Open it with Garmin-style parameters and check the payment page renders:
       `/unlock?appUnlockRequestId=test-1&callbackUrl=https%3A%2F%2Fapps.garmin.com%2FappUnlock%3FappUnlockRequestId%3Dtest-1&appPageUrl=https%3A%2F%2Fapps.garmin.com%2Fapps%2Ff18fe040-5bb7-41a0-afb0-f61edf418dab`
-- [ ] An Indian visitor sees **₹199** and a non-Indian visitor sees the **international checkout is being set up**
-      page while `INTERNATIONAL_CHECKOUT=off`
+- [ ] An Indian visitor sees **₹199** and a non-Indian visitor sees the **$1.99 PayPal** page
 - [ ] `POST /api/create-order` returns `order_id`, `amount`, `currency` and `key_id` for an Indian request, and a
       second call returns the same order instead of creating another
 - [ ] `POST /api/verify-payment` returns `400` for a bad signature and `{ "success": true }` for the correct one
@@ -112,11 +111,11 @@ In the Connect IQ Developer Dashboard:
 | Symptom | Likely cause | Fix |
 |---|---|---|
 | Trial users blocked, unlock page 404s | Worker not deployed, or route not pointing at it | Redeploy / fix the route. The app stays blocked until the URL answers |
-| Payment taken, app still locked | Garmin callback returned non-2xx | Check the Worker logs; the signature is the usual culprit. Razorpay retries the webhook, so fixing it often resolves itself |
+| Payment taken, app still locked | Garmin callback returned non-2xx | Check the Worker logs; the signature is the usual culprit. Razorpay and PayPal retry the webhook, so fixing it often resolves itself |
 | `401` from Garmin | Wrong OAuth key/secret, or the base string is off | Re-copy the consumer key/secret from the dashboard |
 | `409` from Garmin | Already unlocking | Fine — treated as success |
-| US checkout shows “being set up” | `INTERNATIONAL_CHECKOUT=off` because Razorpay cannot take international cards | Integrate the second USD provider, then set the flag to `on` |
-| Someone charged twice | Paid, then tapped Unlock again | Refund in Razorpay |
+| US checkout shows “being set up” | `INTERNATIONAL_CHECKOUT` was set back to `off` | Set it to `on`, redeploy, and confirm the PayPal secrets are present |
+| Someone charged twice | Paid, then tapped Unlock again | Refund in Razorpay or PayPal |
 
 ## Rolling back
 
