@@ -27,7 +27,16 @@ object Alerts {
     fun openOnWatch(context: Context) = post(
         context,
         "Open NavMap on your watch",
-        "If the watch asks to open NavMap, press START. If not, tap Try again for a new prompt, or open NavMap from the watch's app list.",
+        "For a long ride, open NavMap from the watch's app list before starting Google Maps. " +
+            "If the watch asks to open it, press START for a short look; the watch may close a phone-opened NavMap.",
+        retry = true,
+    )
+
+    fun watchClosed(context: Context) = post(
+        context,
+        "NavMap closed on the watch",
+        "Open NavMap from the watch's app list, then return to Google Maps. " +
+            "The phone prompt is only a shortcut and the watch can close it.",
         retry = true,
     )
 

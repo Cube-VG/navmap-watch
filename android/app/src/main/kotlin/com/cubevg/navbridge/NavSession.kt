@@ -419,15 +419,25 @@ object NavSession : CiqBridge.Listener {
                         shown = false
                         // NavMap 0.12+ says why it closed; with no reason, the watch closed it in mid-navigation.
                         val ran = message.seconds
-                        if (ran != null && message.why == null && latest != null && !endPending) {
-                            if (!closeTipShown && ran >= 60) {
+                        val closedDuringNavigation = latest != null && !endPending
+                        if (ran != null && message.why == null && closedDuringNavigation) {
+                            if (!closeTipShown) {
                                 closeTipShown = true
+                                Alerts.watchClosed(context)
+                                setStatus("Open NavMap from the watch's app list for a long ride")
                                 DebugLog.log(
-                                    "The watch closes NavMap after about 2 minutes without a button press when the phone's " +
-                                        "prompt opened it. Opened from the watch's app list, it should stay open.",
+                                    "The watch closed NavMap in mid-navigation. A phone-prompt launch can be closed this " +
+                                        "way; opened from the watch's app list it should stay open.",
                                 )
                             }
-                            reopen()
+                            // A phone-prompt launch will just be closed again. Let the notification tell the user to
+                            // open NavMap from the app list instead of re-prompting in a loop.
+                            if (promptedAt == 0L) reopen()
+                        } else if (ran == null && closedDuringNavigation && !closeTipShown) {
+                            closeTipShown = true
+                            Alerts.watchClosed(context)
+                            setStatus("Open NavMap from the watch's app list for a long ride")
+                            DebugLog.log("NavMap disappeared in mid-navigation without a bye")
                         } else {
                             setStatus("NavMap was closed on the watch")
                         }

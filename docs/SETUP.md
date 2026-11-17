@@ -55,7 +55,7 @@ Under **I travel by**, pick Auto (default), Car, Motorbike, Bicycle or Walking. 
 ## 7. Ride
 - **Turns only:** start navigation in Google Maps as usual. The watch asks to open NavMap. Press **START** once and the turns appear.
 - **Turns and the blue route line:** in Google Maps, open the destination, tap **Share** and pick **Navigate with NavMap**. NavBridge works out the route and starts Google Maps navigation for you. If you take another way, NavBridge draws a new line from where you are once you've been 60 m off the old one for 8 seconds.
-- **For rides longer than 2 minutes:** first open NavMap on the watch yourself (press **START** on the watch face and pick NavMap). When it says "Waiting for Google Maps", start navigating. Opened by the phone, NavMap is closed by the watch after about 2 minutes without a button press; opened from the watch's list, it stays open. If the watch does close it, NavBridge asks it to open NavMap again: press **START**.
+- **For rides longer than 2 minutes:** first open NavMap on the watch yourself (press **START** on the watch face and pick NavMap). When it says "Waiting for Google Maps", start navigating. Opened from the watch's app list, it stays open; the phone's "Open NavMap?" prompt is only a shortcut and Garmin can close that launch. If the screen goes dark with just a turn arrow, it is dimmed — press a button. If it returns to the watch face, open NavMap from the app list.
 
 Tap "Google" (or "Google Maps" in the store build), or press **START**, to see the map data credits for 5 seconds.
 

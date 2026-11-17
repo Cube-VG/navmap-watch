@@ -39,7 +39,7 @@ The older automatic setup scripts expect those watch packages, so their default 
 
 For the blue route line as well, start from Google Maps' **Share** button: open the place, tap **Share** and choose **Navigate with NavMap**.
 
-For rides longer than 2 minutes, open NavMap on the watch first (press **START** on the watch face and pick NavMap), then start navigating. When the phone opens NavMap, the watch closes it again after about 2 minutes without a button press. If that happens, the watch asks to open NavMap again: press **START**.
+For rides longer than 2 minutes, open NavMap on the watch first (press **START** on the watch face and pick NavMap), then start navigating. The phone's "Open NavMap?" prompt is only a shortcut: Garmin can close an app opened that way. Opened from the watch's own app list, it stays open. If the screen goes dark with just a turn arrow, the app is dimmed, not closed — press a button. If it returns to the watch face, reopen NavMap from the app list.
 
 ## What the watch shows
 
