@@ -55,7 +55,7 @@ GPS needs open sky: indoors, the watch may wait for it forever.
 
 ## What it costs
 
-NavBridge is free. NavMap costs **₹199 in India**, once, for lifetime access to the watch app. The international price is **US$1.99**, but the international checkout is still being set up; the Connect IQ Store lists the app as free because the seven-day trial comes first. Map pictures and route lines are billed separately by Google Maps Platform to your own Google Cloud account, which has a free allowance every month:
+NavBridge is free. NavMap costs **₹199 in India** or **US$1.99 outside India**, once, for lifetime access to the watch app. India pays through Razorpay/UPI; the rest of the world pays through PayPal. The Connect IQ Store lists the app as free because the seven-day trial comes first. Map pictures and route lines are billed separately by Google Maps Platform to your own Google Cloud account, which has a free allowance every month:
 
 | | Free each month | After that, per 1,000 |
 |---|---|---|

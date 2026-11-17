@@ -56,13 +56,3 @@ stops the build, because uploading it would lock every buyer out on day 8.
 
 **Mitigation:** deploy the unlock service first; `NAVBRIDGE_SKIP_UNLOCK_CHECK=1` overrides when you know what you are
 doing (an offline build, say).
-
-## 7. USD checkout is gated until the live PayPal test
-
-The Worker creates an **INR** order for India and a PayPal **USD** order everywhere else. Razorpay's risk policy does
-not allow international card acceptance for this account, so PayPal is the USD provider. The PayPal account is
-approved and live order creation works, but the deployed Worker keeps `INTERNATIONAL_CHECKOUT=off` and shows the
-"international checkout is being set up" page until the live client id/secret and webhook id are set and a real $1.99
-purchase completes.
-
-UPI only works on the INR order, so India must stay on Razorpay/INR.

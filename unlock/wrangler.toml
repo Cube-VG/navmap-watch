@@ -19,9 +19,9 @@ id = "7eae4c13a60f4148a71eae9c324ece07"
 PRICE_INR = "19900"
 PRICE_USD = "199"
 
-# Razorpay's live account cannot take international cards. Keep USD checkout off until a second provider is wired
-# in; setting this to "on" re-enables the existing Razorpay USD path, which will fail at card entry.
-INTERNATIONAL_CHECKOUT = "off"
+# India is Razorpay/INR. Outside India the Worker uses PayPal/ USD after live approval.
+INTERNATIONAL_CHECKOUT = "on"
+PAYPAL_ENV = "live"
 
 # Every path the Worker owns must be routed (needs the domain on the same Cloudflare account). Routing only /unlock
 # makes the page's /api/... calls fall through to GitHub Pages and 404.
@@ -43,4 +43,4 @@ zone_name = "navmap.download"
 #   RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, RAZORPAY_WEBHOOK_SECRET,
 #   PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET, PAYPAL_WEBHOOK_ID,
 #   GARMIN_OAUTH_KEY, GARMIN_OAUTH_SECRET
-# PAYPAL_ENV is "sandbox" or "live"; INTERNATIONAL_CHECKOUT stays "off" until PayPal is approved.
+# PAYPAL_ENV is "sandbox" or "live"; this deployment uses live.

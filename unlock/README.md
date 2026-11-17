@@ -60,9 +60,9 @@ The first open of an `appUnlockRequestId` fixes the amount and currency in KV. T
 presses Pay; later loads and button presses reuse the same order, so changing network or country mid-flow cannot
 create a second charge at a different price.
 
-Razorpay cannot take international cards for this account, so the deployed Worker keeps `INTERNATIONAL_CHECKOUT=off`
-and shows an "international checkout is being set up" page outside India until PayPal is live. Local testing sets the
-flag to `on` in `.dev.vars`. UPI is offered only on the INR order, which is why India must not be switched to USD.
+Razorpay cannot take international cards for this account, so the deployed Worker uses PayPal for USD and keeps
+`INTERNATIONAL_CHECKOUT=on`. UPI is offered only on the INR order, which is why India must not be switched to USD.
+For local sandbox testing set `PAYPAL_ENV=sandbox` in `.dev.vars`; production uses `live`.
 
 ## Setup
 
@@ -173,8 +173,9 @@ To exercise the flow without live providers, stub the calls in tests; the servic
 
 - Watch the Worker logs for `garmin refused the unlock` and `rejected a webhook with a bad signature`. The first
   means a paying customer is stuck; the second usually means the webhook secret is out of sync.
-- A USD request showing "being set up" is expected while `INTERNATIONAL_CHECKOUT=off`; integrate the second provider
-  before turning it on.
+- A USD request showing "being set up" means `INTERNATIONAL_CHECKOUT` is off; production has it on and uses PayPal.
+- PayPal capture and Razorpay webhook both go through `completeUnlock()`; duplicate deliveries are safe.
 - KV records expire after 90 days, which is long enough to answer "I paid and it isn't unlocked" emails.
-- Refunds are manual: issue them in Razorpay. There is no automatic revocation, so a refunded user keeps the app —
-  acceptable at this price, and worth knowing before you promise otherwise in the refund policy.
+- Refunds are manual: issue them in Razorpay for INR and PayPal for USD. There is no automatic revocation, so a
+  refunded user keeps the app — acceptable at this price, and worth knowing before you promise otherwise in the refund
+  policy.

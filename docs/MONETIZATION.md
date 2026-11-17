@@ -1,8 +1,8 @@
 # Selling NavMap: the watch app pays, the phone app doesn't
 
 NavBridge stays **free** — on the website, on GitHub, and on Google Play once Play finishes verifying it. The
-money comes from the **watch app on the Connect IQ Store**: seven days free, then ₹199 in India, or US$1.99 outside
-India once the PayPal checkout is live — one payment.
+money comes from the **watch app on the Connect IQ Store**: seven days free, then ₹199 in India via Razorpay, or
+US$1.99 outside India via PayPal — one payment.
 
 This file is the plan for that. It records how the trial works, how the unlock and payment are wired, what it
 costs, and what has to be true before anything is uploaded.
@@ -91,8 +91,7 @@ The unlock page reads Cloudflare's country for the request and locks one of two 
 
 `PRICE_INR` and `PRICE_USD` in `unlock/wrangler.toml` are minor units. The first open of an `appUnlockRequestId`
 fixes the price in KV and later opens reuse it, so a network change cannot create a second order. Razorpay cannot take
-international cards for this account, so USD checkout is gated off (`INTERNATIONAL_CHECKOUT=off`) until a second
-provider is integrated.
+international cards for this account, so USD checkout uses PayPal with `INTERNATIONAL_CHECKOUT=on`.
 
 ### Calling Garmin back
 
@@ -131,10 +130,10 @@ Handle the responses honestly:
 International card acceptance is not available on this account.
 
 - **India:** the ₹199 order stays in INR, so UPI, netbanking and domestic cards work normally.
-- **Outside India:** Razorpay's risk policy blocks international cards here. PayPal Orders v2 is implemented; the live
-  account is approved and can create orders, but the checkout is still gated until the live secrets and webhook are
-  set and a real $1.99 test passes. PayPal charges roughly 4.4% + a fixed fee, so a $1.99 sale nets about $1.55–1.60
-  before any FX cost.
+- **Outside India:** Razorpay's risk policy blocks international cards here, so the Worker uses PayPal Orders v2. The
+  live PayPal checkout is enabled and production order creation works; the first real $1.99 purchase is the remaining
+  end-to-end test. PayPal charges roughly 4.4% + a fixed fee, so a $1.99 sale nets about $1.55–1.60 before any FX
+  cost.
   Paddle/Lemon Squeezy or Stripe remain alternatives if PayPal is rejected or the fee is too high.
 - Fees are roughly **2% + GST** for domestic cards and a bit more for international; check the current schedule before
   you set the price.
@@ -178,8 +177,8 @@ merchant route — it just costs you a server to run.
    your refund policy. Both go in the listing description.
 7. **Publish a refund policy** on navmap.download and link it from the listing. Without one, the first unhappy buyer
    has nothing to point at.
-8. **Update the copy when the USD provider opens.** The site now says ₹199 in India is live and US$1.99 outside India
-   is coming soon. Change that to the live international price when PayPal is wired in.
+8. **Copy.** The site says ₹199 in India and US$1.99 outside India are live. Keep the refund policy's provider wording
+   in sync if the providers change.
 
 ## 6. What already exists
 
@@ -190,13 +189,13 @@ merchant route — it just costs you a server to run.
 | NavBridge paywall | Removed from the plan; branch `feature/pro-unlock` closed |
 | Phone app | Free everywhere. Play `.aab` submitted, awaiting verification |
 | Website | Links the live Connect IQ listing |
-| Unlock service | **Built and deployed** — Cloudflare Worker, 31 tests; INR checkout live, PayPal sandbox checkout built |
-| Geo pricing | Built — ₹199 INR in India; PayPal USD checkout gated until live secrets and a $1.99 test |
+| Unlock service | **Built and deployed** — Cloudflare Worker, 31 tests; Razorpay INR and PayPal USD checkout live |
+| Geo pricing | Built — ₹199 INR in India via Razorpay; US$1.99 outside India via PayPal |
 
 ## 7. Open questions
 
 1. Answered: no. Garmin cannot take the payment itself while a trial is running — see the note in section 1.
 2. Answered: the service runs as the Cloudflare Worker in `unlock/`.
-3. Answered for India: Razorpay/INR. For the rest of the world, PayPal is approved and can create live orders; a live
-   `PAYPAL_WEBHOOK_ID`, `INTERNATIONAL_CHECKOUT=on`, and a real $1.99 test are still required.
+3. Answered: Razorpay/INR for India; PayPal/USD for the rest of the world. Both are live; the first real $1.99
+   purchase still needs to verify capture, webhook and Garmin unlock end to end.
 4. Answered: `navmap.download/unlock` is live and is the manifest's unlock URL.

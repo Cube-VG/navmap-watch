@@ -3,12 +3,10 @@
 The order matters. Uploading the watch package before the unlock service answers locks every buyer out on day 8,
 permanently, with no way to pay. This checklist exists to make that impossible to do by accident.
 
-**Current state (2026-11-12):** the Worker is deployed with live Razorpay keys, the Garmin OAuth keys and the live
-webhook. All four routes are live. India/₹199 works; countries outside India see an "international checkout is being
-set up" page because Razorpay cannot take international cards for this account. PayPal Orders v2 is built; the live
-account is approved and can create orders, but the checkout is gated until the live secrets/webhook are set and a real
-$1.99 test passes. The signed **0.17** package is at `dist/NavMap-publish.iq`, built on the signing server; it still
-has to be uploaded and submitted.
+**Current state (2026-11-17):** the Worker is deployed with live Razorpay and PayPal credentials, the Garmin OAuth
+keys, and both webhooks. All four routes are live. India/₹199 uses Razorpay; outside India/US$1.99 uses PayPal. Live
+PayPal order creation from production returned 200. The signed **0.17** package is at `dist/NavMap-publish.iq`, built
+on the signing server; it still has to be uploaded and submitted.
 
 ## 0. Before any of this
 
@@ -36,12 +34,11 @@ wrangler secret put GARMIN_OAUTH_SECRET
 wrangler deploy
 ```
 
-- [ ] Production uses **live** `rzp_live_…` keys, not the `rzp_test_…` keys used on staging
-- [ ] Razorpay webhook points at `https://<worker>/razorpay/webhook`, events `payment.captured`, with the same
-      secret as `RAZORPAY_WEBHOOK_SECRET`
-- [ ] PayPal is live for USD: `PAYPAL_ENV=live`, live client id/secret, a live `PAYPAL_WEBHOOK_ID`, and
-      `INTERNATIONAL_CHECKOUT=on`; an INR order still offers UPI
-- [ ] PayPal webhook points at `https://navmap.download/api/paypal/webhook`, event `PAYMENT.CAPTURE.COMPLETED`
+- [x] Production uses **live** `rzp_live_…` keys
+- [x] Razorpay webhook points at `https://navmap.download/razorpay/webhook`, event `payment.captured`
+- [x] PayPal is live for USD: `PAYPAL_ENV=live`, live client id/secret, live `PAYPAL_WEBHOOK_ID`, and
+      `INTERNATIONAL_CHECKOUT=on`
+- [x] PayPal webhook points at `https://navmap.download/api/paypal/webhook`, event `PAYMENT.CAPTURE.COMPLETED`
 
 ## 2. Prove it answers before touching the manifest
 
@@ -58,7 +55,8 @@ wrangler deploy
       second call returns the same order instead of creating another
 - [ ] `POST /api/verify-payment` returns `400` for a bad signature and `{ "success": true }` for the correct one
 - [ ] An **INR test payment** completes end to end: checkout → webhook → Garmin callback returns 200/202 →
-      `/return` says unlocked. Repeat for USD only after PayPal is live and the gate is on
+      `/return` says unlocked. PayPal is live too: make one real $1.99 purchase from outside India and confirm the
+      same end-to-end unlock
 
 **STOP if this is not green.** Do not go to step 3.
 
