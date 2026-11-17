@@ -2,7 +2,7 @@
 
 NavBridge stays **free** — on the website, on GitHub, and on Google Play once Play finishes verifying it. The
 money comes from the **watch app on the Connect IQ Store**: seven days free, then ₹199 in India, or US$1.99 outside
-India once PayPal opens — one payment.
+India once the PayPal checkout is live — one payment.
 
 This file is the plan for that. It records how the trial works, how the unlock and payment are wired, what it
 costs, and what has to be true before anything is uploaded.
@@ -131,9 +131,10 @@ Handle the responses honestly:
 International card acceptance is not available on this account.
 
 - **India:** the ₹199 order stays in INR, so UPI, netbanking and domestic cards work normally.
-- **Outside India:** Razorpay's risk policy blocks international cards here. PayPal Orders v2 is implemented,
-  sandbox-tested, and waiting for live approval; until then the Worker shows the "international checkout is being set
-  up" page. PayPal charges roughly 4.4% + a fixed fee, so a $1.99 sale nets about $1.55–1.60 before any FX cost.
+- **Outside India:** Razorpay's risk policy blocks international cards here. PayPal Orders v2 is implemented; the live
+  account is approved and can create orders, but the checkout is still gated until the live secrets and webhook are
+  set and a real $1.99 test passes. PayPal charges roughly 4.4% + a fixed fee, so a $1.99 sale nets about $1.55–1.60
+  before any FX cost.
   Paddle/Lemon Squeezy or Stripe remain alternatives if PayPal is rejected or the fee is too high.
 - Fees are roughly **2% + GST** for domestic cards and a bit more for international; check the current schedule before
   you set the price.
@@ -190,12 +191,12 @@ merchant route — it just costs you a server to run.
 | Phone app | Free everywhere. Play `.aab` submitted, awaiting verification |
 | Website | Links the live Connect IQ listing |
 | Unlock service | **Built and deployed** — Cloudflare Worker, 31 tests; INR checkout live, PayPal sandbox checkout built |
-| Geo pricing | Built — ₹199 INR in India; PayPal USD checkout gated until live approval |
+| Geo pricing | Built — ₹199 INR in India; PayPal USD checkout gated until live secrets and a $1.99 test |
 
 ## 7. Open questions
 
 1. Answered: no. Garmin cannot take the payment itself while a trial is running — see the note in section 1.
 2. Answered: the service runs as the Cloudflare Worker in `unlock/`.
-3. Answered for India: Razorpay/INR. For the rest of the world, PayPal Orders v2 is built and sandbox-tested; live
-   approval, a live `PAYPAL_WEBHOOK_ID`, and `INTERNATIONAL_CHECKOUT=on` are still required.
+3. Answered for India: Razorpay/INR. For the rest of the world, PayPal is approved and can create live orders; a live
+   `PAYPAL_WEBHOOK_ID`, `INTERNATIONAL_CHECKOUT=on`, and a real $1.99 test are still required.
 4. Answered: `navmap.download/unlock` is live and is the manifest's unlock URL.

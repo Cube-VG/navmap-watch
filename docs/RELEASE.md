@@ -5,9 +5,10 @@ permanently, with no way to pay. This checklist exists to make that impossible t
 
 **Current state (2026-11-12):** the Worker is deployed with live Razorpay keys, the Garmin OAuth keys and the live
 webhook. All four routes are live. India/₹199 works; countries outside India see an "international checkout is being
-set up" page because Razorpay cannot take international cards for this account. PayPal Orders v2 is built and
-sandbox-tested; live approval is pending. The signed **0.17** package is at `dist/NavMap-publish.iq`, built on the
-signing server; it still has to be uploaded and submitted.
+set up" page because Razorpay cannot take international cards for this account. PayPal Orders v2 is built; the live
+account is approved and can create orders, but the checkout is gated until the live secrets/webhook are set and a real
+$1.99 test passes. The signed **0.17** package is at `dist/NavMap-publish.iq`, built on the signing server; it still
+has to be uploaded and submitted.
 
 ## 0. Before any of this
 
